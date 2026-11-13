@@ -58,6 +58,7 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
             CheckSpecifications(flowsheet, findings);
             CheckLogicalObjects(flowsheet, findings);
             CheckStaleResults(flowsheet, findings);
+            CheckPropertyPackageConsistency(flowsheet, findings);
 
             return Order(findings);
         }
@@ -157,6 +158,92 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
                     "Its results were computed with a property package that has since been replaced by " + package.Tag + ".",
                     "Solve the flowsheet again before reading them."));
             }
+        }
+
+        /// <summary>Units whose material streams all belong to one fluid, flashed with the unit's package.</summary>
+        private static readonly HashSet<ObjectType> SingleFluidTypes = new HashSet<ObjectType>
+        {
+            ObjectType.NodeIn, ObjectType.NodeOut, ObjectType.Mixer, ObjectType.Splitter,
+            ObjectType.Pump, ObjectType.Compressor, ObjectType.Expander, ObjectType.CompressorExpander,
+            ObjectType.Heater, ObjectType.Cooler, ObjectType.HeaterCooler, ObjectType.AirCooler2,
+            ObjectType.Valve, ObjectType.Pipe, ObjectType.OrificePlate,
+            ObjectType.Tank, ObjectType.Vessel, ObjectType.TPVessel,
+            ObjectType.ComponentSeparator, ObjectType.SolidSeparator, ObjectType.Filter,
+            ObjectType.RCT_Conversion, ObjectType.RCT_Equilibrium, ObjectType.RCT_Gibbs, ObjectType.RCT_GibbsReaktoro,
+            ObjectType.RCT_CSTR, ObjectType.RCT_PFR, ObjectType.RCT_Polymerization,
+            ObjectType.ShortcutColumn, ObjectType.DistillationColumn, ObjectType.AbsorptionColumn,
+            ObjectType.RefluxedAbsorber, ObjectType.ReboiledAbsorber
+        };
+
+        /// <summary>
+        /// One fluid carried through a unit on more than one property package.
+        /// </summary>
+        /// <remarks>
+        /// Enthalpy is relative to a reference state, and every package has its own. A unit hands
+        /// its outlet an enthalpy, and the outlet reads it on its own package, so where the package
+        /// changes energy appears or vanishes: a fan with no power cools the air, a water stream
+        /// takes up heat the hot side never gave. A heat exchanger carries two
+        /// fluids and flashes each side with its inlet's package, so only the inlet and the outlet
+        /// of one side are compared there. Units not listed (sub-flowsheets, CAPE-OPEN, scripts,
+        /// extensions) can hold several fluids and are left alone.
+        /// </remarks>
+        private static void CheckPropertyPackageConsistency(IFlowsheet flowsheet, List<Finding> findings)
+        {
+            foreach (var obj in flowsheet.SimulationObjects.Values)
+            {
+                var graphic = obj.GraphicObject;
+                if (graphic == null || !graphic.Active) continue;
+
+                var type = graphic.ObjectType;
+                var tag = TagOf(obj);
+
+                if (type == ObjectType.HeatExchanger)
+                {
+                    // Port i in feeds port i out.
+                    var inlets = AttachedStreams(flowsheet, graphic.InputConnectors, ConType.ConIn).Take(2).ToList();
+                    var outlets = AttachedStreams(flowsheet, graphic.OutputConnectors, ConType.ConOut).Take(2).ToList();
+                    for (int i = 0; i < Math.Min(inlets.Count, outlets.Count); i++)
+                    {
+                        var members = new List<ISimulationObject> { (ISimulationObject)inlets[i], (ISimulationObject)outlets[i] };
+                        ReportMixedPackages(members, tag, "the inlet and the outlet of one side", findings);
+                    }
+                    continue;
+                }
+
+                if (!SingleFluidTypes.Contains(type)) continue;
+
+                var around = new List<ISimulationObject> { obj };
+                around.AddRange(AttachedStreams(flowsheet, graphic.InputConnectors, ConType.ConIn).Cast<ISimulationObject>());
+                around.AddRange(AttachedStreams(flowsheet, graphic.OutputConnectors, ConType.ConOut).Cast<ISimulationObject>());
+                ReportMixedPackages(around, tag, "this unit and its streams", findings);
+            }
+        }
+
+        private static void ReportMixedPackages(List<ISimulationObject> members, string tag, string scope, List<Finding> findings)
+        {
+            var packages = new List<KeyValuePair<string, IPropertyPackage>>();
+            foreach (var member in members)
+            {
+                var package = PackageOf(member);
+                if (package != null) packages.Add(new KeyValuePair<string, IPropertyPackage>(TagOf(member), package));
+            }
+            if (packages.Select(p => p.Value.UniqueID).Distinct().Count() < 2) return;
+
+            var detail = string.Join(", ", packages.Select(p => p.Key + " on " + p.Value.Tag));
+            findings.Add(new Finding(FlowsheetCodes.PropertyPackagesMixed, DiagnosticSeverity.Warning, tag,
+                "The property package changes between " + scope + " (" + detail + "). Each package measures enthalpy " +
+                "from its own reference, so energy appears or disappears where it changes.",
+                "Assign one property package to every stream of this fluid and to the unit, then solve again."));
+        }
+
+        private static IPropertyPackage PackageOf(ISimulationObject obj)
+        {
+            // A material stream resolves its package by ID behind a property that shadows the base
+            // one, so the base property may be empty; ask the stream for its own.
+            var stream = obj as IMaterialStream;
+            if (stream != null) return stream.GetPropertyPackageObject() as IPropertyPackage;
+            try { return obj.PropertyPackage; }
+            catch (Exception) { return null; }
         }
 
         private static void CheckConnectivity(IFlowsheet flowsheet, List<Finding> findings)

@@ -564,6 +564,26 @@ Namespace UnitOperations
         End Function
 
         ''' <summary>
+        ''' The package the getter resolves, except its fall-back to the first package of the flowsheet.
+        ''' </summary>
+        ''' <remarks>
+        ''' On load Calculated is read before the package ID, and the fall-back recorded the first package
+        ''' as the one the unit was solved with, so every unit on another package showed up as stale.
+        ''' </remarks>
+        Protected Overrides Function CurrentPropertyPackageID() As String
+            Try
+                If _ppid Is Nothing Then _ppid = ""
+                If _pp IsNot Nothing And _ppwasset Then Return _pp.UniqueID
+                If FlowSheet Is Nothing Then Return If(_pp Is Nothing, "", _pp.UniqueID)
+                If _pp IsNot Nothing AndAlso FlowSheet.PropertyPackages.ContainsKey(_pp.UniqueID) Then Return _pp.UniqueID
+                If FlowSheet.PropertyPackages.ContainsKey(_ppid) Then Return _ppid
+                Return ""
+            Catch ex As Exception
+                Return ""
+            End Try
+        End Function
+
+        ''' <summary>
         ''' Gets or sets the property package associated with this object.
         ''' </summary>
         ''' <value></value>

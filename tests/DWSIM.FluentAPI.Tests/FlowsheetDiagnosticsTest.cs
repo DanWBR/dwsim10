@@ -31,6 +31,65 @@ namespace DWSIM.FluentAPI.Tests
             DegreesOfFreedomAreCounted();
             ImplausibleResultsAreFlagged();
             APumpRefusesVapourAndStaleResultsAreFlagged();
+            MixedPropertyPackagesAreFlagged();
+        }
+
+        /// <summary>
+        /// One fluid carried on two property packages shifts energy where the package changes. The two
+        /// sides of an exchanger are separate fluids, so each may have its own package.
+        /// </summary>
+        private static void MixedPropertyPackagesAreFlagged()
+        {
+            var fs = Flowsheet.Create("DiagnosticsMixedPackages")
+                .WithCompound("Water")
+                .WithPropertyPackage(PropertyPackages.SteamTables)
+                .WithPropertyPackage(PropertyPackages.PengRobinson);
+            var steamTables = (DWSIM.Thermodynamics.PropertyPackages.PropertyPackage)fs.Inner.PropertyPackages.Values.First(p => p.Tag.Contains("Steam"));
+            var pengRobinson = (DWSIM.Thermodynamics.PropertyPackages.PropertyPackage)fs.Inner.PropertyPackages.Values.First(p => p.UniqueID != steamTables.UniqueID);
+
+            Func<string, double, DWSIM.Automation.FluentAPI.Builders.MaterialStreamBuilder> feed = (tag, t) =>
+                fs.AddMaterialStream(tag).At(t.Kelvin(), 300000.0.Pascal()).WithMassFlow(1.KgPerSecond())
+                  .WithComposition(c => c.Mole("Water", 1.0));
+
+            // a heater whose product reads the enthalpy on another package
+            var hIn = feed("heaterIn", 300.0);
+            var hOut = fs.AddMaterialStream("heaterOut");
+            fs.AddHeater("H-mixed").WithOutletTemperature(340.Kelvin()).ConnectFeed(hIn, 0).ConnectProduct(hOut, 0);
+
+            // an exchanger with each side on its own package, consistently
+            var hotIn = feed("hotIn", 400.0);
+            var hotOut = fs.AddMaterialStream("hotOut");
+            var coldIn = feed("coldIn", 300.0);
+            var coldOut = fs.AddMaterialStream("coldOut");
+            fs.AddHeatExchanger("HX-clean").ConnectFeed(hotIn, 0).ConnectFeed(coldIn, 1)
+              .ConnectProduct(hotOut, 0).ConnectProduct(coldOut, 1);
+
+            // an exchanger whose cold side changes package between inlet and outlet
+            var hot2In = feed("hot2In", 400.0);
+            var hot2Out = fs.AddMaterialStream("hot2Out");
+            var cold2In = feed("cold2In", 300.0);
+            var cold2Out = fs.AddMaterialStream("cold2Out");
+            fs.AddHeatExchanger("HX-mixed").ConnectFeed(hot2In, 0).ConnectFeed(cold2In, 1)
+              .ConnectProduct(hot2Out, 0).ConnectProduct(cold2Out, 1);
+
+            fs.AutoLayout();
+
+            foreach (var obj in fs.Inner.SimulationObjects.Values) obj.PropertyPackage = steamTables;
+            foreach (var s in new[] { hIn, hOut, hotIn, hotOut, coldIn, coldOut, hot2In, hot2Out, cold2In, cold2Out })
+                s.Object.PropertyPackage = steamTables;
+            hOut.Object.PropertyPackage = pengRobinson;
+            hotIn.Object.PropertyPackage = pengRobinson;
+            hotOut.Object.PropertyPackage = pengRobinson;
+            cold2Out.Object.PropertyPackage = pengRobinson;
+
+            var findings = FlowsheetDiagnostics.Check(fs.Inner);
+            Report("One fluid on two property packages", findings);
+            RequireCode(findings, FlowsheetCodes.PropertyPackagesMixed, "H-mixed");
+            RequireCode(findings, FlowsheetCodes.PropertyPackagesMixed, "HX-mixed");
+            if (findings.Any(f => f.Code == FlowsheetCodes.PropertyPackagesMixed && f.ObjectTag == "HX-clean"))
+                throw new Exception("An exchanger with one package per side was reported as mixing packages.");
+            if (findings.First(f => f.Code == FlowsheetCodes.PropertyPackagesMixed && f.ObjectTag == "H-mixed").Severity != DiagnosticSeverity.Warning)
+                throw new Exception("Mixed property packages should be a warning.");
         }
 
         /// <summary>

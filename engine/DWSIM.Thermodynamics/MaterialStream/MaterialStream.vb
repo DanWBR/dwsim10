@@ -511,10 +511,16 @@ Namespace Streams
         End Function
 
         Protected Overrides Function CurrentPropertyPackageID() As String
+            'the package the getter resolves, except its fall-back to the first package of the flowsheet:
+            'on load Calculated is read before the package ID, and the fall-back recorded the first
+            'package as the one the stream was solved with
             Try
-                Dim pp = PropertyPackage
-                If pp Is Nothing Then Return ""
-                Return pp.UniqueID
+                If _ppid Is Nothing Then _ppid = ""
+                If _pp IsNot Nothing And _ppwasset Then Return _pp.UniqueID
+                If FlowSheet Is Nothing Then Return ""
+                If _pp IsNot Nothing AndAlso FlowSheet.PropertyPackages.ContainsKey(_pp.UniqueID) Then Return _pp.UniqueID
+                If FlowSheet.PropertyPackages.ContainsKey(_ppid) Then Return _ppid
+                Return ""
             Catch ex As Exception
                 Return ""
             End Try

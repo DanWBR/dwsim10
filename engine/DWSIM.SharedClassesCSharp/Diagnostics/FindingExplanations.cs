@@ -490,6 +490,20 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
                     "Replacing a property package doesn't clear anything: every object keeps its numbers and its solved status " +
                     "until the flowsheet is solved again, so the table in front of you was computed with the old model.",
                     "Solve the flowsheet again before reading or comparing results.",
+                    "fundamentals/04-choosing-a-thermodynamic-model.html"),
+
+                Entry(FlowsheetCodes.PropertyPackagesMixed, "Different property packages on one fluid",
+                    "A unit operation and the streams of one fluid around it don't use the same property package.",
+                    "Enthalpy is measured from a reference state, and each package has its own. The unit computes the " +
+                    "outlet enthalpy from the inlet enthalpy and the duty or the work, and the outlet stream then reads " +
+                    "that number on its own package. Where the package changes, the stream lands at a different " +
+                    "temperature, and energy appears or disappears without any heat or work behind it: a fan with no " +
+                    "power can cool the air, an exchanger can heat more water than the hot side gives. The two sides " +
+                    "of a heat exchanger are separate fluids and may use different packages; the inlet and the outlet " +
+                    "of one side may not.",
+                    "Pick one property package for each fluid, for example one for the process gas and one for a " +
+                    "cooling water loop, and assign it to every stream of that fluid and to the units it passes " +
+                    "through. Then solve the flowsheet again.",
                     "fundamentals/04-choosing-a-thermodynamic-model.html")
             };
 

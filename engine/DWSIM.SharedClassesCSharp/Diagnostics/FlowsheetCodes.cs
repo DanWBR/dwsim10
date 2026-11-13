@@ -39,6 +39,9 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
         // Stale results
         public const string PropertyPackageChanged = "PROPERTY_PACKAGE_CHANGED";
 
+        // Thermodynamic consistency
+        public const string PropertyPackagesMixed = "PROPERTY_PACKAGES_MIXED";
+
         // After solving
         public const string SolverException = "SOLVER_EXCEPTION";
         public const string InfiniteLoop = "INFINITE_LOOP";
@@ -98,7 +101,8 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
             { ColumnRefluxBelowMinimum, "A shortcut column runs below its minimum reflux ratio." },
             { MixerPressureMismatch, "The inlets of a mixer arrive at different pressures." },
             { PumpVaporInlet, "The stream feeding a pump carries vapour." },
-            { PropertyPackageChanged, "The results of an object were computed with a property package it doesn't use anymore." }
+            { PropertyPackageChanged, "The results of an object were computed with a property package it doesn't use anymore." },
+            { PropertyPackagesMixed, "The streams of one fluid around a unit use different property packages." }
         };
     }
 }
