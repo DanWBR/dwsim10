@@ -1311,11 +1311,16 @@ public partial class FlowsheetView : UserControl
                         {
                             _spreadsheet.Grid.RemoveWorksheet(0);
                             _spreadsheet.Loaded = false;
+                            // every worksheet exists before any is loaded: LoadRGF drops a formula that
+                            // refers to a worksheet stored later in the file, and the cell kept its saved value
+                            var sheets = new Dictionary<string, Worksheet>();
+                            foreach (var item in sdict)
+                                sheets[item.Key] = _spreadsheet.Grid.NewWorksheet(item.Key);
                             foreach (var item in sdict)
                             {
                                 try
                                 {
-                                    var sheet = _spreadsheet.Grid.NewWorksheet(item.Key);
+                                    var sheet = sheets[item.Key];
                                     var xmldoc = Newtonsoft.Json.JsonConvert.DeserializeXmlNode(
                                         DWSIM.Automation.Flowsheet2.DefaultSheetFont(item.Value));
                                     var tmpfile = DWSIM.SharedClasses.Utility.GetTempFileName();

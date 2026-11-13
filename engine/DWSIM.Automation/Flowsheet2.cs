@@ -56,11 +56,18 @@ namespace DWSIM.Automation
                         var sdict = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, string>>(rgfdata);
                         if (sdict == null || sdict.Count == 0) return;
                         Spreadsheet.RemoveWorksheet(0);
+                        // every worksheet exists before any is loaded: LoadRGF drops a formula that
+                        // refers to a worksheet stored later in the file, and the cell kept its saved value
+                        var sheets = new Dictionary<string, Worksheet>();
+                        foreach (var item in sdict)
+                        {
+                            sheets[item.Key] = Spreadsheet.CreateWorksheet(item.Key);
+                            Spreadsheet.Worksheets.Add(sheets[item.Key]);
+                        }
                         foreach (var item in sdict)
                         {
                             var tmpfile = SharedClasses.Utility.GetTempFileName();
-                            var sheet = Spreadsheet.CreateWorksheet(item.Key);
-                            Spreadsheet.Worksheets.Add(sheet);
+                            var sheet = sheets[item.Key];
                             var xmldoc = Newtonsoft.Json.JsonConvert.DeserializeXmlNode(DefaultSheetFont(item.Value));
                             xmldoc.Save(tmpfile);
                             sheet.LoadRGF(tmpfile);
