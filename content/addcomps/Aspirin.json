@@ -144,7 +144,7 @@
   "Solid_Heat_Capacity_Const_E": 0.0,
   "Solid_Heat_Capacity_Tmax": 0.0,
   "Solid_Heat_Capacity_Tmin": 0.0,
-  "SolidDensityAtTs": 0.0,
+  "SolidDensityAtTs": 1400.0,
   "SolidDensityEquation": "",
   "SolidHeatCapacityEquation": "",
   "SolidTs": 0.0,

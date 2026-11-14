@@ -272,6 +272,13 @@ Namespace UnitOperations
 
             rho = instr.Phases(1).Properties.density.GetValueOrDefault
             mu = instr.Phases(1).Properties.viscosity.GetValueOrDefault
+            'the solids concentration needs the volume of the feed, which a solid without density doesn't have
+            If Wsin > 0.0 AndAlso instr.Phases(0).Properties.volumetric_flow.GetValueOrDefault <= 0.0 Then
+                Dim nodens = instr.Phases(7).Compounds.Values.Where(Function(sc) sc.MassFlow.GetValueOrDefault > 0.0 AndAlso
+                    sc.ConstantProperties.SolidDensityAtTs <= 0.0 AndAlso sc.ConstantProperties.SolidDensityEquation = "").Select(Function(sc) sc.Name).ToList()
+                Throw New Exception("The feed of the filter doesn't have a volumetric flow, so the solids concentration can't be calculated." &
+                                    If(nodens.Count > 0, " Set the solid density of: " & String.Join(", ", nodens) & ".", " Check the solid density of the compounds in the solid phase."))
+            End If
             cf = instr.Phases(7).Properties.massflow.GetValueOrDefault / instr.Phases(0).Properties.volumetric_flow.GetValueOrDefault
             frh = instr.Phases(1).Properties.massflow.GetValueOrDefault / (instr.Phases(1).Properties.massflow.GetValueOrDefault + instr.Phases(7).Properties.massflow.GetValueOrDefault)
             crh = Me.CakeRelativeHumidity / 100

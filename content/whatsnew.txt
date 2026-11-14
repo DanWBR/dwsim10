@@ -29,3 +29,4 @@
 - [FIX] Flowsheet Check listed objects on a package other than the first as solved with another property package right after opening a file
 - [FIX] Spreadsheet: formulas referring to a worksheet stored later in the file were lost when the flowsheet was opened
 - [FIX] Scripts: the ideal gas heat capacity of a ChEDL compound requested with the compound object was 1000 times the molar mass too small
+- [FIX] Filter: a feed whose solid compounds don't have a solid density gave a filter area that was not a number; the block now stops with a message that names the compounds
