@@ -200,6 +200,102 @@ Namespace PropertyPackages.Auxiliary
         End Sub
 
         ''' <summary>
+        ''' The list as text, one form after the other separated by " | ", each one as
+        ''' name; melting point (K); enthalpy of fusion (kJ/mol); heat capacity difference (J/[mol.K]); density (kg/m3).
+        ''' </summary>
+        Public Function ToText(forms As IEnumerable(Of SolidForm)) As String
+            Dim ci = Globalization.CultureInfo.InvariantCulture
+            Return String.Join(" | ", forms.Select(Function(f) String.Join("; ", {f.Name,
+                f.TemperatureOfFusion.ToString("R", ci), f.EnthalpyOfFusion.ToString("R", ci),
+                f.HeatCapacityDifference.ToString("R", ci), f.Density.ToString("R", ci)})))
+        End Function
+
+        ''' <summary>
+        ''' Reads the text written by <see cref="ToText"/>. Forms are separated by "|" or by line breaks and the fields
+        ''' of a form by ";". The heat capacity difference and the density can be left out. Numbers take a point or a
+        ''' comma as the decimal separator.
+        ''' </summary>
+        Public Function FromText(text As String) As List(Of SolidForm)
+            Dim list As New List(Of SolidForm)
+            If String.IsNullOrWhiteSpace(text) Then Return list
+            For Each item In text.Split({"|"c, ChrW(10), ChrW(13)}, StringSplitOptions.RemoveEmptyEntries)
+                If item.Trim() = "" Then Continue For
+                Dim parts = item.Split(";"c).Select(Function(p) p.Trim()).ToArray()
+                If parts.Length < 3 Then
+                    Throw New ArgumentException("'" & item.Trim() & "': a solid form is written as name; melting point (K); enthalpy of fusion (kJ/mol); heat capacity difference (J/[mol.K]); density (kg/m3).")
+                End If
+                Dim f As New SolidForm With {.Name = parts(0)}
+                f.TemperatureOfFusion = Number(parts(1), item)
+                f.EnthalpyOfFusion = Number(parts(2), item)
+                If parts.Length > 3 AndAlso parts(3) <> "" Then f.HeatCapacityDifference = Number(parts(3), item)
+                If parts.Length > 4 AndAlso parts(4) <> "" Then f.Density = Number(parts(4), item)
+                If parts.Length > 5 Then f.Source = String.Join("; ", parts.Skip(5))
+                list.Add(f)
+            Next
+            Return list
+        End Function
+
+        Private Function Number(text As String, item As String) As Double
+            Dim v As Double
+            Dim t = text.Replace(","c, "."c)
+            If Not Double.TryParse(t, Globalization.NumberStyles.Float, Globalization.CultureInfo.InvariantCulture, v) Then
+                Throw New ArgumentException("'" & text & "' in '" & item.Trim() & "' is not a number.")
+            End If
+            Return v
+        End Function
+
+        ''' <summary>
+        ''' Makes a form the one in use by its name: its data are copied into the compound (see <see cref="Apply"/>).
+        ''' An empty name only clears the record of the form in use and leaves the fusion data as they are.
+        ''' </summary>
+        Public Sub SetActiveFormName(cp As ICompoundConstantProperties, name As String)
+            If String.IsNullOrWhiteSpace(name) Then
+                Dim d = Extras(cp, False)
+                If d IsNot Nothing Then d.Remove(ActiveFormKey)
+                Return
+            End If
+            Dim f = FindForm(cp, name)
+            If f Is Nothing Then
+                Dim names = GetForms(cp).Select(Function(x) x.Name).ToList()
+                Throw New ArgumentException("There isn't a solid form named '" & name.Trim() & "'." &
+                                            If(names.Count > 0, " The forms are: " & String.Join(", ", names) & ".", " Fill the list of solid forms first."))
+            End If
+            Apply(cp, f)
+        End Sub
+
+        ''' <summary>
+        ''' What the forms of a compound say about each other: the stable form at <paramref name="T"/>, how much more
+        ''' soluble the others are there, and for each pair whether the stable form changes with temperature.
+        ''' </summary>
+        Public Function Describe(forms As IList(Of SolidForm), Optional T As Double = 298.15) As String
+            Dim ci = Globalization.CultureInfo.InvariantCulture
+            Dim sb As New Text.StringBuilder
+            If forms Is Nothing OrElse forms.Count = 0 Then Return "The compound does not have solid forms."
+            Dim stable = MostStable(forms, T)
+            If stable Is Nothing Then
+                sb.AppendLine("At " & T.ToString("0.##", ci) & " K every form is above its melting point.")
+            Else
+                sb.AppendLine("Stable form at " & T.ToString("0.##", ci) & " K: " & stable.Name & ".")
+                For Each f In forms
+                    If f Is stable OrElse T >= f.TemperatureOfFusion Then Continue For
+                    sb.AppendLine(f.Name & " is " & SolubilityRatio(f, stable, T).ToString("0.###", ci) & " times as soluble as " & stable.Name & " at that temperature.")
+                Next
+            End If
+            For i = 0 To forms.Count - 2
+                For j = i + 1 To forms.Count - 1
+                    Dim p = Compare(forms(i), forms(j))
+                    If p.Enantiotropic Then
+                        sb.AppendLine(forms(i).Name & " and " & forms(j).Name & " are enantiotropic: " & p.StableAtLowTemperature.Name & " is stable below " &
+                                      p.TransitionTemperature.ToString("0.##", ci) & " K and " & p.StableAtHighTemperature.Name & " above it.")
+                    Else
+                        sb.AppendLine(forms(i).Name & " and " & forms(j).Name & " are monotropic: " & p.StableAtHighTemperature.Name & " is stable up to its melting point.")
+                    End If
+                Next
+            Next
+            Return sb.ToString().TrimEnd()
+        End Function
+
+        ''' <summary>
         ''' The stable form at T: the one with the lowest fugacity, which is also the least soluble. Forms at or above
         ''' their melting point do not count. Returns Nothing when every form has melted.
         ''' </summary>

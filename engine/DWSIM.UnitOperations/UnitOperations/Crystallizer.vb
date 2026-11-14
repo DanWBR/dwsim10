@@ -87,6 +87,8 @@ Namespace UnitOperations
         Public Property Mode As CrystallizerMode = CrystallizerMode.Cooling
         ''' <summary>Gets or sets where the solubility of the solute comes from: the correlation with the coefficients A, B and C (default, as in earlier versions) or the solid-liquid equilibrium of the property package.</summary>
         Public Property SolubilitySource As CrystallizerSolubilitySource = CrystallizerSolubilitySource.Correlation
+        ''' <summary>Gets or sets the name of the solid form of the solute that crystallizes, among the forms stored in the compound. Read with the property package as the solubility source. Empty (default) uses the fusion data of the compound.</summary>
+        Public Property CrystalForm As String = ""
         ''' <summary>Gets or sets the name of the solute compound that crystallizes. Required.</summary>
         Public Property SoluteCompound As String = ""
         ''' <summary>Gets or sets the name of the solvent compound used as the basis of the solubility. Required. Default "Water".</summary>
@@ -128,6 +130,8 @@ Namespace UnitOperations
         Public Property Result_Supersaturation As Double = Double.NaN
         ''' <summary>Gets or sets the temperature at which the liquor (after evaporation and antisolvent addition) is saturated with the solute it carries, in K. Calculated with the property package as the solubility source; NaN otherwise or when it is not saturated between 150 K and the melting point.</summary>
         Public Property Result_SaturationT_K As Double = Double.NaN
+        ''' <summary>Gets or sets the name of the solid form of the solute that is stable at the operating temperature, among the forms stored in the compound. Empty when the compound does not have forms or the property package is not the solubility source. Calculated result.</summary>
+        Public Property Result_StableForm As String = ""
         ''' <summary>Gets or sets the mass fraction of crystals in the slurry (crystals over crystals plus mother liquor), 0-1. Calculated result.</summary>
         Public Property Result_SolidsInSlurry As Double = 0.0
 
@@ -237,6 +241,7 @@ Namespace UnitOperations
             Result_SaturationMoleFraction = Double.NaN
             Result_ActivityCoefficient = Double.NaN
             Result_SaturationT_K = Double.NaN
+            Result_StableForm = ""
             Result_Supersaturation = Double.NaN
             If fromPackage Then
                 'the three modes run at the operating temperature, and the saturation is the one of the liquor
@@ -368,8 +373,23 @@ Namespace UnitOperations
             Dim n = names.Length - 1
             Dim s = Array.IndexOf(names, SoluteCompound)
             If s < 0 Then Throw New Exception("Crystallizer: the solute '" & SoluteCompound & "' is not a compound of the simulation.")
-            If props(s).TemperatureOfFusion <= 0.0 OrElse props(s).EnthalpyOfFusionAtTf <= 0.0 Then
+            'the solid form that crystallizes: one of the forms stored in the compound, or the fusion data of the compound
+            Dim forms = PropertyPackages.Auxiliary.SolidForms.GetForms(props(s))
+            Dim form As PropertyPackages.Auxiliary.SolidForm = Nothing
+            If Not String.IsNullOrWhiteSpace(CrystalForm) Then
+                form = PropertyPackages.Auxiliary.SolidForms.FindForm(props(s), CrystalForm)
+                If form Is Nothing Then Throw New Exception("Crystallizer: '" & SoluteCompound & "' does not have a solid form named '" & CrystalForm & "'.")
+            ElseIf props(s).TemperatureOfFusion <= 0.0 OrElse props(s).EnthalpyOfFusionAtTf <= 0.0 Then
                 Throw New Exception("Crystallizer: '" & SoluteCompound & "' does not have a melting point and an enthalpy of fusion, which the solubility from the property package needs.")
+            End If
+            If forms.Count > 0 Then
+                Dim stable = PropertyPackages.Auxiliary.SolidForms.MostStable(forms, T)
+                Result_StableForm = If(stable Is Nothing, "", stable.Name)
+                Dim used = If(form IsNot Nothing, form.Name, PropertyPackages.Auxiliary.SolidForms.GetActiveFormName(props(s)))
+                If stable IsNot Nothing AndAlso used <> "" AndAlso Not String.Equals(used, stable.Name, StringComparison.OrdinalIgnoreCase) Then
+                    FlowSheet.ShowMessage(Me.GraphicObject.Tag & ": " & used & " of " & SoluteCompound & " is metastable at the operating temperature, the stable form is " & stable.Name & ".",
+                                          IFlowsheet.MessageType.Information)
+                End If
             End If
 
             'mole flows (mol/s) of the liquor before any crystal forms
@@ -392,7 +412,7 @@ Namespace UnitOperations
                 If i <> s Then solvent(i) = moles(i) / others
             Next
 
-            Dim sat = PropertyPackages.Auxiliary.SolidSolubility.Saturation(pp, s, solvent, T, P)
+            Dim sat = PropertyPackages.Auxiliary.SolidSolubility.Saturation(pp, s, solvent, T, P, form)
             Result_SaturationMoleFraction = sat.MoleFraction
             Result_ActivityCoefficient = sat.ActivityCoefficient
 
@@ -412,7 +432,7 @@ Namespace UnitOperations
 
             Try
                 If moles(s) > 0.0 Then
-                    Result_SaturationT_K = PropertyPackages.Auxiliary.SolidSolubility.SaturationTemperature(pp, s, solvent, moles(s) / (moles(s) + others), P, 150.0)
+                    Result_SaturationT_K = PropertyPackages.Auxiliary.SolidSolubility.SaturationTemperature(pp, s, solvent, moles(s) / (moles(s) + others), P, 150.0, form)
                 End If
             Catch
                 Result_SaturationT_K = Double.NaN
@@ -535,6 +555,8 @@ Namespace UnitOperations
             s.AppendLine("Operating T: " & OperatingT_K.ToString(numberformat, ci) & " K")
             s.AppendLine("Solubility:  " & If(SolubilitySource = CrystallizerSolubilitySource.PropertyPackage, "from the property package", "from the correlation"))
             If SolubilitySource = CrystallizerSolubilitySource.PropertyPackage Then
+                If CrystalForm <> "" Then s.AppendLine("Crystal form: " & CrystalForm)
+                If Result_StableForm <> "" Then s.AppendLine("Stable form at the operating T: " & Result_StableForm)
                 s.AppendLine("Csat:        " & Result_Csat_gg.ToString(numberformat, ci) & " g/g solute-free liquor")
                 s.AppendLine("x(sat):      " & Result_SaturationMoleFraction.ToString(numberformat, ci))
                 s.AppendLine("Activity coefficient: " & Result_ActivityCoefficient.ToString(numberformat, ci))
@@ -555,7 +577,7 @@ Namespace UnitOperations
         End Function
 
         Private Shared ReadOnly _inputProps As String() = {
-            "Mode", "Solubility Source", "Solute Compound", "Solvent Compound", "Operating T",
+            "Mode", "Solubility Source", "Crystal Form", "Solute Compound", "Solvent Compound", "Operating T",
             "Solubility A", "Solubility B", "Solubility C",
             "Evaporation Fraction", "Solubility Reduction By Antisolvent", "Mean Crystal Size"}
         Private Shared ReadOnly _outputProps As String() = {
@@ -577,9 +599,9 @@ Namespace UnitOperations
                         unused.AddRange({"Solubility A", "Solubility B", "Solubility C", "Solubility Reduction By Antisolvent"})
                         If Mode <> CrystallizerMode.Evaporative Then unused.Add("Solvent Compound")
                     ElseIf Mode <> CrystallizerMode.Antisolvent Then
-                        unused.Add("Solubility Reduction By Antisolvent")
+                        unused.AddRange({"Solubility Reduction By Antisolvent", "Crystal Form"})
                     Else
-                        unused.Add("Operating T")
+                        unused.AddRange({"Operating T", "Crystal Form"})
                     End If
                     Return _inputProps.Where(Function(p) Not unused.Contains(p)).ToArray()
                 Case PropertyType.RO : Return _outputProps
@@ -591,6 +613,7 @@ Namespace UnitOperations
             Select Case prop
                 Case "Mode" : Return Mode.ToString()
                 Case "Solubility Source" : Return SolubilitySource.ToString()
+                Case "Crystal Form" : Return CrystalForm
                 Case "Solute Compound" : Return SoluteCompound
                 Case "Solvent Compound" : Return SolventCompound
                 Case "Operating T" : Return OperatingT_K
@@ -643,6 +666,7 @@ Namespace UnitOperations
                     Dim src As CrystallizerSolubilitySource
                     If [Enum].TryParse(Of CrystallizerSolubilitySource)(propval?.ToString(), src) Then Me.SolubilitySource = src
                     Return True
+                Case "Crystal Form" : CrystalForm = If(propval?.ToString(), "").Trim() : Return True
                 Case "Solute Compound" : SoluteCompound = propval?.ToString() : Return True
                 Case "Solvent Compound" : SolventCompound = propval?.ToString() : Return True
                 Case "Operating T" : OperatingT_K = d : Return True
@@ -713,6 +737,21 @@ Namespace UnitOperations
                                                   SoluteCompound = If(dd.SelectedIndex > 0, compIds(dd.SelectedIndex - 1), "")
                                                   FlowSheet.RequestCalculation()
                                               End Sub)
+
+            'solid forms stored in the selected solute
+            Dim formNames As New List(Of String)
+            Dim soluteProps = FlowSheet.SelectedCompounds.Values.FirstOrDefault(Function(c) c.Name = SoluteCompound)
+            If soluteProps IsNot Nothing Then formNames = PropertyPackages.Auxiliary.SolidForms.GetForms(soluteProps).Select(Function(f) f.Name).ToList()
+            If formNames.Count > 0 OrElse CrystalForm <> "" Then
+                If CrystalForm <> "" AndAlso Not formNames.Contains(CrystalForm) Then formNames.Add(CrystalForm)
+                container.CreateAndAddDropDownRow("Crystal form (property package)",
+                                                  New List(Of String)(New String() {"(fusion data of the compound)"}.Concat(formNames)),
+                                                  If(CrystalForm = "", 0, formNames.IndexOf(CrystalForm) + 1),
+                                                  Sub(dd, e)
+                                                      CrystalForm = If(dd.SelectedIndex > 0, formNames(dd.SelectedIndex - 1), "")
+                                                      FlowSheet.RequestCalculation()
+                                                  End Sub)
+            End If
 
             Dim solvIdx = Math.Max(0, compIds.IndexOf(SolventCompound))
             container.CreateAndAddDropDownRow("Solvent Compound",

@@ -901,6 +901,19 @@ namespace DWSIM.UI.Desktop.Editors
                     BioRows.Compound(panel, crystallizer, "Solvent Compound",
                         () => crystallizer.SolventCompound, v => crystallizer.SolventCompound = v, optional: false);
 
+                    // the solid forms stored in the solute; the empty entry is the fusion data of the compound
+                    var forms = new List<string> { "" };
+                    if (crystallizer.GetFlowsheet().SelectedCompounds.TryGetValue(crystallizer.SoluteCompound ?? "", out var soluteProps))
+                        forms.AddRange(DWSIM.Thermodynamics.PropertyPackages.Auxiliary.SolidForms.GetForms(soluteProps).Select(f => f.Name));
+                    if (!forms.Contains(crystallizer.CrystalForm ?? "")) forms.Add(crystallizer.CrystalForm);
+                    if (forms.Count > 1)
+                        panel.CreateAndAddDropDownRow("Crystal Form (property package)", forms,
+                            Math.Max(0, forms.IndexOf(crystallizer.CrystalForm ?? "")), (dd, e) =>
+                            {
+                                if (dd.SelectedIndex < 0 || dd.SelectedIndex >= forms.Count) return;
+                                crystallizer.CrystalForm = forms[dd.SelectedIndex];
+                            });
+
                     panel.CreateAndAddValueUnitRow(crystallizer, "Operating Temperature",
                         UnitOfMeasure.temperature, crystallizer.OperatingT_K,
                         v => crystallizer.OperatingT_K = v);
@@ -938,6 +951,8 @@ namespace DWSIM.UI.Desktop.Editors
                         BioRows.Result(panel, crystallizer, "Solute mole fraction at saturation", crystallizer.Result_SaturationMoleFraction, "");
                         BioRows.Result(panel, crystallizer, "Solute activity coefficient", crystallizer.Result_ActivityCoefficient, "");
                         panel.CreateAndAddResultRow(crystallizer, "Saturation temperature of the liquor", UnitOfMeasure.temperature, crystallizer.Result_SaturationT_K);
+                        if (!string.IsNullOrEmpty(crystallizer.Result_StableForm))
+                            panel.CreateAndAddDescriptionRow("Stable form of the solute at the operating temperature: " + crystallizer.Result_StableForm);
                     }
 
                     BioRows.Section(panel, "Yield");

@@ -53,6 +53,29 @@ Namespace CompoundEditing
         Private Shared ReadOnly InterfaceType As Type = GetType(ICompoundConstantProperties)
 
         Private ReadOnly _info As PropertyInfo
+        Private ReadOnly _getter As Func(Of ICompoundConstantProperties, Object)
+        Private ReadOnly _setter As Action(Of ICompoundConstantProperties, Object)
+
+        ''' <summary>True for a field that is not a property of ICompoundConstantProperties: it is kept in the
+        ''' compound's ExtraProperties and read and written through its own functions.</summary>
+        Public ReadOnly Property IsVirtual As Boolean
+            Get
+                Return _getter IsNot Nothing
+            End Get
+        End Property
+
+        ''' <summary>A text field kept outside the properties of ICompoundConstantProperties.</summary>
+        Friend Sub New(key As String, displayName As String, group As CompoundPropertyGroup, help As String,
+                       getter As Func(Of ICompoundConstantProperties, Object), setter As Action(Of ICompoundConstantProperties, Object))
+            _getter = getter
+            _setter = setter
+            Me.Key = key
+            Me.DisplayName = displayName
+            Me.Group = group
+            Me.Kind = CompoundPropertyKind.Text
+            Me.StoredUnit = ""
+            Me.Help = If(help, "")
+        End Sub
 
         ''' <summary>Name of the property on ICompoundConstantProperties (also the JSON key).</summary>
         Public ReadOnly Property Key As String
@@ -91,6 +114,7 @@ Namespace CompoundEditing
         End Property
 
         Public Function GetValue(cp As ICompoundConstantProperties) As Object
+            If _getter IsNot Nothing Then Return _getter(cp)
             Return _info.GetValue(cp)
         End Function
 
@@ -99,6 +123,10 @@ Namespace CompoundEditing
         ''' current culture second, so both decimal separators are accepted.
         ''' </summary>
         Public Sub SetValue(cp As ICompoundConstantProperties, value As Object)
+            If _setter IsNot Nothing Then
+                _setter(cp, value)
+                Return
+            End If
             ' a polymer's molar mass is its chain length: the per-kmol heat capacities scale with it
             If Key = "Molar_Weight" AndAlso Polymers.PolymerCharacterization.IsPolymerPseudoCompound(cp) Then
                 Dim mw = ParseDouble(value)
@@ -369,6 +397,10 @@ Namespace CompoundEditing
         ''' <summary>Interface members deliberately outside the editor (metadata, deprecated duplicates).</summary>
         Public ReadOnly ExcludedKeys As New List(Of String)
 
+        ''' <summary>Fields kept in the compound's ExtraProperties. They are shown with their group by the editors
+        ''' and stay out of <see cref="Scalars"/>, which mirrors the properties of ICompoundConstantProperties.</summary>
+        Public ReadOnly Virtuals As New List(Of CompoundPropertyDescriptor)
+
         Private ReadOnly _byKey As New Dictionary(Of String, CompoundPropertyDescriptor)
         Private ReadOnly _blockByKey As New Dictionary(Of String, TemperatureDependentBlock)
 
@@ -377,6 +409,13 @@ Namespace CompoundEditing
                       Optional isReadOnly As Boolean = False, Optional isAdvanced As Boolean = False)
             Dim d1 As New CompoundPropertyDescriptor(key, displayName, group, kind, storedUnit, unitSelector, isReadOnly, isAdvanced, help)
             Scalars.Add(d1)
+            _byKey(key) = d1
+        End Sub
+
+        Private Sub V(key As String, displayName As String, group As CompoundPropertyGroup, help As String,
+                      getter As Func(Of ICompoundConstantProperties, Object), setter As Action(Of ICompoundConstantProperties, Object))
+            Dim d1 As New CompoundPropertyDescriptor(key, displayName, group, help, getter, setter)
+            Virtuals.Add(d1)
             _byKey(key) = d1
         End Sub
 
@@ -497,6 +536,14 @@ Namespace CompoundEditing
             D("SolidDensityAtTs", "Single-point solid density", CompoundPropertyGroup.Solid, CompoundPropertyKind.Double,
               "Density of the solid at the reference temperature above. DWSIM uses it when the solid-density equation is empty; if both are missing, the solid gets a very large placeholder density and any solid volume is meaningless.",
               "kg/m3", Function(su) su.density)
+            V(PropertyPackages.Auxiliary.SolidForms.FormsKey, "Solid forms (polymorphs)", CompoundPropertyGroup.Solid,
+              "The crystalline forms of the compound, each one written as name; melting point (K); enthalpy of fusion (kJ/mol); heat capacity change on fusion (J/(mol.K)); density (kg/m3), with the last two optional and the forms separated by | (for instance: Form I; 442.2; 27.1 | Form II; 430; 26.9). The list by itself does not change any calculation: the solubility tool and the Crystallizer can pick a form from it, and the field below copies one into the melting point and the enthalpy of fusion above.",
+              Function(cp) PropertyPackages.Auxiliary.SolidForms.ToText(PropertyPackages.Auxiliary.SolidForms.GetForms(cp)),
+              Sub(cp, v) PropertyPackages.Auxiliary.SolidForms.SetForms(cp, PropertyPackages.Auxiliary.SolidForms.FromText(If(v, "").ToString())))
+            V(PropertyPackages.Auxiliary.SolidForms.ActiveFormKey, "Solid form in use", CompoundPropertyGroup.Solid,
+              "Name of the solid form whose data are in the melting point, enthalpy of fusion and heat capacity change above. Type the name of one of the forms of the list to copy its data there, which makes every solid-liquid calculation of the simulation use that form. Empty means the values above were entered by hand.",
+              Function(cp) PropertyPackages.Auxiliary.SolidForms.GetActiveFormName(cp),
+              Sub(cp, v) PropertyPackages.Auxiliary.SolidForms.SetActiveFormName(cp, If(v, "").ToString()))
 
             ' ---------------------------------------------------------------- model parameters
             D("PR_Volume_Translation_Coefficient", "PR volume translation", CompoundPropertyGroup.ModelParameters, CompoundPropertyKind.Double,
@@ -989,7 +1036,7 @@ Namespace CompoundEditing
         End Function
 
         Public Function ScalarsInGroup(group As CompoundPropertyGroup) As List(Of CompoundPropertyDescriptor)
-            Return Scalars.Where(Function(d1) d1.Group = group).ToList()
+            Return Scalars.Where(Function(d1) d1.Group = group).Concat(Virtuals.Where(Function(d1) d1.Group = group)).ToList()
         End Function
 
         ''' <summary>Scalars, block-owned keys and excluded keys: must equal the interface's property list.</summary>

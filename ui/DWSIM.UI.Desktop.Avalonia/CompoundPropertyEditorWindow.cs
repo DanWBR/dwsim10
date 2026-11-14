@@ -13,6 +13,7 @@ using DWSIM.Interfaces;
 using DWSIM.SharedClasses.SystemsOfUnits;
 using DWSIM.Thermodynamics.BaseClasses;
 using DWSIM.Thermodynamics.CompoundEditing;
+using DWSIM.Thermodynamics.PropertyPackages.Auxiliary;
 using DWSIM.UI.Shared.Avalonia;
 
 namespace DWSIM.UI.Desktop.Avalonia;
@@ -347,6 +348,30 @@ public sealed class CompoundPropertyEditorWindow : Window
                             d.SetValue(_clone!, text);
                             MarkDirty();
                         });
+                }
+                else if (d.IsVirtual)
+                {
+                    // read when the text is complete: a partial entry is reported in the status line and left out
+                    var committed = Convert.ToString(d.GetValue(_clone!)) ?? "";
+                    row = panel.CreateAndAddStringEditorRow(label, committed,
+                        (tb, _) =>
+                        {
+                            var text = tb.Text ?? "";
+                            if (text == committed) return;
+                            try
+                            {
+                                d.SetValue(_clone!, text);
+                                committed = text;
+                                AfterEdit();
+                                if (d.Key == SolidForms.ActiveFormKey)
+                                {
+                                    var forms = SolidForms.GetForms(_clone!);
+                                    SetStatus(forms.Count > 0 ? SolidForms.Describe(forms) : "Modified (not applied yet).");
+                                    Dispatcher.UIThread.Post(RebuildPanel, DispatcherPriority.Background);
+                                }
+                            }
+                            catch (Exception ex) { SetStatus(ex.Message); }
+                        }, 260);
                 }
                 else
                 {

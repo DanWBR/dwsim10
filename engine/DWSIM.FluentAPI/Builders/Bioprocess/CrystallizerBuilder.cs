@@ -24,6 +24,13 @@ namespace DWSIM.Automation.FluentAPI.Builders.Bioprocess
         /// </summary>
         public CrystallizerBuilder WithSolubilityFromPropertyPackage() { Object.SolubilitySource = CrystallizerSolubilitySource.PropertyPackage; return this; }
 
+        /// <summary>
+        /// Sets the solid form of the solute that crystallizes, by its name among the forms stored in the compound
+        /// (see <c>SolidForms</c>). Read with the property package as the solubility source. Empty uses the fusion
+        /// data of the compound.
+        /// </summary>
+        public CrystallizerBuilder WithCrystalForm(string formName) { Object.CrystalForm = formName ?? ""; return this; }
+
         /// <summary>Sets where the solubility comes from: the correlation (default) or the property package.</summary>
         public CrystallizerBuilder WithSolubilitySource(CrystallizerSolubilitySource source) { Object.SolubilitySource = source; return this; }
 
