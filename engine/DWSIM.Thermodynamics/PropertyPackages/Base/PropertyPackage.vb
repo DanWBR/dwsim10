@@ -8353,11 +8353,10 @@ redirect2:                  IObj?.SetCurrent()
                 i += 1
             Next
 
-            If T < Tf Then
-                Return AUX_PSUBLi(nome, T)
-            Else
-                Return AUX_PVAPi(nome, T)
-            End If
+            'The vapor pressure of the liquid, subcooled below the melting point: the liquid fugacity of a dissolved
+            'compound is built on it, and DW_CalcSolidFugCoeff applies the fusion term to it. The vapor pressure of
+            'the solid is AUX_PSUBLi.
+            Return AUX_PVAPi(nome, T)
 
         End Function
 
