@@ -46,6 +46,7 @@ Version 10.2.17
 - [NEW] Crystallizer: Solubility Source option; with Property Package the saturation comes from the solid-liquid equilibrium of the package in the liquor as it is, the crystals leave as a solid phase and the duty includes the heat of crystallization; new results (supersaturation ratio, saturation temperature of the liquor, crystals in the slurry)
 - [NEW] User Guide: a Reservoir Coupling part
 - [NEW] User Guide: a Solubility and Solvent Screening part
+- [NEW] COSMO-SAC property package (Patreon, Premium+): liquid phase activity coefficients predicted from sigma profiles, without binary interaction parameters; LVPP GMHB1808 parametrization and sigma-profile database (1,755 molecules)
 - [NEW] Compounds: solid forms (polymorphs), a list of crystalline forms with their fusion data in the compound editor; the Crystallizer and the Solubility and Solvent Screening tool calculate with any form of the list and report the stable one
 - [NEW] Compounds: heat capacity difference of fusion (liquid minus solid heat capacity at the melting point), used by the solid-liquid equilibrium; zero by default
 - [NEW] Additional compounds: aspirin, paracetamol, ibuprofen, the two intermediates of the ibuprofen synthesis (4-isobutylacetophenone and 1-(4-isobutylphenyl)ethanol) and four of its by-products
