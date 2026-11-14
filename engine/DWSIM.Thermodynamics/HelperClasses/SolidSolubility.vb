@@ -96,15 +96,18 @@ Namespace PropertyPackages.Auxiliary
         ''' lowest root is the saturated liquid on the solvent side; a scan in ln x brackets it even when the model
         ''' predicts two liquid phases, and bisection refines it.
         ''' </remarks>
-        Public Function Saturation(pp As PropertyPackage, solute As Integer, solvent As Double(), T As Double, P As Double) As SolidSaturationResult
+        ''' <param name="form">Solid form of the solute to saturate the liquid with. Without one, the fusion data of
+        ''' the compound are used.</param>
+        Public Function Saturation(pp As PropertyPackage, solute As Integer, solvent As Double(), T As Double, P As Double,
+                                   Optional form As SolidForm = Nothing) As SolidSaturationResult
 
             Dim n = solvent.Length - 1
             Dim cp = pp.DW_GetConstantProperties()(solute)
-            Dim lnasat = LnSaturationActivity(pp, cp, T)
+            Dim lnasat = If(form Is Nothing, LnSaturationActivity(pp, cp, T), form.LnActivity(T))
 
             Dim res As New SolidSaturationResult With {.IdealMoleFraction = Exp(lnasat)}
 
-            If T >= cp.TemperatureOfFusion Then
+            If T >= If(form Is Nothing, cp.TemperatureOfFusion, form.TemperatureOfFusion) Then
                 res.MoleFraction = 1.0
                 res.ActivityCoefficient = 1.0
                 res.AboveMeltingPoint = True
@@ -178,11 +181,12 @@ Namespace PropertyPackages.Auxiliary
         ''' between <paramref name="Tmin"/> and the melting point of the solute. Returns NaN when the liquid is not
         ''' saturated anywhere in that range.
         ''' </summary>
-        Public Function SaturationTemperature(pp As PropertyPackage, solute As Integer, solvent As Double(), x As Double, P As Double, Tmin As Double) As Double
+        Public Function SaturationTemperature(pp As PropertyPackage, solute As Integer, solvent As Double(), x As Double, P As Double, Tmin As Double,
+                                              Optional form As SolidForm = Nothing) As Double
             Dim cp = pp.DW_GetConstantProperties()(solute)
-            Dim Tf = cp.TemperatureOfFusion
+            Dim Tf = If(form Is Nothing, cp.TemperatureOfFusion, form.TemperatureOfFusion)
             If Not (x > 0.0) OrElse x >= 1.0 OrElse Tmin >= Tf Then Return Double.NaN
-            Dim g As Func(Of Double, Double) = Function(T) Saturation(pp, solute, solvent, T, P).MoleFraction - x
+            Dim g As Func(Of Double, Double) = Function(T) Saturation(pp, solute, solvent, T, P, form).MoleFraction - x
             Dim lo = Tmin, hi = Tf
             'at the lower end the liquid has to hold less than x, otherwise it is not saturated in the range
             If g(lo) >= 0.0 Then Return Double.NaN

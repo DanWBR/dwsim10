@@ -116,6 +116,7 @@ namespace DWSIM.Validation.Tests
         [Test] public void T34_PR_WaterDecane_LLE() => Thermodynamics.T34_PR_WaterDecane_LLE.Run();
         [Test] public void T35_NRTL_FusionEnthalpyEntropy() => Thermodynamics.T35_NRTL_FusionEnthalpyEntropy.Run();
         [Test] public void T36_NRTL_CrystallizerPackageSolubility() => Thermodynamics.T36_NRTL_CrystallizerPackageSolubility.Run();
+        [Test] public void T37_NRTL_SolidForms() => Thermodynamics.T37_NRTL_SolidForms.Run();
 
         // UnitOpsAdvanced
         [Test] public void A01_Distillation_EthanolWater() => UnitOpsAdvanced.A01_Distillation_EthanolWater.Run();
