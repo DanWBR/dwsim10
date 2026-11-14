@@ -17,6 +17,8 @@
 - [FIX] Solid-liquid-vapor PT flash could stop at a wrong vapor fraction; the mixture entropy left out the solid phase
 - [FIX] Solid-liquid-vapor PT flash ran to its iteration limit over a narrow temperature range where the solvent boils with solid present
 - [FIX] PH flash with solids: a partially vaporized mixture lost its solid phase in the final state and came out at a wrong temperature
+- [FIX] Solid-liquid flash ran to its iteration limit where the activity coefficient model is close to a liquid-liquid split
+- [FIX] Activity coefficient and ideal packages: a compound dissolved in a liquid below its own melting point took the vapor pressure of the solid, which made it less volatile than it is (water in cold methanol or glycol solutions, for example)
 - [FIX] Solid fraction flash in solid solution mode read the specification as a liquid fraction and crashed with three or more compounds
 - [FIX] Sulfur and Iodine (ChEDL): the extra elements uS and uI broke the element matrix of the Gibbs reactor; the vapor pressure curve of Sulfur was unusable
 - [FIX] Fusion data of salicylic, adipic, citric and ascorbic acid
