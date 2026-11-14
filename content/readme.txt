@@ -43,8 +43,24 @@ Version 10.2.17
 
 - [NEW] Reservoir Coupling (Patreon, Premium+; Tools > Reservoir Coupling (OPM Flow)): runs a reservoir simulation deck with OPM Flow together with the Pipe Network and the plant of the flowsheet; each report step the reservoir gives the well rates and the network the wellhead pressures, and streams of the flowsheet can set injection rates, group production limits and lift gas; the window installs OPM Flow (through WSL on Windows) and generates the black-oil PVT and the lift tables of the deck from the fluid of the flowsheet
 - [NEW] User Guide: a Reservoir Coupling part
+- [NEW] Compounds: heat capacity difference of fusion (liquid minus solid heat capacity at the melting point), used by the solid-liquid equilibrium; zero by default
+- [NEW] Additional compounds: aspirin, paracetamol, ibuprofen, 4-isobutylacetophenone and 1-(4-isobutylphenyl)ethanol
+- [CHG] Flowsheet Check: warns when the streams of one fluid around a unit use different property packages
+- [CHG] Fail-safe flash with solids: a warning in the log names the stream, the specification and the original error
+- [CHG] Windows installers of final releases are signed with a code signing certificate
 - [FIX] Pipe Segment and Pipe Network with Beggs and Brill: the two-phase friction factor used the wrong branch of the correlation in part of its range, with friction about 3.4 times too high in one band and jumps near another
 - [FIX] Pipe Network: the nodal solver could not raise its damping factor again once it fell below 0.3 and ran to the iteration limit
+- [FIX] Excess enthalpy of NRTL, UNIQUAC, UNIFAC, Modified UNIFAC, NIST-MFAC and Wilson (Excess and Experimental Liquid + Excess modes) was too large where the activity coefficients are far from one
+- [FIX] Liquid viscosity: a compound above its critical temperature without a Henry's constant stopped the calculation with an error
+- [FIX] Enthalpy and entropy of fusion away from the melting point used the solid heat capacity alone; the enthalpy of fusion could turn negative and PH flashes with solids landed on wrong temperatures
+- [FIX] Solid-liquid-vapor PT flash could stop at a wrong vapor fraction; the mixture entropy left out the solid phase
+- [FIX] Solid fraction flash in solid solution mode read the specification as a liquid fraction and crashed with three or more compounds
+- [FIX] Sulfur and Iodine (ChEDL): the extra elements uS and uI broke the element matrix of the Gibbs reactor; the vapor pressure curve of Sulfur was unusable
+- [FIX] Fusion data of salicylic, adipic, citric and ascorbic acid
+- [FIX] Joback estimation from a structure skipped 22 of the 41 groups without a message
+- [FIX] Flowsheet Check listed objects on a package other than the first as solved with another property package right after opening a file
+- [FIX] Spreadsheet: formulas referring to a worksheet stored later in the file were lost when the flowsheet was opened
+- [FIX] Scripts: the ideal gas heat capacity of a ChEDL compound requested with the compound object was 1000 times the molar mass too small
 
 Version 10.2.16
 
