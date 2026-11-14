@@ -39,6 +39,13 @@ VERSION HISTORY / CHANGELOG
 
 The full changelog including souce code changes can be viewed at https://github.com/DanWBR/dwsim10/commits/windows
 
+Version 10.2.17
+
+- [NEW] Reservoir Coupling (Patreon, Premium+; Tools > Reservoir Coupling (OPM Flow)): runs a reservoir simulation deck with OPM Flow together with the Pipe Network and the plant of the flowsheet; each report step the reservoir gives the well rates and the network the wellhead pressures, and streams of the flowsheet can set injection rates, group production limits and lift gas; the window installs OPM Flow (through WSL on Windows) and generates the black-oil PVT and the lift tables of the deck from the fluid of the flowsheet
+- [NEW] User Guide: a Reservoir Coupling part
+- [FIX] Pipe Segment and Pipe Network with Beggs and Brill: the two-phase friction factor used the wrong branch of the correlation in part of its range, with friction about 3.4 times too high in one band and jumps near another
+- [FIX] Pipe Network: the nodal solver could not raise its damping factor again once it fell below 0.3 and ran to the iteration limit
+
 Version 10.2.16
 
 - [NEW] MCP server for the Patreon Edition on Linux: the dwsim-patreon-mcp package (x64 and ARM64) installs over dwsim-mcp, and the membership key in /etc/dwsim-mcp/dwsim-mcp.conf (DWSIM_LICENSE_KEY) or --license-key unlocks the Patreon property packages and unit operations
