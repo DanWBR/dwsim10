@@ -810,6 +810,9 @@ out:        d2 = Date.Now
             IObj?.Paragraphs.Add(String.Format("Initial estimate for L: {0}", L))
             IObj?.Paragraphs.Add(String.Format("Initial estimate for S: {0}", S))
 
+            'vapor amounts of the last two passes, for the acceleration of the outer loop
+            Dim vap1 As Double() = Nothing, vap2 As Double() = Nothing
+
             'do flash calculation iterations
             Do
 
@@ -1090,6 +1093,46 @@ out:            'calculate global phase fractions
                 If gcount > maxit_e Then Throw New Exception(Calculator.GetLocalString("PropPack_FlashMaxIt2"))
 
 out2:           If (Math.Abs(GL_old - L) < 0.0000005) And (Math.Abs(GV_old - V) < 0.0000005) And (Math.Abs(GS_old - S) < 0.0000005) Then GlobalConv = True
+
+                'With solid, liquid and vapor present the passes above can contract by only a few percent each (the vapor
+                'that leaves concentrates the liquid, which precipitates more solid). Once two successive steps of the vapor
+                'amounts point the same way with a steady ratio, the remaining geometric series is added at once.
+                If Not GlobalConv AndAlso L > 0.0 AndAlso V > 0.0 AndAlso S > 0.0 Then
+                    Dim vap0 = Vy.MultiplyConstY(V)
+                    Dim accelerated As Boolean = False
+                    If vap1 IsNot Nothing AndAlso vap2 IsNot Nothing Then
+                        Dim dv0 = vap0.SubtractY(vap1), dv1 = vap1.SubtractY(vap2)
+                        Dim nv0 = Math.Sqrt(dv0.MultiplyY(dv0).Sum), nv1 = Math.Sqrt(dv1.MultiplyY(dv1).Sum)
+                        If nv1 > 0.0 AndAlso nv0 > 0.000001 AndAlso dv0.MultiplyY(dv1).Sum > 0.0 AndAlso nv0 / nv1 > 0.5 AndAlso nv0 / nv1 < 0.999 Then
+                            Dim ratio = nv0 / nv1
+                            Dim vnew = vap0.AddY(dv0.MultiplyConstY(Math.Min(ratio / (1.0 - ratio), 50.0)))
+                            For i = 0 To n
+                                If vnew(i) < 0.0 Then vnew(i) = 0.0
+                                If vnew(i) > Vz0(i) Then vnew(i) = Vz0(i)
+                            Next
+                            Dim Vtot = vnew.Sum
+                            If Vtot > 0.0 AndAlso Vtot < 1.0 Then
+                                'the condensed part goes back to the solid-liquid flash as a single liquid
+                                V = Vtot
+                                Vy = vnew.NormalizeY
+                                Vx = Vz0.SubtractY(vnew).NormalizeY
+                                L = 1.0 - V
+                                S = 0.0
+                                accelerated = True
+                            End If
+                        End If
+                    End If
+                    If accelerated Then
+                        vap1 = Nothing
+                        vap2 = Nothing
+                    Else
+                        vap2 = vap1
+                        vap1 = vap0
+                    End If
+                Else
+                    vap1 = Nothing
+                    vap2 = Nothing
+                End If
 
                 IObj2?.Paragraphs.Add(String.Format("Current estimates for liquid phase composition: {0}", Vx.ToMathArrayString))
                 IObj2?.Paragraphs.Add(String.Format("Current estimates for solid phase composition: {0}", Vs.ToMathArrayString))
