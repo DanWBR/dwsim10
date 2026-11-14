@@ -2188,8 +2188,15 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                 'partial vaporization.
                 Dim tmp As Object
                 Dim hres = PerformHeuristicsTest(Vz, T, P, PP)
+                Dim totalsolids = PP.ForcedSolids.Count
+                For Each cp In PP.DW_GetConstantProperties()
+                    totalsolids += Convert.ToInt32(cp.IsSolid)
+                Next
                 If hres.SolidPhase And CalledFromSLE Then
                     tmp = New NestedLoopsSLE().Flash_PV(Vz, P, V, 0.0, PP, ReuseKI, Ki)
+                ElseIf hres.SolidPhase And Not totalsolids > 0 Then
+                    'the flash the enthalpy loop converged with, so the solid phase is kept
+                    tmp = New NestedLoopsSLE().Flash_PV(Vz, P, V, T, PP, False, Nothing)
                 Else
                     tmp = Me.Flash_PV(Vz, P, V, 0.0#, PP, ReuseKI, Ki)
                 End If
