@@ -586,6 +586,9 @@ out:        Return New Object() {L, V, Vx, Vy, ecount, 0.0#, PP.RET_NullVector, 
 
             IObj?.Paragraphs.Add(String.Format("<h2>Calculations</h2>"))
 
+            'ln of the saturation fractions of the last two passes, for the acceleration of the loop below
+            Dim lnMaxX1 As Double() = Nothing, lnMaxX2 As Double() = Nothing
+
             ecount = 0
 
             L = 1
@@ -621,6 +624,47 @@ out:        Return New Object() {L, V, Vx, Vy, ecount, 0.0#, PP.RET_NullVector, 
 
                 IObj?.Paragraphs.Add(String.Format("Activity coefficients: {0}", ActCoeff.ToMathArrayString))
                 IObj?.Paragraphs.Add(String.Format("Maximum solubilities (mole fractions): {0}", MaxX.ToMathArrayString))
+
+                'The substitution x = a(sat) / gamma(x) contracts by the factor -d ln(gamma)/d ln(x), which approaches one
+                'where the model is close to a liquid-liquid split. Once two successive steps of ln x of the saturated
+                'compounds point the same way with a steady ratio, the remaining geometric series is added at once.
+                Dim lnMaxX0(n) As Double
+                For i = 0 To n
+                    lnMaxX0(i) = If(MaxX(i) > 0.0 AndAlso Vz(i) > MaxX(i), Log(MaxX(i)), Double.NaN)
+                Next
+                Dim slAccelerated As Boolean = False
+                If lnMaxX1 IsNot Nothing AndAlso lnMaxX2 IsNot Nothing Then
+                    Dim s0 = 0.0, s1 = 0.0, dot = 0.0
+                    Dim sameSet As Boolean = True
+                    For i = 0 To n
+                        Dim nans = If(Double.IsNaN(lnMaxX0(i)), 1, 0) + If(Double.IsNaN(lnMaxX1(i)), 1, 0) + If(Double.IsNaN(lnMaxX2(i)), 1, 0)
+                        If nans = 3 Then Continue For
+                        If nans > 0 Then
+                            sameSet = False
+                            Exit For
+                        End If
+                        s0 += (lnMaxX0(i) - lnMaxX1(i)) ^ 2
+                        s1 += (lnMaxX1(i) - lnMaxX2(i)) ^ 2
+                        dot += (lnMaxX0(i) - lnMaxX1(i)) * (lnMaxX1(i) - lnMaxX2(i))
+                    Next
+                    If sameSet AndAlso s1 > 0.0 AndAlso s0 > 0.0000000000000001 AndAlso dot > 0.0 Then
+                        Dim ratio = Sqrt(s0 / s1)
+                        If ratio > 0.5 AndAlso ratio < 0.999 Then
+                            Dim fac = Math.Min(ratio / (1.0 - ratio), 50.0)
+                            For i = 0 To n
+                                If Not Double.IsNaN(lnMaxX0(i)) Then MaxX(i) = Exp(lnMaxX0(i) + fac * (lnMaxX0(i) - lnMaxX1(i)))
+                            Next
+                            slAccelerated = True
+                        End If
+                    End If
+                End If
+                If slAccelerated Then
+                    lnMaxX1 = Nothing
+                    lnMaxX2 = Nothing
+                Else
+                    lnMaxX2 = lnMaxX1
+                    lnMaxX1 = lnMaxX0
+                End If
 
                 MaxLiquPhase = Vz.DivideY(MaxX)
                 SF = 0
