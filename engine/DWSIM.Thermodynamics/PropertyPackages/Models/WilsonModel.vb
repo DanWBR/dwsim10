@@ -205,7 +205,7 @@ Public Class WilsonModel
 
         Dim sum As Double = 0
         For i As Integer = 0 To Vx.Length - 1
-            sum += Vx(i) * (gamma2(i) - gamma1(i)) / 0.02
+            sum += Vx(i) * (Math.Log(gamma2(i)) - Math.Log(gamma1(i))) / 0.02
         Next
 
         Dim Hex = -8.314 * T ^ 2 * sum

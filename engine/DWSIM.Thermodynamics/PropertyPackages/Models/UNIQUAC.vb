@@ -593,7 +593,7 @@ Namespace PropertyPackages.Auxiliary
             Dim dgamma(gamma1.Length - 1) As Double
 
             For i As Integer = 0 To Vx.Length - 1
-                dgamma(i) = (gamma2(i) - gamma1(i)) / (epsilon)
+                dgamma(i) = (Math.Log(gamma2(i)) - Math.Log(gamma1(i))) / (epsilon)
             Next
 
             Return dgamma

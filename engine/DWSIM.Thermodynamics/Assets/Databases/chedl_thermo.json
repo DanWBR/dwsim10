@@ -74816,7 +74816,7 @@
     "VaporViscosityEquation": "5",
     "Z_Rackett": 0.265221812387,
     "Elements": {
-      "uI": "1"
+      "I": "1"
     },
     "MODFACGroups": {},
     "NISTMODFACGroups": {},
@@ -182779,10 +182779,10 @@
     "TemperatureOfFusion": 286.405,
     "UNIQUAC_Q": 0.0,
     "UNIQUAC_R": 0.0,
-    "Vapor_Pressure_Constant_A": 45370631.178279266,
-    "Vapor_Pressure_Constant_B": -80502.366940919426,
-    "Vapor_Pressure_Constant_C": -230.88900559419702,
-    "Vapor_Pressure_Constant_D": -45369032.933410823,
+    "Vapor_Pressure_Constant_A": 0.0,
+    "Vapor_Pressure_Constant_B": 0.0,
+    "Vapor_Pressure_Constant_C": 0.0,
+    "Vapor_Pressure_Constant_D": 0.0,
     "Vapor_Pressure_Constant_E": 0.0,
     "Vapor_Pressure_TMAX": 717.76,
     "Vapor_Pressure_TMIN": 286.405,
@@ -182801,12 +182801,12 @@
     "Vapor_Viscosity_Tmax": 1314.0,
     "Vapor_Viscosity_Tmin": 717.76,
     "VaporizationEnthalpyEquation": "5",
-    "VaporPressureEquation": "101",
+    "VaporPressureEquation": "0",
     "VaporThermalConductivityEquation": "5",
     "VaporViscosityEquation": "5",
     "Z_Rackett": 0.169981745861,
     "Elements": {
-      "uS": "1"
+      "S": "1"
     },
     "MODFACGroups": {},
     "NISTMODFACGroups": {},
