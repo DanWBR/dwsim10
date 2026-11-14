@@ -42,9 +42,11 @@ The full changelog including souce code changes can be viewed at https://github.
 Version 10.2.17
 
 - [NEW] Reservoir Coupling (Patreon, Premium+; Tools > Reservoir Coupling (OPM Flow)): runs a reservoir simulation deck with OPM Flow together with the Pipe Network and the plant of the flowsheet; each report step the reservoir gives the well rates and the network the wellhead pressures, and streams of the flowsheet can set injection rates, group production limits and lift gas; the window installs OPM Flow (through WSL on Windows) and generates the black-oil PVT and the lift tables of the deck from the fluid of the flowsheet
+- [NEW] Solubility and Solvent Screening (Patreon, Premium+; Utilities > Solubility and Solvent Screening): solubility of a solid solute in the compounds of the flowsheet with the selected property package; solvent ranking at a hot and a cold temperature with the cooling yield, solubility curves, antisolvent study, ICH Q3C(R9) class and limit of each solvent with a filter, measured solubilities compared with the model, .dwsol case files
 - [NEW] User Guide: a Reservoir Coupling part
+- [NEW] User Guide: a Solubility and Solvent Screening part
 - [NEW] Compounds: heat capacity difference of fusion (liquid minus solid heat capacity at the melting point), used by the solid-liquid equilibrium; zero by default
-- [NEW] Additional compounds: aspirin, paracetamol, ibuprofen, 4-isobutylacetophenone and 1-(4-isobutylphenyl)ethanol
+- [NEW] Additional compounds: aspirin, paracetamol, ibuprofen, the two intermediates of the ibuprofen synthesis (4-isobutylacetophenone and 1-(4-isobutylphenyl)ethanol) and four of its by-products
 - [CHG] Flowsheet Check: warns when the streams of one fluid around a unit use different property packages
 - [CHG] Fail-safe flash with solids: a warning in the log names the stream, the specification and the original error
 - [CHG] Windows installers of final releases are signed with a code signing certificate
@@ -54,6 +56,8 @@ Version 10.2.17
 - [FIX] Liquid viscosity: a compound above its critical temperature without a Henry's constant stopped the calculation with an error
 - [FIX] Enthalpy and entropy of fusion away from the melting point used the solid heat capacity alone; the enthalpy of fusion could turn negative and PH flashes with solids landed on wrong temperatures
 - [FIX] Solid-liquid-vapor PT flash could stop at a wrong vapor fraction; the mixture entropy left out the solid phase
+- [FIX] Solid-liquid-vapor PT flash ran to its iteration limit over a narrow temperature range where the solvent boils with solid present
+- [FIX] PH flash with solids: a partially vaporized mixture lost its solid phase in the final state and came out at a wrong temperature
 - [FIX] Solid fraction flash in solid solution mode read the specification as a liquid fraction and crashed with three or more compounds
 - [FIX] Sulfur and Iodine (ChEDL): the extra elements uS and uI broke the element matrix of the Gibbs reactor; the vapor pressure curve of Sulfur was unusable
 - [FIX] Fusion data of salicylic, adipic, citric and ascorbic acid
