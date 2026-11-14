@@ -115,6 +115,7 @@ namespace DWSIM.Validation.Tests
         [Test, Ignore("The name-based liquid-split heuristics of UniversalFlash send water/ester feeds to the vapour-liquid flash, which cannot return two liquids")] public void T32_UNIQUAC_WaterButylAcetate_LLE() => Thermodynamics.T32_UNIQUAC_WaterButylAcetate_LLE.Run();
         [Test] public void T34_PR_WaterDecane_LLE() => Thermodynamics.T34_PR_WaterDecane_LLE.Run();
         [Test] public void T35_NRTL_FusionEnthalpyEntropy() => Thermodynamics.T35_NRTL_FusionEnthalpyEntropy.Run();
+        [Test] public void T36_NRTL_CrystallizerPackageSolubility() => Thermodynamics.T36_NRTL_CrystallizerPackageSolubility.Run();
 
         // UnitOpsAdvanced
         [Test] public void A01_Distillation_EthanolWater() => UnitOpsAdvanced.A01_Distillation_EthanolWater.Run();

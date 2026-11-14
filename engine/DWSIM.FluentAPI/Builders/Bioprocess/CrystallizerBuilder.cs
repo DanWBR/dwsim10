@@ -16,7 +16,18 @@ namespace DWSIM.Automation.FluentAPI.Builders.Bioprocess
         /// <summary>Sets <c>Operating Temperature</c> (SI) and returns this builder for chaining.</summary>
         public CrystallizerBuilder WithOperatingTemperature(Quantity t) { Object.OperatingT_K = t.SI; return this; }
 
-        /// <summary>Solubility C(T) [g solute / g solvent] = A + B*(T-273.15) + C*(T-273.15)^2.</summary>
+        /// <summary>
+        /// Takes the solubility of the solute from the solid-liquid equilibrium of the property package, in the liquor
+        /// as it is (every compound and the antisolvent count). The solute needs a melting point and an enthalpy of
+        /// fusion. The three modes then run at the operating temperature, the coefficients of the correlation and the
+        /// antisolvent reduction factor are not read, and the Crystals outlet is written as a solid phase.
+        /// </summary>
+        public CrystallizerBuilder WithSolubilityFromPropertyPackage() { Object.SolubilitySource = CrystallizerSolubilitySource.PropertyPackage; return this; }
+
+        /// <summary>Sets where the solubility comes from: the correlation (default) or the property package.</summary>
+        public CrystallizerBuilder WithSolubilitySource(CrystallizerSolubilitySource source) { Object.SolubilitySource = source; return this; }
+
+        /// <summary>Solubility C(T) [g solute / g solvent] = A + B*(T-298.15) + C*(T-298.15)^2.</summary>
         public CrystallizerBuilder WithSolubilityCoefficients(double a, double b, double c)
         { Object.Sol_A = a; Object.Sol_B = b; Object.Sol_C = c; return this; }
 

@@ -27,6 +27,14 @@ Namespace UnitOperations
         Antisolvent = 2
     End Enum
 
+    ''' <summary>Where the crystallizer takes the solubility of the solute from.</summary>
+    Public Enum CrystallizerSolubilitySource
+        ''' <summary>The correlation entered by the user: A + B(T - 298.15) + C(T - 298.15)^2, g solute per g solvent.</summary>
+        Correlation = 0
+        ''' <summary>The solid-liquid equilibrium of the property package, with the fusion data of the solute.</summary>
+        PropertyPackage = 1
+    End Enum
+
     ''' <summary>
     ''' Crystallizer (cooling / evaporative / antisolvent). Splits the inlet between a Crystals outlet
     ''' and a Mother-Liquor outlet. Solubility of the target solute in the solvent is described by a
@@ -46,6 +54,10 @@ Namespace UnitOperations
     ''' inlets, with the outlet enthalpies from flashes at the outlet conditions; in Evaporative mode it
     ''' includes the latent heat of the evaporated solvent. It is reported in Result_Duty_kW (positive =
     ''' heat added).
+    ''' With <see cref="SolubilitySource"/> set to PropertyPackage the saturation comes from the solid-liquid
+    ''' equilibrium of the property package in the liquor as it is (every compound counts, and so does the
+    ''' antisolvent), the three modes run at the operating temperature, only the selected solute crystallizes
+    ''' and the Crystals outlet is written as a solid phase, so the duty includes the heat of crystallization.
     ''' </summary>
     <System.Serializable()> Public Partial Class UnitOp_Crystallizer
 
@@ -73,6 +85,8 @@ Namespace UnitOperations
 
         ''' <summary>Gets or sets the crystallization mode: Cooling (0) solves at <see cref="OperatingT_K"/>; Evaporative (1) solves at <see cref="OperatingT_K"/> after removing <see cref="EvaporationFraction"/> of the solvent; Antisolvent (2) keeps the feed temperature and reduces the solubility by <see cref="SolubilityReductionByAntisolvent"/>. Default Cooling.</summary>
         Public Property Mode As CrystallizerMode = CrystallizerMode.Cooling
+        ''' <summary>Gets or sets where the solubility of the solute comes from: the correlation with the coefficients A, B and C (default, as in earlier versions) or the solid-liquid equilibrium of the property package.</summary>
+        Public Property SolubilitySource As CrystallizerSolubilitySource = CrystallizerSolubilitySource.Correlation
         ''' <summary>Gets or sets the name of the solute compound that crystallizes. Required.</summary>
         Public Property SoluteCompound As String = ""
         ''' <summary>Gets or sets the name of the solvent compound used as the basis of the solubility. Required. Default "Water".</summary>
@@ -106,6 +120,16 @@ Namespace UnitOperations
         Public Property Result_Vapor_kgs As Double = 0.0
         ''' <summary>Gets or sets the heat duty from the enthalpy balance (outlets minus inlets), in kW; positive = heat added. Calculated result.</summary>
         Public Property Result_Duty_kW As Double = 0.0
+        ''' <summary>Gets or sets the mole fraction of the solute in the saturated liquor. Calculated with the property package as the solubility source; NaN otherwise.</summary>
+        Public Property Result_SaturationMoleFraction As Double = Double.NaN
+        ''' <summary>Gets or sets the activity coefficient of the solute in the saturated liquor. Calculated with the property package as the solubility source; NaN otherwise.</summary>
+        Public Property Result_ActivityCoefficient As Double = Double.NaN
+        ''' <summary>Gets or sets the supersaturation ratio of the feed at the operating conditions: solute per mass of solute-free liquor in the feed over the same ratio at saturation. Above one the feed crystallizes. Calculated result.</summary>
+        Public Property Result_Supersaturation As Double = Double.NaN
+        ''' <summary>Gets or sets the temperature at which the liquor (after evaporation and antisolvent addition) is saturated with the solute it carries, in K. Calculated with the property package as the solubility source; NaN otherwise or when it is not saturated between 150 K and the melting point.</summary>
+        Public Property Result_SaturationT_K As Double = Double.NaN
+        ''' <summary>Gets or sets the mass fraction of crystals in the slurry (crystals over crystals plus mother liquor), 0-1. Calculated result.</summary>
+        Public Property Result_SolidsInSlurry As Double = 0.0
 
         ''' <summary>The classic (WinForms) editor window open for this unit operation, if any. Not saved with the flowsheet.</summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
@@ -153,7 +177,8 @@ Namespace UnitOperations
 
             If String.IsNullOrEmpty(SoluteCompound) Then _
                 Throw New Exception("Crystallizer: Solute compound not selected.")
-            If String.IsNullOrEmpty(SolventCompound) Then _
+            Dim fromPackage = (SolubilitySource = CrystallizerSolubilitySource.PropertyPackage)
+            If String.IsNullOrEmpty(SolventCompound) AndAlso (Not fromPackage OrElse Mode = CrystallizerMode.Evaporative) Then _
                 Throw New Exception("Crystallizer: Solvent compound not selected.")
             If Not Me.GraphicObject.InputConnectors(0).IsAttached Then _
                 Throw New Exception("Crystallizer: Feed not connected.")
@@ -208,14 +233,25 @@ Namespace UnitOperations
                     ' Keep inlet T; antisolvent already added. Effective solubility dropped by user factor.
                     T_op = T_in
             End Select
-
-            Dim Csat = SolubilityAt(T_op)
-            If Mode = CrystallizerMode.Antisolvent Then
-                Csat *= Max(0.0, Min(1.0, 1.0 - SolubilityReductionByAntisolvent))
+            Dim max_dissolved As Double
+            Result_SaturationMoleFraction = Double.NaN
+            Result_ActivityCoefficient = Double.NaN
+            Result_SaturationT_K = Double.NaN
+            Result_Supersaturation = Double.NaN
+            If fromPackage Then
+                'the three modes run at the operating temperature, and the saturation is the one of the liquor
+                'as it is: the feed and the antisolvent, less the solvent evaporated
+                T_op = OperatingT_K
+                max_dissolved = SaturationFromPackage(feed, feedComp, m_solvent - solvent_effective, T_op, P)
+            Else
+                Dim Csat = SolubilityAt(T_op)
+                If Mode = CrystallizerMode.Antisolvent Then
+                    Csat *= Max(0.0, Min(1.0, 1.0 - SolubilityReductionByAntisolvent))
+                End If
+                Result_Csat_gg = Csat
+                max_dissolved = Csat * solvent_effective
+                If max_dissolved > 0.0 Then Result_Supersaturation = m_solute / max_dissolved
             End If
-            Result_Csat_gg = Csat
-
-            Dim max_dissolved = Csat * solvent_effective
             Dim m_cryst = Max(0.0, m_solute - max_dissolved)
             Dim m_solute_in_liquor = m_solute - m_cryst
 
@@ -278,6 +314,7 @@ Namespace UnitOperations
             Result_MotherLiquor_kgs = m_l
             Result_Vapor_kgs = m_vap
             If m_solute > 0 Then Result_Yield = m_c / m_solute Else Result_Yield = 0.0
+            If m_c + m_l > 0 Then Result_SolidsInSlurry = m_c / (m_c + m_l) Else Result_SolidsInSlurry = 0.0
 
             ' Heat duty from the enthalpy balance of the streams (kW, positive = heat added).
             Try
@@ -287,7 +324,7 @@ Namespace UnitOperations
                     H_in += antisolvent.Phases(0).Properties.enthalpy.GetValueOrDefault *
                             antisolvent.Phases(0).Properties.massflow.GetValueOrDefault
                 End If
-                Dim H_out As Double = OutletEnthalpyFlow(feed, cryst, m_c, T_op, P, False) +
+                Dim H_out As Double = OutletEnthalpyFlow(feed, cryst, m_c, T_op, P, False, fromPackage) +
                                       OutletEnthalpyFlow(feed, liquor, m_l, T_op, P, False) +
                                       OutletEnthalpyFlow(feed, vapor, m_vap, T_op, P_vap, vaporSaturated)
                 Result_Duty_kW = H_out - H_in
@@ -297,8 +334,11 @@ Namespace UnitOperations
                                       IFlowsheet.MessageType.Warning)
             End Try
 
-            WriteStream(FlowSheet.SimulationObjects(Me.GraphicObject.OutputConnectors(0).AttachedConnector.AttachedTo.Name),
-                        cryst, m_c, T_op, P)
+            Dim crystalsStream As MaterialStream = FlowSheet.SimulationObjects(Me.GraphicObject.OutputConnectors(0).AttachedConnector.AttachedTo.Name)
+            WriteStream(crystalsStream, cryst, m_c, T_op, P)
+            'with the solubility from the package the crystals leave as a solid phase, whatever the flash
+            'settings of the package are
+            If fromPackage Then crystalsStream.ForcePhase = ForcedPhase.Solid
             WriteStream(FlowSheet.SimulationObjects(Me.GraphicObject.OutputConnectors(1).AttachedConnector.AttachedTo.Name),
                         liquor, m_l, T_op, P)
             If vaporConnected Then
@@ -313,13 +353,104 @@ Namespace UnitOperations
         End Sub
 
         ''' <summary>Enthalpy flow of an outlet, in kW, from a flash of a copy of the feed carrying the outlet composition.</summary>
+        ''' <summary>
+        ''' Mass flow of solute the liquor holds at saturation, from the property package, in kg/s. Fills the
+        ''' saturation results and warns when another compound of the liquor is above its own saturation.
+        ''' </summary>
+        ''' <param name="massFlows">Mass flow of each compound in the combined feed, kg/s.</param>
+        ''' <param name="evaporated">Mass flow of the solvent compound that evaporates, kg/s.</param>
+        Private Function SaturationFromPackage(feed As MaterialStream, massFlows As Dictionary(Of String, Double), evaporated As Double,
+                                               T As Double, P As Double) As Double
+            Dim pp = PropertyPackage
+            pp.CurrentMaterialStream = feed
+            Dim names = pp.RET_VNAMES()
+            Dim props = pp.DW_GetConstantProperties()
+            Dim n = names.Length - 1
+            Dim s = Array.IndexOf(names, SoluteCompound)
+            If s < 0 Then Throw New Exception("Crystallizer: the solute '" & SoluteCompound & "' is not a compound of the simulation.")
+            If props(s).TemperatureOfFusion <= 0.0 OrElse props(s).EnthalpyOfFusionAtTf <= 0.0 Then
+                Throw New Exception("Crystallizer: '" & SoluteCompound & "' does not have a melting point and an enthalpy of fusion, which the solubility from the property package needs.")
+            End If
+
+            'mole flows (mol/s) of the liquor before any crystal forms
+            Dim moles(n) As Double
+            Dim others As Double = 0.0, othersMass As Double = 0.0
+            For i = 0 To n
+                Dim m As Double = 0.0
+                massFlows.TryGetValue(names(i), m)
+                If names(i) = SolventCompound Then m = Max(0.0, m - evaporated)
+                moles(i) = m * 1000.0 / props(i).Molar_Weight
+                If i <> s Then
+                    others += moles(i)
+                    othersMass += m
+                End If
+            Next
+            If others <= 0.0 Then Throw New Exception("Crystallizer: the feed does not have anything besides the solute.")
+
+            Dim solvent(n) As Double
+            For i = 0 To n
+                If i <> s Then solvent(i) = moles(i) / others
+            Next
+
+            Dim sat = PropertyPackages.Auxiliary.SolidSolubility.Saturation(pp, s, solvent, T, P)
+            Result_SaturationMoleFraction = sat.MoleFraction
+            Result_ActivityCoefficient = sat.ActivityCoefficient
+
+            If sat.AboveMeltingPoint Then
+                'at or above its melting point the solute does not crystallize
+                Result_Csat_gg = Double.PositiveInfinity
+                Result_Supersaturation = 0.0
+                FlowSheet.ShowMessage(Me.GraphicObject.Tag & ": the operating temperature is at or above the melting point of " & SoluteCompound & ", crystals don't form.",
+                                      IFlowsheet.MessageType.Warning)
+                Return Double.MaxValue
+            End If
+
+            Dim dissolvedMoles = sat.MoleFraction / (1.0 - sat.MoleFraction) * others
+            Dim dissolved = dissolvedMoles * props(s).Molar_Weight / 1000.0
+            If othersMass > 0.0 Then Result_Csat_gg = dissolved / othersMass
+            If dissolvedMoles > 0.0 Then Result_Supersaturation = moles(s) / dissolvedMoles
+
+            Try
+                If moles(s) > 0.0 Then
+                    Result_SaturationT_K = PropertyPackages.Auxiliary.SolidSolubility.SaturationTemperature(pp, s, solvent, moles(s) / (moles(s) + others), P, 150.0)
+                End If
+            Catch
+                Result_SaturationT_K = Double.NaN
+            End Try
+
+            'only the selected solute crystallizes here: say so when another compound is above its own saturation
+            Try
+                Dim inLiquor = Min(moles(s), dissolvedMoles)
+                Dim x(n) As Double
+                For i = 0 To n
+                    x(i) = If(i = s, inLiquor, moles(i)) / (inLiquor + others)
+                Next
+                Dim gamma = PropertyPackages.Auxiliary.SolidSolubility.ActivityCoefficients(pp, x, T, P)
+                For i = 0 To n
+                    If i = s OrElse x(i) <= 0.0 Then Continue For
+                    If props(i).TemperatureOfFusion > T AndAlso props(i).EnthalpyOfFusionAtTf > 0.0 Then
+                        Dim lna = PropertyPackages.Auxiliary.SolidSolubility.LnSaturationActivity(pp, props(i), T)
+                        If Log(x(i) * gamma(i)) > lna + 0.0001 Then
+                            FlowSheet.ShowMessage(Me.GraphicObject.Tag & ": " & names(i) & " is above its own solubility in the mother liquor at the operating temperature. The crystallizer only crystallizes " & SoluteCompound & ", so it stays in the liquor.",
+                                                  IFlowsheet.MessageType.Warning)
+                        End If
+                    End If
+                Next
+            Catch
+                'the check is informative only
+            End Try
+
+            Return dissolved
+        End Function
+
         Private Function OutletEnthalpyFlow(template As MaterialStream, m As Dictionary(Of String, Double), total As Double,
-                                            T As Double, P As Double, saturatedVapor As Boolean) As Double
+                                            T As Double, P As Double, saturatedVapor As Boolean, Optional solid As Boolean = False) As Double
             If total <= 0.0 Then Return 0.0
             Dim tms As MaterialStream = template.Clone
             tms.SetFlowsheet(Me.FlowSheet)
             tms.SetPropertyPackage(PropertyPackage)
             WriteStream(tms, m, total, T, P)
+            If solid Then tms.ForcePhase = ForcedPhase.Solid
             If saturatedVapor Then
                 tms.SpecType = StreamSpec.Pressure_and_VaporFraction
                 tms.Phases(2).Properties.molarfraction = 1.0
@@ -402,24 +533,35 @@ Namespace UnitOperations
             s.AppendLine("Solute:      " & SoluteCompound)
             s.AppendLine("Solvent:     " & SolventCompound)
             s.AppendLine("Operating T: " & OperatingT_K.ToString(numberformat, ci) & " K")
-            s.AppendLine("Csat:        " & Result_Csat_gg.ToString(numberformat, ci) & " g/g solvent")
+            s.AppendLine("Solubility:  " & If(SolubilitySource = CrystallizerSolubilitySource.PropertyPackage, "from the property package", "from the correlation"))
+            If SolubilitySource = CrystallizerSolubilitySource.PropertyPackage Then
+                s.AppendLine("Csat:        " & Result_Csat_gg.ToString(numberformat, ci) & " g/g solute-free liquor")
+                s.AppendLine("x(sat):      " & Result_SaturationMoleFraction.ToString(numberformat, ci))
+                s.AppendLine("Activity coefficient: " & Result_ActivityCoefficient.ToString(numberformat, ci))
+                s.AppendLine("Saturation T of the liquor: " & Result_SaturationT_K.ToString(numberformat, ci) & " K")
+            Else
+                s.AppendLine("Csat:        " & Result_Csat_gg.ToString(numberformat, ci) & " g/g solvent")
+            End If
+            s.AppendLine("Supersaturation ratio: " & Result_Supersaturation.ToString(numberformat, ci))
             s.AppendLine()
             s.AppendLine("Solute in feed:      " & Result_SoluteInFeed_kgs.ToString(numberformat, ci) & " kg/s")
             s.AppendLine("Crystallized:        " & Result_Cryst_kgs.ToString(numberformat, ci) & " kg/s")
             s.AppendLine("Mother liquor:       " & Result_MotherLiquor_kgs.ToString(numberformat, ci) & " kg/s")
             s.AppendLine("Vapor:               " & Result_Vapor_kgs.ToString(numberformat, ci) & " kg/s")
             s.AppendLine("Crystallization yield: " & (Result_Yield * 100).ToString(numberformat, ci) & " %")
+            s.AppendLine("Crystals in the slurry: " & (Result_SolidsInSlurry * 100).ToString(numberformat, ci) & " wt %")
             s.AppendLine("Heat duty:           " & Result_Duty_kW.ToString(numberformat, ci) & " kW")
             Return s.ToString()
         End Function
 
         Private Shared ReadOnly _inputProps As String() = {
-            "Mode", "Solute Compound", "Solvent Compound", "Operating T",
+            "Mode", "Solubility Source", "Solute Compound", "Solvent Compound", "Operating T",
             "Solubility A", "Solubility B", "Solubility C",
             "Evaporation Fraction", "Solubility Reduction By Antisolvent", "Mean Crystal Size"}
         Private Shared ReadOnly _outputProps As String() = {
             "Solute In Feed", "Crystallized Mass", "Mother Liquor Mass", "Crystallization Yield", "Saturation Concentration",
-            "Vapor Mass", "Heat Duty"}
+            "Vapor Mass", "Heat Duty", "Saturation Mole Fraction", "Solute Activity Coefficient", "Supersaturation Ratio",
+            "Saturation Temperature", "Crystals In Slurry"}
 
         Public Overrides Function GetProperties(proptype As PropertyType) As String()
             Dim baseprops = MyBase.GetProperties(proptype)
@@ -429,7 +571,12 @@ Namespace UnitOperations
                     'solubility reduction in Antisolvent mode, which runs at the inlet temperature.
                     Dim unused As New List(Of String)
                     If Mode <> CrystallizerMode.Evaporative Then unused.Add("Evaporation Fraction")
-                    If Mode <> CrystallizerMode.Antisolvent Then
+                    If SolubilitySource = CrystallizerSolubilitySource.PropertyPackage Then
+                        'the package gives the solubility: the correlation and the reduction factor are not read,
+                        'and the three modes run at the operating temperature
+                        unused.AddRange({"Solubility A", "Solubility B", "Solubility C", "Solubility Reduction By Antisolvent"})
+                        If Mode <> CrystallizerMode.Evaporative Then unused.Add("Solvent Compound")
+                    ElseIf Mode <> CrystallizerMode.Antisolvent Then
                         unused.Add("Solubility Reduction By Antisolvent")
                     Else
                         unused.Add("Operating T")
@@ -443,6 +590,7 @@ Namespace UnitOperations
         Public Overrides Function GetPropertyValue(prop As String, Optional su As IUnitsOfMeasure = Nothing) As Object
             Select Case prop
                 Case "Mode" : Return Mode.ToString()
+                Case "Solubility Source" : Return SolubilitySource.ToString()
                 Case "Solute Compound" : Return SoluteCompound
                 Case "Solvent Compound" : Return SolventCompound
                 Case "Operating T" : Return OperatingT_K
@@ -459,13 +607,18 @@ Namespace UnitOperations
                 Case "Saturation Concentration" : Return Result_Csat_gg
                 Case "Vapor Mass" : Return Result_Vapor_kgs
                 Case "Heat Duty" : Return Result_Duty_kW
+                Case "Saturation Mole Fraction" : Return Result_SaturationMoleFraction
+                Case "Solute Activity Coefficient" : Return Result_ActivityCoefficient
+                Case "Supersaturation Ratio" : Return Result_Supersaturation
+                Case "Saturation Temperature" : Return Result_SaturationT_K
+                Case "Crystals In Slurry" : Return Result_SolidsInSlurry
                 Case Else : Return MyBase.GetPropertyValue(prop, su)
             End Select
         End Function
 
         Public Overrides Function GetPropertyUnit(prop As String, Optional su As IUnitsOfMeasure = Nothing) As String
             Select Case prop
-                Case "Operating T" : Return "K"
+                Case "Operating T", "Saturation Temperature" : Return "K"
                 Case "Mean Crystal Size" : Return "um"
                 Case "Solute In Feed", "Crystallized Mass", "Mother Liquor Mass", "Vapor Mass" : Return "kg/s"
                 Case "Heat Duty" : Return "kW"
@@ -485,6 +638,10 @@ Namespace UnitOperations
                 Case "Mode"
                     Dim m As CrystallizerMode
                     If [Enum].TryParse(Of CrystallizerMode)(propval?.ToString(), m) Then Me.Mode = m
+                    Return True
+                Case "Solubility Source"
+                    Dim src As CrystallizerSolubilitySource
+                    If [Enum].TryParse(Of CrystallizerSolubilitySource)(propval?.ToString(), src) Then Me.SolubilitySource = src
                     Return True
                 Case "Solute Compound" : SoluteCompound = propval?.ToString() : Return True
                 Case "Solvent Compound" : SolventCompound = propval?.ToString() : Return True
@@ -541,6 +698,13 @@ Namespace UnitOperations
                                                   FlowSheet.RequestCalculation()
                                               End Sub)
 
+            container.CreateAndAddDropDownRow("Solubility from",
+                                              New List(Of String)({"Correlation (A, B, C)", "Property package"}),
+                                              CInt(SolubilitySource),
+                                              Sub(dd, e)
+                                                  SolubilitySource = CType(dd.SelectedIndex, CrystallizerSolubilitySource)
+                                                  FlowSheet.RequestCalculation()
+                                              End Sub)
             Dim solIdx = Math.Max(0, compIds.IndexOf(SoluteCompound))
             container.CreateAndAddDropDownRow("Solute Compound",
                                               New List(Of String)(New String() {"(none)"}.Concat(compIds)),
@@ -585,7 +749,7 @@ Namespace UnitOperations
                                                  End If
                                              End Sub)
 
-            container.CreateAndAddLabelRow("Solubility: Csat(T) = A + B*(T-298) + C*(T-298)^2 [g solute / g solvent]")
+            container.CreateAndAddLabelRow("Solubility correlation (not read with the property package): Csat(T) = A + B*(T-298) + C*(T-298)^2 [g solute / g solvent]")
 
             container.CreateAndAddTextBoxRow(nf, "Coefficient A", Sol_A,
                                              Sub(tb, e)

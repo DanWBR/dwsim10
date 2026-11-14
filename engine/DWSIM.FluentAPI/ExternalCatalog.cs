@@ -38,7 +38,7 @@ namespace DWSIM.Automation.FluentAPI
             public const string ChromatographyColumn = "Chromatography Column";
             /// <summary>Crossflow ultrafiltration / diafiltration with optional Hermia fouling.</summary>
             public const string CrossflowUFDF = "Crossflow UF/DF";
-            /// <summary>Cooling / evaporative / antisolvent crystallizer with polynomial solubility.</summary>
+            /// <summary>Cooling / evaporative / antisolvent crystallizer; solubility from a polynomial or from the property package.</summary>
             public const string Crystallizer = "Crystallizer";
 
             /// <summary>Every bioprocess display name as a flat list.</summary>

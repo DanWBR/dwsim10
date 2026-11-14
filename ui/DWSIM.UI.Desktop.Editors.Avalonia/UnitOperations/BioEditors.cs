@@ -888,6 +888,14 @@ namespace DWSIM.UI.Desktop.Editors
 
                     BioRows.Choice(panel, "Mode", () => crystallizer.Mode, v => crystallizer.Mode = v);
 
+                    // Correlation: the coefficients A, B and C below. PropertyPackage: the solid-liquid equilibrium
+                    // of the package, which needs the melting point and the enthalpy of fusion of the solute.
+                    BioRows.Choice(panel, "Solubility Source", () => crystallizer.SolubilitySource, v =>
+                    {
+                        crystallizer.SolubilitySource = v;
+                        crystallizer.GetFlowsheet().UpdateOpenEditForms();
+                    });
+
                     BioRows.Compound(panel, crystallizer, "Solute Compound",
                         () => crystallizer.SoluteCompound, v => crystallizer.SoluteCompound = v, optional: false);
                     BioRows.Compound(panel, crystallizer, "Solvent Compound",
@@ -897,7 +905,9 @@ namespace DWSIM.UI.Desktop.Editors
                         UnitOfMeasure.temperature, crystallizer.OperatingT_K,
                         v => crystallizer.OperatingT_K = v);
 
-                    BioRows.Section(panel, "Solubility  C_sat(T) = A + B*(T-298) + C*(T-298)^2  [g/g solvent]");
+                    BioRows.Section(panel, crystallizer.SolubilitySource == UOps.CrystallizerSolubilitySource.PropertyPackage
+                        ? "Solubility correlation (not used: the property package gives the solubility)"
+                        : "Solubility  C_sat(T) = A + B*(T-298) + C*(T-298)^2  [g/g solvent]");
 
                     BioRows.Number(panel, crystallizer, "A (solubility at 298 K, g/g)",
                         crystallizer.Sol_A, v => crystallizer.Sol_A = v);
@@ -919,8 +929,16 @@ namespace DWSIM.UI.Desktop.Editors
                 results: panel =>
                 {
                     BioRows.Section(panel, "Solubility");
+                    bool fromPackage = crystallizer.SolubilitySource == UOps.CrystallizerSolubilitySource.PropertyPackage;
                     BioRows.Result(panel, crystallizer, "C_sat at operating T",
-                        crystallizer.Result_Csat_gg, "g/g solvent");
+                        crystallizer.Result_Csat_gg, fromPackage ? "g/g solute-free liquor" : "g/g solvent");
+                    BioRows.Result(panel, crystallizer, "Supersaturation ratio of the feed", crystallizer.Result_Supersaturation, "");
+                    if (fromPackage)
+                    {
+                        BioRows.Result(panel, crystallizer, "Solute mole fraction at saturation", crystallizer.Result_SaturationMoleFraction, "");
+                        BioRows.Result(panel, crystallizer, "Solute activity coefficient", crystallizer.Result_ActivityCoefficient, "");
+                        panel.CreateAndAddResultRow(crystallizer, "Saturation temperature of the liquor", UnitOfMeasure.temperature, crystallizer.Result_SaturationT_K);
+                    }
 
                     BioRows.Section(panel, "Yield");
                     panel.CreateAndAddResultRow(crystallizer, "Solute in feed", UnitOfMeasure.massflow, crystallizer.Result_SoluteInFeed_kgs);
@@ -928,6 +946,7 @@ namespace DWSIM.UI.Desktop.Editors
                     panel.CreateAndAddResultRow(crystallizer, "Mother liquor", UnitOfMeasure.massflow, crystallizer.Result_MotherLiquor_kgs);
                     panel.CreateAndAddResultRow(crystallizer, "Vapor (evaporated solvent)", UnitOfMeasure.massflow, crystallizer.Result_Vapor_kgs);
                     BioRows.Result(panel, crystallizer, "Crystallization Yield", crystallizer.Result_Yield * 100.0, "%");
+                    BioRows.Result(panel, crystallizer, "Crystals in the slurry", crystallizer.Result_SolidsInSlurry * 100.0, "wt %");
 
                     BioRows.Section(panel, "Energy");
                     panel.CreateAndAddResultRow(crystallizer, "Heat Duty", UnitOfMeasure.heatflow, crystallizer.Result_Duty_kW);
