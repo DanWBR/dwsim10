@@ -32,3 +32,4 @@
 - [FIX] Scripts: the ideal gas heat capacity of a ChEDL compound requested with the compound object was 1000 times the molar mass too small
 - [FIX] Filter: a feed whose solid compounds don't have a solid density gave a filter area that was not a number; the block now stops with a message that names the compounds
 - [FIX] Bubble and dew point of a mixture with one compound above 99.999 mol %: the K-values returned were those of the starting temperature or of the estimates, so a column stage of nearly pure water could keep K = 0.78 for water and the bubble point column solver stopped on a profile that did not close the mass balance
+- [FIX] Bubble point (Wang-Henke) column solver: with a distillate rate at the condenser and a boil-up ratio, composition, recovery or temperature specification at the reboiler, the solver searched for the bottoms rate, which the distillate rate already fixes, and could run without finishing; it now searches for the reflux ratio
