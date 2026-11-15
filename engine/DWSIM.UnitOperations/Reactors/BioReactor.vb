@@ -937,10 +937,11 @@ Namespace Reactors
             '  Continuous : Q_eff = Q_liquid (the inlet volumetric flow); tau = V/Q (HRT). Nothing
             '               is integrated: the outlet is the steady state of the stirred vessel
             '               at D = 1/tau (SolveChemostat).
-            '  Batch      : Q_eff = V/BatchDuration (cycle-averaged equivalent volumetric flow,
-            '               as if the reactor processed one V-volume charge every BatchDuration
-            '               seconds and discharged it instantly); tau = BatchDuration
-            '  Fed-Batch  : same as Batch in this simplified model (final-volume / cycle-time)
+            '  Batch      : Q_eff = Q_liquid; tau = BatchDuration. The inlet stream is the charge of
+            '               the cycles averaged over time, so every kilogram of it is in the outlet:
+            '               the charge of one cycle is Q_liquid * BatchDuration, whatever the volume
+            '               set on the reactor.
+            '  Fed-Batch  : same as Batch in this simplified model
             Dim tau As Double
             Dim Q_eff As Double
             Select Case OperatingMode
@@ -949,27 +950,24 @@ Namespace Reactors
                     Q_eff = Q_liquid
                 Case BioReactorMode.Batch, BioReactorMode.FedBatch
                     tau = BatchDuration
-                    Q_eff = Volume / Max(BatchDuration, 1.0E-9)
+                    Q_eff = Q_liquid
                 Case Else
                     tau = Volume / Q_liquid
                     Q_eff = Q_liquid
             End Select
 
-            ' Consistency check: in batch / fed-batch, the upstream stream's volumetric flow
-            ' should match V/BatchDuration so the simulation closes mass. Warn the user when
-            ' they don't agree (the inlet mass flows will be re-scaled to Q_eff below).
-            If OperatingMode <> BioReactorMode.Continuous AndAlso Q_liquid > 0.0 AndAlso Q_eff > 0.0 Then
-                If Abs(Q_liquid - Q_eff) / Q_eff > 0.05 Then
+            ' Consistency check: in batch / fed-batch, the charge of one cycle (the inlet volumetric
+            ' flow times the batch duration) should fit the volume set on the reactor. Warn the user
+            ' when it doesn't: the balance is that of the inlet stream either way.
+            Dim cycleCharge As Double = Q_liquid * BatchDuration
+            If OperatingMode <> BioReactorMode.Continuous AndAlso cycleCharge > 0.0 AndAlso Volume > 0.0 Then
+                If Abs(cycleCharge - Volume) / Volume > 0.05 Then
                     FlowSheet.ShowMessage(String.Format(
-                        "BioReactor '{0}': inlet volumetric flow ({1:F4} m3/s) differs from V/BatchDuration ({2:F4} m3/s) by >5%. Using V/BatchDuration as the cycle-averaged equivalent flow; inlet stream mass flows will be scaled.",
-                        Me.GraphicObject.Tag, Q_liquid, Q_eff),
+                        "BioReactor '{0}': the charge of one cycle (inlet volumetric flow x batch duration = {1:G5} m3) differs from the reactor volume ({2:G5} m3) by more than 5 %. The outlet keeps the mass flow of the inlet; change the volume, the batch duration or the feed so that they agree.",
+                        Me.GraphicObject.Tag, cycleCharge, Volume),
                         IFlowsheet.MessageType.Warning)
                 End If
             End If
-
-            ' Scale factor that maps the inlet stream's mass flows (kg/s defined at Q_liquid)
-            ' onto the cycle-equivalent flow Q_eff used by the batch/fed-batch model.
-            Dim flowScale As Double = If(Q_liquid > 0.0, Q_eff / Q_liquid, 1.0)
 
             ' Forward integration (adaptive RK4) of dX/dt, dS/dt, dP/dt
             Dim S = S0, X = X0, Px = P0c
@@ -1179,7 +1177,7 @@ Namespace Reactors
 
             ' -------------------------------------------------------
             ' Convert concentration changes (g/L) back to mass flows (kg/s) using Q_eff
-            ' (= Q_liquid in continuous; = V/BatchDuration in batch / fed-batch).
+            ' (the inlet volumetric flow in every mode).
             Dim dm_S = -integrated_rS_total * Q_eff ' g/L * m3/s = kg/s
             Dim dm_X = integrated_rX_total * Q_eff
             Dim dm_P = integrated_rP_total * Q_eff
@@ -1195,13 +1193,11 @@ Namespace Reactors
                 dm_O2 = 0.0
             End If
 
-            ' Update compound mass flows in the internal material stream. In batch / fed-batch,
-            ' scale the inlet mass flows by Q_eff/Q_liquid so the "cycle-averaged" inlet matches
-            ' V/BatchDuration; this keeps the mass balance closed end-to-end.
+            ' Update compound mass flows in the internal material stream.
             Dim newMass As New Dictionary(Of String, Double)
             Dim totalNewMass As Double = 0.0
             For Each kvp In compounds
-                Dim currentMF = kvp.Value.MassFlow.GetValueOrDefault * flowScale
+                Dim currentMF = kvp.Value.MassFlow.GetValueOrDefault
                 newMass(kvp.Key) = currentMF
             Next
 
@@ -1263,11 +1259,10 @@ Namespace Reactors
             End If
             If cp_L_mass <= 0.0 Then cp_L_mass = 4180.0 ' water fallback
 
-            ' Mass flow basis used in the enthalpy balance. For batch / fed-batch we treat the
-            ' broth inventory as (rho_L * Volume) and compute the steady-state temperature rise
-            ' assumption over the batch duration.
+            ' Mass flow basis used in the enthalpy balance. For batch / fed-batch the broth inventory
+            ' is the charge of one cycle, the mass the inlet brings over the batch duration.
             Dim m_dot_kgs As Double = ims.Phases(0).Properties.massflow.GetValueOrDefault
-            Dim m_holdup_kg As Double = rho_L * Volume
+            Dim m_holdup_kg As Double = m_dot_kgs * tau
 
             Dim T_in_K = T
             Dim T_out_K = T_in_K

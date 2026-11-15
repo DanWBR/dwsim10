@@ -84,6 +84,9 @@ Version 10.2.17
 - [FIX] Naphtali-Sandholm column solver with a partial condenser: the column takes its vapor product at the rate set on it and solves for the liquid distillate; with a product rate or a reflux ratio at the condenser it stopped with "Error evaluating error functions"
 - [FIX] Naphtali-Sandholm column solver: a column with a side draw at a set rate, a distillate rate and a boil-up ratio could run without finishing; the line search now accepts a step that reduces the residual measured with each equation on its own scale
 - [FIX] Columns with a reflux ratio and a boil-up ratio: the starting distillate rate was half of the feed whatever the two ratios; it now comes from the two ratios, and an ethanol and water column that took 38 s with Naphtali-Sandholm and more than 90 s with the bubble point solver takes 3 s and 6 s
+- [FIX] Cake Filter: a feed without solids stopped the filter with an invalid composition error; the filtrate is now the feed and the cake stream is empty
+- [FIX] Cake Filter: a trace of vapor in the feed, under 0.1 % of its mass (a dissolved gas at its bubble point), stopped the filter; it now leaves with the filtrate
+- [FIX] Bio Reactor in Batch and Fed-Batch modes: the outlet was the feed scaled to the reactor volume over the batch duration, so its mass flow differed from the inlet whenever the two didn't match; the outlet now keeps the mass flow of the inlet and a warning reports the mismatch
 
 Version 10.2.16
 

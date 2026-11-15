@@ -160,15 +160,11 @@ namespace DWSIM.Validation.Tests.Flowsheets
             double glcOut = liqOut.OverallMassFraction("Glucose") * liqOut.MassFlowKgPerSecond;
             double etohOut = liqOut.OverallMassFraction("Ethanol") * liqOut.MassFlowKgPerSecond;
 
-            // Batch mode reports on a cycle-averaged basis: the reactor treats the inlet as one
-            // V-sized charge processed every BatchDuration, so the outlet flow is the feed scaled
-            // by (V / BatchDuration) / Q_feed, not the feed itself. The feed here is deliberately
-            // mismatched to that ratio, which is what makes the scaling visible.
-            // Q is the broth's liquid-phase flow, which is what the reactor sizes the cycle on.
-            double qFeed = feed.Object.Phases[1].Properties.volumetric_flow.GetValueOrDefault();
-            double cycleInlet = 1.0 * (10.0 / (48.0 * 3600.0)) / qFeed;
-            rt.RowInRange("[B] Batch mass = cycle inlet", cycleInlet * 0.95, cycleInlet * 1.10,
-                mOut, "kg/s");
+            // Batch mode reports on a cycle-averaged basis: the inlet is the charge of the cycles
+            // averaged over time, and the outlet keeps its mass flow. The feed here is deliberately
+            // mismatched to V / BatchDuration, which only raises a warning. The yields set here close
+            // the mass of the reaction within 0.2 %.
+            rt.RowInRange("[B] Batch mass = inlet", 0.99, 1.01, mOut, "kg/s");
             rt.RowInRange("[B] Glucose consumed (Haldane)", 0.001, 0.30, 0.300 - glcOut, "kg/s");
             rt.RowInRange("[B] Ethanol produced (Haldane)", 1e-6, 1.0, etohOut, "kg/s");
             rt.RowInRange("[B] Outlet T >= feed (adiabatic)", 303.0, 500.0,

@@ -250,10 +250,14 @@ Namespace UnitOperations
             outstr1 = Me.GetOutletMaterialStream(0)
             outstr2 = Me.GetOutletMaterialStream(1)
 
-            'the filter doesn't support a vapor phase in the inlet stream.
-            If instr.Phases(2).Properties.massflow.GetValueOrDefault > 0.0# Then
+            'the filter doesn't support a vapor phase in the inlet stream. a trace of it, under 0.1 % of the feed
+            'in mass, is what a dissolved gas leaves in a liquid at its bubble point: it goes with the filtrate.
+            If instr.Phases(2).Properties.massflow.GetValueOrDefault > 0.001 * instr.Phases(0).Properties.massflow.GetValueOrDefault Then
                 Throw New Exception(FlowSheet.GetTranslatedString("FilterVaporPhaseNotSupported"))
             End If
+
+            'the fluid that crosses the filter: the liquid and the trace of vapor with it
+            Dim fluid As Func(Of String, Double) = Function(name) instr.Phases(1).Compounds(name).MassFlow.GetValueOrDefault + instr.Phases(2).Compounds(name).MassFlow.GetValueOrDefault
 
             Dim W As Double = instr.Phases(0).Properties.massflow.GetValueOrDefault
             Dim Wsin As Double = instr.Phases(7).Properties.massflow.GetValueOrDefault
@@ -279,7 +283,8 @@ Namespace UnitOperations
                 Throw New Exception("The feed of the filter doesn't have a volumetric flow, so the solids concentration can't be calculated." &
                                     If(nodens.Count > 0, " Set the solid density of: " & String.Join(", ", nodens) & ".", " Check the solid density of the compounds in the solid phase."))
             End If
-            cf = instr.Phases(7).Properties.massflow.GetValueOrDefault / instr.Phases(0).Properties.volumetric_flow.GetValueOrDefault
+            'the solids concentration of the slurry: the volume of the trace of vapor isn't part of it
+            cf = instr.Phases(7).Properties.massflow.GetValueOrDefault / (instr.Phases(0).Properties.volumetric_flow.GetValueOrDefault - instr.Phases(2).Properties.volumetric_flow.GetValueOrDefault)
             frh = instr.Phases(1).Properties.massflow.GetValueOrDefault / (instr.Phases(1).Properties.massflow.GetValueOrDefault + instr.Phases(7).Properties.massflow.GetValueOrDefault)
             crh = Me.CakeRelativeHumidity / 100
 
@@ -292,12 +297,13 @@ Namespace UnitOperations
             Select Case CalcMode
                 Case CalculationMode.Design
                     dp = Me.PressureDrop
-                    At = Wsin * alpha / ((2 * c * alpha * dp * f * n / mu + (n * Rm) ^ 2) ^ 0.5 - n * Rm)
+                    'a feed without solids doesn't form a cake and doesn't need any area
+                    If Wsin > 0.0 Then At = Wsin * alpha / ((2 * c * alpha * dp * f * n / mu + (n * Rm) ^ 2) ^ 0.5 - n * Rm) Else At = 0.0
                     Me.TotalFilterArea = At
                 Case CalculationMode.Simulation
                     At = Me.TotalFilterArea
                     ' the Design equation solved for the pressure drop
-                    dp = ((n * Rm + Wsin * alpha / At) ^ 2 - (n * Rm) ^ 2) / (2 * c * alpha * f * n / mu)
+                    If Wsin > 0.0 Then dp = ((n * Rm + Wsin * alpha / At) ^ 2 - (n * Rm) ^ 2) / (2 * c * alpha * f * n / mu) Else dp = 0.0
                     Me.PressureDrop = dp
             End Select
 
@@ -316,7 +322,7 @@ Namespace UnitOperations
                     .Phases(0).Properties.massflow = Wlout
                     Dim comp As BaseClasses.Compound
                     For Each comp In .Phases(0).Compounds.Values
-                        comp.MassFlow = instr.Phases(1).Compounds(comp.Name).MassFlow * Wlout / Wlin
+                        comp.MassFlow = fluid(comp.Name) * Wlout / Wlin
                         comp.MassFraction = comp.MassFlow / Wlout
                     Next
                     mw = 0.0#
@@ -340,8 +346,9 @@ Namespace UnitOperations
                     .Phases(0).Properties.massflow = Wsout
                     Dim comp As BaseClasses.Compound
                     For Each comp In .Phases(0).Compounds.Values
-                        comp.MassFlow = instr.Phases(1).Compounds(comp.Name).MassFlow * (Wlin - Wlout) / Wlin + instr.Phases(7).Compounds(comp.Name).MassFlow
-                        comp.MassFraction = comp.MassFlow / Wsout
+                        comp.MassFlow = fluid(comp.Name) * (Wlin - Wlout) / Wlin + instr.Phases(7).Compounds(comp.Name).MassFlow.GetValueOrDefault
+                        'without solids in the feed the cake stream doesn't have any flow: it keeps the composition of the fluid
+                        If Wsout > 0.0 Then comp.MassFraction = comp.MassFlow / Wsout Else comp.MassFraction = fluid(comp.Name) / Wlin
                     Next
                     mw = 0.0#
                     For Each comp In .Phases(0).Compounds.Values
