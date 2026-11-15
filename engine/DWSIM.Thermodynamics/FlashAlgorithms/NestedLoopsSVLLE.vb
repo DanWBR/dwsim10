@@ -149,7 +149,18 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                     If L2 > 0.0 Then
 
                         'the three-phase flash works on the fluid part alone, with phase fractions of that part
-                        result = nl2.Flash_PT_3P(Vfluid, V / (1 - S), L1 / (1 - S), L2 / (1 - S), Vy, Vx1, Vx2, P, T, PP)
+                        Dim twophase As Object = result
+                        Try
+                            result = nl2.Flash_PT_3P(Vfluid, V / (1 - S), L1 / (1 - S), L2 / (1 - S), Vy, Vx1, Vx2, P, T, PP)
+                        Catch ex As OperationCanceledException
+                            Throw
+                        Catch ex As Exception
+                            ' The liquid at this point still holds everything that will crystallize. Supersaturated in a
+                            ' solid, it is outside the range a model was fitted for, and the search for two liquids there
+                            ' can fail to converge. The two-phase result is kept, and the solids are precipitated from
+                            ' its liquid below; failing here sent the whole flash to the fallback, which drops the solids.
+                            result = twophase
+                        End Try
 
                     End If
 
@@ -173,7 +184,34 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
 
                 IObj?.SetCurrent
 
-                If PP.RET_VTF.SumY > 0.0 Then
+                If L2 > 0.0 AndAlso L1 > 0.0 Then
+                    ' a split into two liquids of the same composition is a single liquid
+                    Dim apart As Double = 0.0
+                    For i As Integer = 0 To n
+                        apart += Math.Abs(Vx1(i) - Vx2(i))
+                    Next
+                    If apart < 0.02 Then
+                        L1 += L2
+                        L2 = 0.0
+                        Vx2 = PP.RET_NullVector
+                    End If
+                End If
+
+                If L2 = 0.0 AndAlso PP.ForcedSolids.Count = 0 AndAlso PP.RET_VTF.SumY > 0.0 Then
+
+                    ' One liquid only. Precipitating the solids changes the liquid, and with it how much of it
+                    ' vaporises: the solid-liquid-vapour flash alternates the two steps until both hold. A single
+                    ' pass of each left a wet cake under vacuum as a liquid and a solid, without any vapour.
+                    nl3.FlashSettings = FlashSettings
+                    result = nl3.Flash_PT(Vz, P, T, PP)
+                    L1 = result(0)
+                    V = result(1)
+                    Vx1 = result(2)
+                    Vy = result(3)
+                    S = result(7)
+                    Vs = result(8)
+
+                ElseIf PP.RET_VTF.SumY > 0.0 Then
 
                     result = nl3.Flash_SL(Vx1, P, T, PP)
 
