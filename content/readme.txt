@@ -76,6 +76,7 @@ Version 10.2.17
 - [FIX] Bubble point (Wang-Henke) column solver: with a distillate rate at the condenser, in moles or in mass, and a boil-up ratio, composition, recovery or temperature specification at the reboiler, the solver searched for the bottoms rate, which the distillate rate already fixes, and could run without finishing; it now searches for the reflux ratio, also with side draws or a partial condenser
 - [FIX] Naphtali-Sandholm column solver: with a total condenser, a column whose reflux had to move far from the estimates could run without finishing (benzene and toluene with a distillate rate and a boil-up ratio); the balance of the condenser stage is now linear in the solver variables
 - [FIX] Bubble and dew pressure at a given temperature, and the saturation flashes of the Nested Loops (second version) and Nested Loops (SLE) algorithms: with one compound above 99.999 mol % they returned K-values that didn't belong to the result (0.46 for water at its boiling point)
+- [FIX] Distillation and absorption columns with a property package that handles solids in the default flash: the column stopped with an index out of range error while preparing its estimates when a solid was present at the feed conditions
 
 Version 10.2.16
 
