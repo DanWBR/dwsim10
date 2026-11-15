@@ -55,6 +55,15 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
         ' start with, lowered by SolveWithFallbacks when the iteration does not converge.
         Private _trelax As Double = 0.5
 
+        ''' <summary>
+        ''' True when the solve only prepares the estimates of another solver. The specifications this method
+        ''' cannot take directly are then left to that solver: the column is solved once, at the reflux ratio
+        ''' and the bottoms rate of the estimates, and the search for the values that meet them is skipped.
+        ''' Each point of that search is a full solve with its fallbacks, and on a column this method cannot
+        ''' converge away from its start the search cost thousands of sweeps before the other solver began.
+        ''' </summary>
+        Public Property WarmUp As Boolean = False
+
         Public Function Solve(ByVal rc As Column, ByVal nc As Integer, ByVal ns As Integer, ByVal maxits As Integer,
                                 ByVal tol As Double(), ByVal F As Double(), ByVal V As Double(),
                                 ByVal Q As Double(), ByVal L As Double(),
@@ -167,6 +176,12 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                 newspecs.Add("R", rspec)
 
                 Dim result As Object = Nothing
+
+                If WarmUp Then
+                    Return SolveWithFallbacks(rc, nc, ns, maxits, tolerance, F, V, Q, L, VSS, LSS, Kval,
+                                              x, y, z, fc, HF, T, P, condt, stopatitnumber, eff,
+                                              coltype, pp, newspecs, IdealK, IdealH, flashalgs)
+                End If
 
                 result = Solve_Internal(rc, nc, ns, maxits, tolerance, F, V, Q, L, VSS, LSS, Kval,
                                            x, y, z, fc, HF, T, P, condt, 50, eff,
@@ -368,6 +383,8 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                                             x, y, z, fc, HF, T, P, condt, stopatitnumber, eff,
                                             coltype, pp, newspecs, IdealK, IdealH, flashalgs)
 
+                If WarmUp Then Return result
+
                 T = result(0)
                 V = result(1)
                 L = result(2)
@@ -534,6 +551,8 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                 result = SolveWithFallbacks(rc, nc, ns, maxits, tolerance, F, V, Q, L, VSS, LSS, Kval,
                                             x, y, z, fc, HF, T, P, condt, stopatitnumber, eff,
                                             coltype, pp, newspecs, IdealK, IdealH, flashalgs)
+
+                If WarmUp Then Return result
 
                 T = result(0)
                 V = result(1)

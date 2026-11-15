@@ -1411,9 +1411,10 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                 'solve the column with the bubble point method (to convergence, with its fallbacks) to
                 'enhance the initial estimates. a warm-up cut to a few sweeps leaves some columns (the
                 'natural gas deethanizer) out of Newton's reach. if it doesn't suceeed, go on with the
-                'original estimates.
+                'original estimates. the specifications that method would have to search for are left
+                'to Newton: see WangHenkeMethod.WarmUp.
 
-                Dim result = New WangHenkeMethod().Solve(dc, nc, ns, maxits, tol, F, V, Q, L, VSS, LSS, Kval,
+                Dim result = New WangHenkeMethod() With {.WarmUp = True}.Solve(dc, nc, ns, maxits, tol, F, V, Q, L, VSS, LSS, Kval,
                                            x, y, z, fc, HF, T, P, condt, -1, eff,
                                            coltype, pp, specs, False, False)
                 T = result(0)
