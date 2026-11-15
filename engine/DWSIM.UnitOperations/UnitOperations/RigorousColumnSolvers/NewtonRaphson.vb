@@ -748,7 +748,13 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                                 Else
                                     E(i, j) = lc(i)(j) - Lj(0) / LSSj(0) * vc(i)(j)
                                 End If
-                                M(i, j) = lc(i)(j) * (1 + Sl(i)) - vc(i + 1)(j) - fc(i)(j)
+                                ' The distillate is carried in vc(0): the balance reads reflux plus distillate, which is
+                                ' linear in the variables. Written as lc * (1 + D / L) it is the same at the solution (the
+                                ' equations above make the two streams one composition) but bilinear away from it, and with
+                                ' the weight these rows carry the line search then accepted only minute steps whenever the
+                                ' reflux had to move far from its start: a benzene and toluene column with a distillate rate
+                                ' and a boil-up ratio never left its first point.
+                                M(i, j) = lc(i)(j) + vc(i)(j) - vc(i + 1)(j) - fc(i)(j)
                             End If
                         Else
                             M(i, j) = lc(i)(j) * (1 + Sl(i)) + vc(i)(j) * (1 + Sv(i)) - vc(i + 1)(j) - fc(i)(j)

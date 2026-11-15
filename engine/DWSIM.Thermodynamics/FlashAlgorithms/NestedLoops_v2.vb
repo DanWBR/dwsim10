@@ -2620,6 +2620,8 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                     P += Vz(i) * PP.AUX_PVAPi(i, T)
                 Next
                 IObj?.Close()
+                ' pressure and K values from the model: see SingleCompoundSaturationP
+                If Vz.Length > 1 Then P = NestedLoops.SingleCompoundSaturationP(PP, Vz, T, V, P, Ki, Vx, Vy)
                 Return New Object() {L, V, Vx, Vy, P, 0, Ki, 0.0#, PP.RET_NullVector, 0.0#, PP.RET_NullVector}
             End If
 
@@ -3547,6 +3549,9 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                     Vx = New Double() {1.0}
                     Vy = New Double() {1.0}
                     Ki = New Double() {1.0}
+                Else
+                    ' temperature and K values from the model: see NestedLoops.SingleCompoundSaturationT
+                    T = NestedLoops.SingleCompoundSaturationT(PP, Vz, P, V, T, Ki, Vx, Vy, nonvolatile)
                 End If
 
                 If S > 0 Then
@@ -4142,6 +4147,9 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                     Vx = New Double() {1.0}
                     Vy = New Double() {1.0}
                     Ki = New Double() {1.0}
+                Else
+                    ' temperature and K values from the model: see SingleCompoundSaturationT
+                    T = NestedLoops.SingleCompoundSaturationT(PP, Vz, P, V, T, Ki, Vx, Vy, Nothing)
                 End If
                 Return New Object() {L, V, Vx, Vy, T, 0, Ki, 0.0#, PP.RET_NullVector, 0.0#, PP.RET_NullVector}
             End If
@@ -4402,6 +4410,9 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                     Vx = New Double() {1.0}
                     Vy = New Double() {1.0}
                     Ki = New Double() {1.0}
+                Else
+                    ' temperature and K values from the model: see SingleCompoundSaturationT
+                    T = NestedLoops.SingleCompoundSaturationT(PP, Vz, P, V, T, Ki, Vx, Vy, Nothing)
                 End If
                 Return New Object() {L, V, Vx, Vy, T, 0, Ki, 0.0#, PP.RET_NullVector, 0.0#, PP.RET_NullVector}
             End If

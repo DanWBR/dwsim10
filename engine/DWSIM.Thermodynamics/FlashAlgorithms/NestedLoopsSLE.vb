@@ -1430,6 +1430,8 @@ out2:           If (Math.Abs(GL_old - L) < 0.0000005) And (Math.Abs(GV_old - V) 
                 For i = 0 To n
                     T += Vz(i) * PP.AUX_TSATi(P, i)
                 Next
+                ' temperature and K values from the model: see NestedLoops.SingleCompoundSaturationT
+                If Vz.Length > 1 Then T = NestedLoops.SingleCompoundSaturationT(PP, Vz, P, V, T, Ki, Vx, Vy, Nothing)
                 Return New Object() {L, V, Vx, Vy, T, 0, Ki, 0.0#, PP.RET_NullVector, 0.0#, PP.RET_NullVector}
             End If
 
