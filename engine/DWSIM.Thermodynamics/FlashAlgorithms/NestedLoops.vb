@@ -4618,6 +4618,55 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                     Vx = New Double() {1.0}
                     Vy = New Double() {1.0}
                     Ki = New Double() {1.0}
+                Else
+                    ' The mole fraction average of the saturation temperatures is only a first value,
+                    ' and the K values so far are those of the starting temperature or the estimates
+                    ' the caller handed in. Solve the same equation as the general path for T, with the
+                    ' K values of the model at T, so that the two paths meet at the threshold and the
+                    ' K values belong to the temperature returned. A column stage of nearly pure
+                    ' water otherwise came back at its boiling point with K = 0.78 for water, the
+                    ' value of the estimate, and the bubble point solver settled on a profile that
+                    ' did not close the mass balance.
+                    Dim fsat As Func(Of Double, Double) =
+                        Function(Tx As Double) As Double
+                            Dim Ksat As Double() = PP.DW_CalcKvalue(Vx, Vy, Tx, P)
+                            Dim fv As Double = 0.0
+                            For k As Integer = 0 To n
+                                If nonvolatile(k) Then
+                                    Ki(k) = 1.0E-20
+                                ElseIf Not Double.IsNaN(Ksat(k)) AndAlso Not Double.IsInfinity(Ksat(k)) AndAlso Ksat(k) > 0.0 Then
+                                    Ki(k) = Ksat(k)
+                                End If
+                                If Vz(k) <> 0 Then
+                                    Vy(k) = Vz(k) * Ki(k) / ((Ki(k) - 1) * V + 1)
+                                    If Double.IsInfinity(Vy(k)) Then Vy(k) = 0.0#
+                                    Vx(k) = Vy(k) / Ki(k)
+                                    fv += Vz(k) * (Ki(k) - 1) / ((Ki(k) - 1) * V + 1)
+                                Else
+                                    Vy(k) = 0
+                                    Vx(k) = 0
+                                End If
+                            Next
+                            Vx = Vx.NormalizeY()
+                            Vy = Vy.NormalizeY()
+                            Return fv
+                        End Function
+                    Dim Ta As Double = T, fa As Double = fsat(Ta)
+                    Dim Tb As Double = T + 0.05, fb As Double = fsat(Tb)
+                    For it As Integer = 1 To 30
+                        If Double.IsNaN(fa) OrElse Double.IsNaN(fb) OrElse fb = fa Then Exit For
+                        Dim Tn As Double = Tb - fb * (Tb - Ta) / (fb - fa)
+                        If Double.IsNaN(Tn) OrElse Math.Abs(Tn - T) > 5.0 Then Exit For
+                        Ta = Tb : fa = fb
+                        Tb = Tn : fb = fsat(Tb)
+                        If Math.Abs(fb) < 0.0000000001 Then Exit For
+                    Next
+                    If Not Double.IsNaN(fb) AndAlso Math.Abs(fb) < 0.000001 Then
+                        T = Tb
+                    Else
+                        ' no root close to the first value: keep it, with the K values evaluated there
+                        fsat(T)
+                    End If
                 End If
 
                 If S > 0 Then

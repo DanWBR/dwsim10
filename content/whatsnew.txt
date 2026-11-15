@@ -30,3 +30,4 @@
 - [FIX] Spreadsheet: formulas referring to a worksheet stored later in the file were lost when the flowsheet was opened
 - [FIX] Scripts: the ideal gas heat capacity of a ChEDL compound requested with the compound object was 1000 times the molar mass too small
 - [FIX] Filter: a feed whose solid compounds don't have a solid density gave a filter area that was not a number; the block now stops with a message that names the compounds
+- [FIX] Bubble and dew point of a mixture with one compound above 99.999 mol %: the K-values returned were those of the starting temperature or of the estimates, so a column stage of nearly pure water could keep K = 0.78 for water and the bubble point column solver stopped on a profile that did not close the mass balance
