@@ -87,6 +87,8 @@ Version 10.2.17
 - [FIX] Cake Filter: a feed without solids stopped the filter with an invalid composition error; the filtrate is now the feed and the cake stream is empty
 - [FIX] Cake Filter: a trace of vapor in the feed, under 0.1 % of its mass (a dissolved gas at its bubble point), stopped the filter; it now leaves with the filtrate
 - [FIX] Bio Reactor in Batch and Fed-Batch modes: the outlet was the feed scaled to the reactor volume over the batch duration, so its mass flow differed from the inlet whenever the two didn't match; the outlet now keeps the mass flow of the inlet and a warning reports the mismatch
+- [FIX] Material streams without flow that hold a solid phase: the overall enthalpy came out invalid, and the unit operation that received the stream stopped
+- [FIX] Gas-Liquid Separator: with inlets without flow it stopped with an undefined composition; it now takes the composition and conditions of its inlets and returns empty products
 
 Version 10.2.16
 

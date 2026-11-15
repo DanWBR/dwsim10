@@ -1305,8 +1305,12 @@ Namespace PropertyPackages
             Me.CurrentMaterialStream.Phases(phaseID).Properties.molarflow = result
             result = result * Me.AUX_MMM(Phase.Solid) / 1000
             Me.CurrentMaterialStream.Phases(phaseID).Properties.massflow = result
-            result = phasemolarfrac * overallmolarflow * Me.AUX_MMM(Phase.Solid) / 1000 / Me.CurrentMaterialStream.Phases(0).Properties.massflow.GetValueOrDefault
-            Me.CurrentMaterialStream.Phases(phaseID).Properties.massfraction = result
+            'a stream without flow keeps the mass fraction the equilibrium calculation gave the phase: from the
+            'flows it is 0 / 0, and the overall enthalpy of the stream followed it
+            If Me.CurrentMaterialStream.Phases(0).Properties.massflow.GetValueOrDefault > 0.0 Then
+                result = phasemolarfrac * overallmolarflow * Me.AUX_MMM(Phase.Solid) / 1000 / Me.CurrentMaterialStream.Phases(0).Properties.massflow.GetValueOrDefault
+                Me.CurrentMaterialStream.Phases(phaseID).Properties.massfraction = result
+            End If
 
             result = Me.AUX_SOLIDDENS
             Me.CurrentMaterialStream.Phases(phaseID).Properties.density = result

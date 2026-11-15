@@ -1489,6 +1489,10 @@ Namespace UnitOperations
 
             Dim n As Integer = ms.Phases(0).Compounds.Count
             Dim Vw As New Dictionary(Of String, Double)
+            'inlets without flow (the empty cake of a filter whose feed didn't carry solids): the mixture doesn't
+            'have a flow to weight them with, and takes the plain average of their compositions and conditions
+            Dim Vw0 As New Dictionary(Of String, Double)
+            Dim T0 As Double = 0.0, H0 As Double = 0.0
             For Each cp In Me.GraphicObject.InputConnectors
                 If cp.IsAttached And cp.Type = GraphicObjects.ConType.ConIn Then
                     ms = FlowSheet.SimulationObjects(cp.AttachedConnector.AttachedFrom.Name)
@@ -1498,12 +1502,22 @@ Namespace UnitOperations
                             Vw.Add(comp.Name, 0)
                         End If
                         Vw(comp.Name) += comp.MassFraction.GetValueOrDefault * ms.Phases(0).Properties.massflow.GetValueOrDefault
+                        If Not Vw0.ContainsKey(comp.Name) Then Vw0.Add(comp.Name, 0)
+                        Vw0(comp.Name) += comp.MassFraction.GetValueOrDefault
                     Next
                     If W <> 0.0# Then T += ms.Phases(0).Properties.massflow.GetValueOrDefault / W * ms.Phases(0).Properties.temperature.GetValueOrDefault
+                    T0 += ms.Phases(0).Properties.temperature.GetValueOrDefault
+                    If Not Double.IsNaN(ms.Phases(0).Properties.enthalpy.GetValueOrDefault) Then H0 += ms.Phases(0).Properties.enthalpy.GetValueOrDefault
                 End If
             Next
 
-            If W = 0.0# Then T = 273.15
+            Dim noflow As Boolean = W = 0.0# AndAlso nstr > 0 AndAlso Vw0.Values.Sum() > 0.0
+            If noflow Then
+                T = T0 / nstr
+                H = H0 / nstr
+            ElseIf W = 0.0# Then
+                T = 273.15
+            End If
 
             CheckSpec(H, False, "enthalpy")
             CheckSpec(W, True, "mass flow")
@@ -1522,6 +1536,7 @@ Namespace UnitOperations
                 Dim comp As BaseClasses.Compound
                 For Each comp In .Phases(0).Compounds.Values
                     If W <> 0.0# Then comp.MassFraction = Vw(comp.Name) / W
+                    If noflow Then comp.MassFraction = Vw0(comp.Name) / Vw0.Values.Sum()
                 Next
                 Dim mass_div_mm As Double = 0
                 Dim sub1 As BaseClasses.Compound
@@ -1529,7 +1544,7 @@ Namespace UnitOperations
                     mass_div_mm += sub1.MassFraction.GetValueOrDefault / sub1.ConstantProperties.Molar_Weight
                 Next
                 For Each sub1 In .Phases(0).Compounds.Values
-                    If W <> 0.0# Then
+                    If W <> 0.0# OrElse noflow Then
                         sub1.MoleFraction = sub1.MassFraction.GetValueOrDefault / sub1.ConstantProperties.Molar_Weight / mass_div_mm
                     Else
                         sub1.MoleFraction = 0.0#
@@ -1690,7 +1705,7 @@ Namespace UnitOperations
 
                 End If
 
-                MixedStream.SetMassEnthalpy(H + Qval / W)
+                MixedStream.SetMassEnthalpy(H + If(W > 0.0, Qval / W, 0.0))
 
 
             End If
@@ -1760,7 +1775,7 @@ Namespace UnitOperations
                         MixedStream.SpecType = StreamSpec.Pressure_and_Enthalpy
                         If es IsNot Nothing Then DQ = es.EnergyFlow.GetValueOrDefault()
                         If esout IsNot Nothing Then DQ = -esout.EnergyFlow.GetValueOrDefault()
-                        MixedStream.SetMassEnthalpy(H + DQ / W)
+                        MixedStream.SetMassEnthalpy(H + If(W > 0.0, DQ / W, 0.0))
                     End If
                     MixedStream.AssignSelfToPP()
                     MixedStream.Calculate()
@@ -1806,7 +1821,7 @@ Namespace UnitOperations
                     W = MixedStream.Phases(0).Properties.massflow.GetValueOrDefault
                     H = MixedStream.Phases(0).Properties.enthalpy.GetValueOrDefault
 
-                    MixedStream.SetMassEnthalpy(H + DQ / W)
+                    MixedStream.SetMassEnthalpy(H + If(W > 0.0, DQ / W, 0.0))
 
                     'flash TH
 
@@ -1846,7 +1861,7 @@ Namespace UnitOperations
                     IObj?.SetCurrent()
                     MixedStream.PropertyPackage = Me.PropertyPackage
                     MixedStream.SpecType = StreamSpec.Pressure_and_Enthalpy
-                    MixedStream.SetMassEnthalpy(H + DQ / W)
+                    MixedStream.SetMassEnthalpy(H + If(W > 0.0, DQ / W, 0.0))
                     MixedStream.Calculate(True, True)
 
                     T = MixedStream.Phases(0).Properties.temperature.GetValueOrDefault
