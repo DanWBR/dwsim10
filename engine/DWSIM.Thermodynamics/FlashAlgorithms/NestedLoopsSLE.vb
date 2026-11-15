@@ -605,6 +605,17 @@ out:        Return New Object() {L, V, Vx, Vy, ecount, 0.0#, PP.RET_NullVector, 
                     ActCoeff = PP.DW_CalcFugCoeff(Vx, T, P, State.Liquid).DivideY(PhiPure)
                 End If
                 MaxX = MaxAct.DivideY(ActCoeff)
+
+                ' A compound without a vapor pressure (a biomass pseudo-compound, a sugar from a database that
+                ' doesn't carry the correlation) has a zero fugacity coefficient as a pure liquid and in the
+                ' mixture alike, so its activity coefficient comes out as 0 / 0. It can't be judged by the
+                ' melting relation: it stays in the liquid. Left as it was, the undefined value went into the
+                ' sum that decides whether any liquid is left, and the whole mixture, water included, was
+                ' returned as a solid as soon as another compound passed its saturation.
+                For i = 0 To n
+                    If Double.IsNaN(MaxX(i)) OrElse Double.IsInfinity(MaxX(i)) Then MaxX(i) = 1.0
+                Next
+
                 For i = 0 To n
                     'check if ion
                     constprop = PP.CurrentMaterialStream.Phases(0).Compounds(Vn(i)).ConstantProperties
