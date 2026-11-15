@@ -4515,6 +4515,20 @@ Namespace UnitOperations
                     End If
             End Select
 
+            'A reflux ratio with a boil-up ratio: the two ratios don't give a product rate, and half of the feed to
+            'each end can be far from where they put the split (an ethanol/water column at reflux ratio 3 and boil-up
+            'ratio 1.5 sends 28 % of its feed overhead). With constant molar overflow the vapor that reaches the
+            'condenser is the boil-up plus the vapor of the feed, and that gives the split.
+            If ColumnType = ColType.DistillationColumn AndAlso CondenserType <> condtype.Full_Reflux AndAlso
+               Not DirectCast(Me, DistillationColumn).ReboiledAbsorber AndAlso
+               Specs("C").SType = ColumnSpec.SpecType.Stream_Ratio AndAlso Specs("R").SType = ColumnSpec.SpecType.Stream_Ratio AndAlso
+               Specs("C").SpecValue > 0.0 AndAlso Specs("R").SpecValue > 0.0 Then
+                Dim net As Double = sumF - sum0_
+                Dim overhead As Double = (Specs("R").SpecValue * net + Convert.ToDouble(Vflash) * sumF) / (Specs("C").SpecValue + 1.0 + Specs("R").SpecValue)
+                Dim overheadvapor As Double = If(CondenserType = condtype.Partial_Condenser, vaprate, 0.0)
+                If overhead - overheadvapor > 0.02 * net AndAlso overhead < 0.98 * net Then distrate = overhead - overheadvapor
+            End If
+
             Select Case Specs("R").SType
                 Case ColumnSpec.SpecType.Component_Mass_Flow_Rate,
                       ColumnSpec.SpecType.Component_Molar_Flow_Rate,

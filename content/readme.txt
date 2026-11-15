@@ -81,6 +81,9 @@ Version 10.2.17
 - [FIX] Distillation and absorption columns with a property package that handles solids in the default flash: the column stopped with an index out of range error while preparing its estimates when a solid was present at the feed conditions
 - [FIX] Default flash with solids, mixtures of an alcohol and a hydrocarbon: a liquid supersaturated in a solid could come out without the solid (a slurry returned as a clear liquid), and a wet cake under vacuum without vapor
 - [FIX] Default flash with solids, mixtures with a compound without a vapor pressure correlation (a biomass compound, a sugar or an acid of the food properties database): as soon as another compound passed its saturation, the whole mixture, water included, was returned as a solid
+- [FIX] Naphtali-Sandholm column solver with a partial condenser: the column takes its vapor product at the rate set on it and solves for the liquid distillate; with a product rate or a reflux ratio at the condenser it stopped with "Error evaluating error functions"
+- [FIX] Naphtali-Sandholm column solver: a column with a side draw at a set rate, a distillate rate and a boil-up ratio could run without finishing; the line search now accepts a step that reduces the residual measured with each equation on its own scale
+- [FIX] Columns with a reflux ratio and a boil-up ratio: the starting distillate rate was half of the feed whatever the two ratios; it now comes from the two ratios, and an ethanol and water column that took 38 s with Naphtali-Sandholm and more than 90 s with the bubble point solver takes 3 s and 6 s
 
 Version 10.2.16
 

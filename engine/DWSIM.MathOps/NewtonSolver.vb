@@ -40,6 +40,15 @@ Namespace MathEx.Optimization
         ''' </summary>
         Public Property ScaleWholeStep As Boolean = False
 
+        ''' <summary>
+        ''' What the line search accepts. False (the default): a step that reduces the sum of squares of the
+        ''' equations as they come. True: also a step that reduces it with each equation divided by the largest entry
+        ''' of its row of the Jacobian, the scaling the linear solve already applies, so that an equation carrying a
+        ''' large weight doesn't decide alone whether a step is taken. The Newton direction is a descent direction
+        ''' for either measure, and convergence is still tested on the equations as they come.
+        ''' </summary>
+        Public Property ScaleLineSearchRows As Boolean = False
+
         Public Property Epsilon As Double = Double.NaN
 
         Private _Iterations As Integer = 0
@@ -188,6 +197,10 @@ Namespace MathEx.Optimization
 
 
             dfdx = functiongradient
+
+            ' the perturbation is for a Jacobian built here by finite differences: with the gradient supplied each
+            ' of them would repeat the same run
+            If Not UseBroydenApproximation Then epsilons = New Double() {epsilons(0)}
 
             If EnableDamping Then
                 For Each d In dfacs
@@ -409,13 +422,28 @@ Namespace MathEx.Optimization
                     Dim accepted As Boolean = False
                     Dim ftrialsum As Double = 0.0
                     _jacobian = False
+                    ' the residual with its rows scaled, at the start of the step
+                    Dim merit0 As Double = 0.0
+                    If ScaleLineSearchRows Then
+                        For r As Integer = 0 To nrc - 1
+                            merit0 += (rscale(r) * fx(r)) ^ 2
+                        Next
+                    End If
                     Do
                         For i = 0 To x.Length - 1
                             x(i) = xold(i) - dx(i) * t
                         Next
                         Dim ftrial = fxb.Invoke(x)
                         ftrialsum = MathEx.Common.SumSqr(ftrial)
-                        If ftrialsum <= fxsum * (1.0 - 2.0 * ArmijoC1 * t) Then
+                        Dim decreased As Boolean = ftrialsum <= fxsum * (1.0 - 2.0 * ArmijoC1 * t)
+                        If Not decreased AndAlso ScaleLineSearchRows Then
+                            Dim merit As Double = 0.0
+                            For r As Integer = 0 To nrc - 1
+                                merit += (rscale(r) * ftrial(r)) ^ 2
+                            Next
+                            decreased = merit <= merit0 * (1.0 - 2.0 * ArmijoC1 * t)
+                        End If
+                        If decreased Then
                             df = t
                             accepted = True
                             Exit Do
@@ -464,7 +492,8 @@ Namespace MathEx.Optimization
 
                 _Iterations += 1
 
-                If _Iterations > 50 And fxsum > fxsum0 Then
+                ' a step taken on the scaled rows can leave the sum of squares as it comes higher than it was
+                If _Iterations > 50 And fxsum > fxsum0 And Not ScaleLineSearchRows Then
                     Throw New ArgumentException("not converging")
                 End If
 

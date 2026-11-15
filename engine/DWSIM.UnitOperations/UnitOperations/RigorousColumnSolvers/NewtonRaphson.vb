@@ -52,6 +52,12 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
         Dim _bx, _dbx As Double()
         Dim _condtype As DistillationColumn.condtype
 
+        ' A partial condenser with a liquid distillate next to its vapor product. The liquid distillate is one more
+        ' unknown, after the stage variables, and the vapor product at its set rate (mol/s) is one more equation,
+        ' after the stage equations.
+        Private _pcd As Boolean = False
+        Private _pcVapor As Double = 0.0
+
         ''' <summary>The top stage is a condenser: a distillation column or a refluxed absorber. A reboiled absorber (a
         ''' distillation column without its condenser) has a plain top stage, whatever condenser type it keeps.</summary>
         Private Function HasCondenser() As Boolean
@@ -375,6 +381,9 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
             ElseIf HasCondenser() AndAlso _condtype = condtype.Partial_Condenser AndAlso Not llextr AndAlso PartialCondenserDistillate.HasValue Then
                 'the liquid distillate of a partial condenser, as a caller that solves for it hands it over
                 LSSj(0) = PartialCondenserDistillate.Value
+            ElseIf _pcd AndAlso x.Length = (ns + 1) * (2 * nc + 1) + 1 Then
+                'the liquid distillate of a partial condenser, solved here with the stage variables
+                LSSj(0) = Math.Max(x(x.Length - 1) * _maxlc, 1.0E-20)
             Else
                 'For an extractor Vj(0) is the second liquid-phase product. It already
                 'carries the extract out; adding a liquid draw here counts that outlet twice.
@@ -811,6 +820,11 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                 Next
             Next
 
+            'the vapor product of the partial condenser at its set rate, weighted as a material balance
+            If _pcd AndAlso x.Length = (ns + 1) * (2 * nc + 1) + 1 Then
+                errors(x.Length - 1) = (sumvkj(0) - _pcVapor) * 1000000.0 * _eqWeights(1)
+            End If
+
             IObj?.Paragraphs.Add(String.Format("M Equation Deviations: {0}", M.ToMathArrayString))
             IObj?.Paragraphs.Add(String.Format("E Equation Deviations: {0}", E.ToMathArrayString))
             IObj?.Paragraphs.Add(String.Format("H Equation Deviations: {0}", H.ToMathArrayString))
@@ -1170,6 +1184,17 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                         Next
                     Next
                 Next
+                If nv > (ns + 1) * block Then
+                    Dim c As Integer = nv - 1
+                    Dim x1 As Double() = DirectCast(x.Clone(), Double())
+                    Dim x2 As Double() = DirectCast(x.Clone(), Double())
+                    x1(c) = x(c) * (1 - epsilon) : x2(c) = x(c) * (1 + epsilon)
+                    Dim f1 = FunctionValue(x1)
+                    Dim f2 = FunctionValue(x2)
+                    For r As Integer = 0 To nv - 1
+                        g(r, c) = (f2(r) - f1(r)) / (x2(c) - x1(c))
+                    Next
+                End If
                 _jacCacheActive = False : _jacCacheFill = False
                 FunctionValue(x) ' restore base stash
             End If
@@ -1203,7 +1228,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                 Return FunctionGradientAnalytical(epsilon, x)
             End If
 
-            If _gpuColumnEnabled Then
+            If _gpuColumnEnabled AndAlso Not _pcd Then
                 Try
                     Dim swGpu = System.Diagnostics.Stopwatch.StartNew()
                     Dim gResult = GpuJacobian.Invoke(Me, epsilon, x)
@@ -1690,6 +1715,26 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                 Next
             Next
 
+            'A partial condenser takes its vapor product at the rate set on the column and leaves the rest of the
+            'overhead as a liquid distillate. The stage equations alone carry the vapor as the only product (with
+            'a product rate or a reflux ratio as the condenser specification they can't be evaluated), so the
+            'liquid distillate is solved with them.
+            _pcd = False
+            If Not _captureOnly AndAlso Not LLEX AndAlso coltype = ColType.DistillationColumn AndAlso
+               condt = condtype.Partial_Condenser AndAlso Not PartialCondenserDistillate.HasValue Then
+                _pcVapor = SystemsOfUnits.Converter.ConvertToSI(dc.VaporFlowRateUnit, dc.VaporFlowRate)
+                If _pcVapor > 0.0 AndAlso _pcVapor < F.Sum Then
+                    _pcd = True
+                    Dim d0 As Double = LSS(0)
+                    If Not (d0 > 0.0) OrElse Double.IsInfinity(d0) Then d0 = 0.1 * F.Sum
+                    ReDim Preserve xvar(xvar.Length)
+                    ReDim Preserve lb(xvar.Length - 1)
+                    ReDim Preserve ub(xvar.Length - 1)
+                    ReDim Preserve fxvar(xvar.Length - 1)
+                    xvar(xvar.Length - 1) = d0 / _maxlc
+                End If
+            End If
+
             For i = 0 To ub.Length - 1
                 lb(i) = 1.0E-20
                 ub(i) = 2.0
@@ -1893,6 +1938,12 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                         ' trace components whose corrections are many times their size, and clipping those one
                         ' by one leaves a direction along which nothing decreases
                         nsolv.ScaleWholeStep = True
+                        ' the material balances carry a weight of a million against the specifications and the
+                        ' equilibrium relations: measured as they come, the second-order term a step leaves in a
+                        ' balance that isn't linear in the variables (a side draw at a set rate, the liquid
+                        ' distillate of a partial condenser) outweighs everything the step gains, and the line
+                        ' search accepts only minute steps
+                        nsolv.ScaleLineSearchRows = True
                         nsolv.MaxIterations = maxits
                         nsolv.Tolerance = tol.MinY_NonZero()
                         ' With an exact, cheap analytical Jacobian there is no reason to use the Broyden
