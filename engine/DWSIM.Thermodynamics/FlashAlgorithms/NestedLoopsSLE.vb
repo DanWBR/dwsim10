@@ -588,6 +588,7 @@ out:        Return New Object() {L, V, Vx, Vy, ecount, 0.0#, PP.RET_NullVector, 
 
             'ln of the saturation fractions of the last two passes, for the acceleration of the loop below
             Dim lnMaxX1 As Double() = Nothing, lnMaxX2 As Double() = Nothing
+            Dim MaxXprev As Double() = Nothing
 
             ecount = 0
 
@@ -639,6 +640,9 @@ out:        Return New Object() {L, V, Vx, Vy, ecount, 0.0#, PP.RET_NullVector, 
                 'The substitution x = a(sat) / gamma(x) contracts by the factor -d ln(gamma)/d ln(x), which approaches one
                 'where the model is close to a liquid-liquid split. Once two successive steps of ln x of the saturated
                 'compounds point the same way with a steady ratio, the remaining geometric series is added at once.
+                'When gamma grows quickly with x (sucrose in water: d ln(gamma)/d ln(x) above one) the steps alternate in
+                'sign and grow, and the substitution diverges; the same extrapolation with the negative ratio
+                '(Aitken) lands between the last two steps, close to the fixed point.
                 Dim lnMaxX0(n) As Double
                 For i = 0 To n
                     lnMaxX0(i) = If(MaxX(i) > 0.0 AndAlso Vz(i) > MaxX(i), Log(MaxX(i)), Double.NaN)
@@ -662,6 +666,16 @@ out:        Return New Object() {L, V, Vx, Vy, ecount, 0.0#, PP.RET_NullVector, 
                         Dim ratio = Sqrt(s0 / s1)
                         If ratio > 0.5 AndAlso ratio < 0.999 Then
                             Dim fac = Math.Min(ratio / (1.0 - ratio), 50.0)
+                            For i = 0 To n
+                                If Not Double.IsNaN(lnMaxX0(i)) Then MaxX(i) = Exp(lnMaxX0(i) + fac * (lnMaxX0(i) - lnMaxX1(i)))
+                            Next
+                            slAccelerated = True
+                        End If
+                    End If
+                    If sameSet AndAlso s1 > 0.0 AndAlso s0 > 0.0000000000000001 AndAlso dot < 0.0 Then
+                        Dim ratio = Sqrt(s0 / s1)
+                        If ratio > 0.3 Then
+                            Dim fac = -ratio / (1.0 + ratio)
                             For i = 0 To n
                                 If Not Double.IsNaN(lnMaxX0(i)) Then MaxX(i) = Exp(lnMaxX0(i) + fac * (lnMaxX0(i) - lnMaxX1(i)))
                             Next
@@ -711,6 +725,31 @@ out:        Return New Object() {L, V, Vx, Vy, ecount, 0.0#, PP.RET_NullVector, 
                 SF = Vx.SumY 'Sum mole fractions of components fixed by max solubility
                 If 1 - SLP < 0.00000001 Then SLP = 1
                 L = SLP / (1 - SF)
+                'After the first pass the feed is known to be above saturation in the compounds fixed there. A later step
+                'that puts all of them back below the feed comes from a substitution that alternates and overshoots, not
+                'from a solid that dissolved: pull the step back toward the last saturated fractions until it is two-phase.
+                Dim damp As Integer = 0
+                Do While L >= 1 AndAlso ecount > 1 AndAlso MaxXprev IsNot Nothing AndAlso damp < 40
+                    damp += 1
+                    For i = 0 To n
+                        If Vz(i) > MaxXprev(i) AndAlso MaxX(i) > 0.0 AndAlso MaxXprev(i) > 0.0 Then MaxX(i) = Sqrt(MaxX(i) * MaxXprev(i))
+                    Next
+                    lnMaxX1 = Nothing
+                    lnMaxX2 = Nothing
+                    Vx = PP.RET_NullVector
+                    VnL = PP.RET_NullVector
+                    For i = 0 To n
+                        If Vz(i) > MaxX(i) Then
+                            Vx(i) = MaxX(i)
+                        Else
+                            VnL(i) = Vz(i)
+                        End If
+                    Next
+                    SLP = VnL.SumY
+                    SF = Vx.SumY
+                    If 1 - SLP < 0.00000001 Then SLP = 1
+                    L = SLP / (1 - SF)
+                Loop
 
                 If L >= 1 Then
                     'all components are below max solubility, only liquid left
@@ -745,6 +784,7 @@ out:        Return New Object() {L, V, Vx, Vy, ecount, 0.0#, PP.RET_NullVector, 
                 IObj?.Paragraphs.Add(String.Format("Current estimates for liquid phase mole fraction: {0}", L))
                 IObj?.Paragraphs.Add(String.Format("Current estimates for solid phase mole fraction: {0}", 1 - L))
 
+                MaxXprev = MaxX.Clone()
                 If ecount > maxit_e Then Throw New Exception("SL Flash: max iterations reached")
 
             Loop Until Abs(L - L_old) < MaxError
