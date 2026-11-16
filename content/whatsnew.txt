@@ -16,10 +16,17 @@
 - [NEW] Contact Dryer unit operation (Patreon, Premium+): vacuum contact drying of a wet cake in batches, with an agitated bed (filter-dryer, pan, paddle, conical or tumble dryer) or a bed at rest on heated plates (tray dryer); drying time, bed temperature, capacity, duties, drying curve, operating map and the solvents left in the product against the ICH Q3C limits
 - [NEW] Lyophilizer unit operation (Patreon, Premium+): freeze drying of aqueous solutions in vials, with the time of the freezing, primary drying and secondary drying steps, the product temperature against the collapse temperature, the capacity of the freeze dryer, cycle charts and an operating map
 - [NEW] Import of simulations from other process simulators (Patreon): reads CHEMCAD 7 simulations (.cc7) and, for CHEMCAD 8 and NXT, the report sent to Excel; converts mixers, dividers, flashes, valves, pumps, compressors, expanders, heat exchangers, fired heaters, the SCDS and Tower columns and the equilibrium and Gibbs reactors, and compares the streams with the results saved in the simulation
+- [NEW] Sugar Solutions property package (Patreon, Premium+): S-UNIFAC for water, sucrose, glucose, fructose and ethanol fitted to the solubility of sucrose, the boiling point elevation of sugar solutions and the solubility coefficient of cane molasses; cane ash and organic non-sugars dissolved, fibre and mud solids solid; density, viscosity, heat capacity and thermal conductivity of sugar solutions
+- [NEW] Additional compounds: sugarcane fibre, cane ash, cane organic non-sugars and cane mud solids
+- [NEW] Sugar Stream Analysis (Patreon, Premium+; Utilities): Brix, pol, purities, impurities, crystal content, saturation, supersaturation, solubility coefficient and boiling point elevation of a stream; sets a stream from its Brix, purity and impurity ratios
+- [NEW] Welcome screen: details panel for the selected simulation (picture of the flowsheet, description, property packages, compounds, unit operations, process type and key compounds) with an Open button; the picture is saved in the .dwxmz file
+- [NEW] Fluent API: Flowsheet.WithMetadata sets the process type, the process description and the key compounds, reactants and products
 - [CHG] Flowsheet Check: warns when the streams of one fluid around a unit use different property packages
 - [CHG] Fail-safe flash with solids: a warning in the log names the stream, the specification and the original error
 - [CHG] Windows installers of final releases are signed with a code signing certificate
 - [CHG] Naphtali-Sandholm column solver: the bubble point pass that prepares its estimates solves the column once and leaves a composition or stream ratio specification to the Newton iteration; it used to search for the reflux or bottoms rate that met it, which could take longer than the solve itself
+- [CHG] Welcome screen (Classic): a click on an item of the lists selects it and shows its details, a double-click opens it
+- [CHG] Samples and Case Library cases: process type, description, key compounds, reactants and products, and a picture of the flowsheet in the samples
 - [FIX] Pipe Segment and Pipe Network with Beggs and Brill: the two-phase friction factor used the wrong branch of the correlation in part of its range, with friction about 3.4 times too high in one band and jumps near another
 - [FIX] Pipe Network: the nodal solver could not raise its damping factor again once it fell below 0.3 and ran to the iteration limit
 - [FIX] Excess enthalpy of NRTL, UNIQUAC, UNIFAC, Modified UNIFAC, NIST-MFAC and Wilson (Excess and Experimental Liquid + Excess modes) was too large where the activity coefficients are far from one
@@ -54,3 +61,5 @@
 - [FIX] Material streams without flow that hold a solid phase: the overall enthalpy came out invalid, and the unit operation that received the stream stopped
 - [FIX] Gas-Liquid Separator: with inlets without flow it stopped with an undefined composition; it now takes the composition and conditions of its inlets and returns empty products
 - [FIX] Pipe Segment, Beggs and Brill: the liquid velocity number carried the acceleration of gravity twice, so the liquid holdup and the static pressure drop of inclined two-phase pipes were wrong; horizontal pipes don't change
+- [FIX] Fusion data of sucrose, glucose and fructose: melting points and enthalpies of fusion were far off
+- [FIX] Solid-liquid flash: activity coefficients that grow fast with composition made the flash end as all liquid or oscillate
