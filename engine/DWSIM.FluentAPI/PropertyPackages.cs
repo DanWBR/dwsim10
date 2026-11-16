@@ -127,6 +127,10 @@ namespace DWSIM.Automation.FluentAPI
             /// plus SARA pseudo-components, asphaltene precipitation as an asphaltene-rich second liquid.</summary>
             public const string Asphaltenes = "Asphaltenes (PC-SAFT)";
 
+            /// <summary>Cane sugar solutions: S-UNIFAC with Margules terms fitted to sucrose solubility, boiling point elevation
+            /// and the solubility coefficient of cane molasses; sucrose crystallizes, fibre and mud stay solid.</summary>
+            public const string SugarSolutions = "Sugar Solutions (S-UNIFAC)";
+
             /// <summary>Every Plus property-package name as a flat list (electrolyte + ThermoPack suites).</summary>
             public static IReadOnlyList<string> All => new[]
             {
@@ -135,7 +139,7 @@ namespace DWSIM.Automation.FluentAPI
                 MBWR19, MBWR32, NISTMEOS, PatelTeja, PCPSAFT, PRCPA,
                 SAFTVRMie, SAFTVRQMie, SchmidtWensel, SPCSAFT, SRKCPA,
                 CarbonCapture, CO2Transport, CO2Storage,
-                IonicLiquids, Asphaltenes
+                IonicLiquids, Asphaltenes, SugarSolutions
             };
         }
 
