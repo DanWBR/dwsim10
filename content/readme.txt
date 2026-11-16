@@ -62,12 +62,14 @@ Version 10.2.17
 - [NEW] Sugar Stream Analysis (Patreon, Premium+; Utilities): Brix, pol, purities, impurities, crystal content, saturation, supersaturation, solubility coefficient and boiling point elevation of a stream; sets a stream from its Brix, purity and impurity ratios
 - [NEW] Welcome screen: details panel for the selected simulation (picture of the flowsheet, description, property packages, compounds, unit operations, process type and key compounds) with an Open button; the picture is saved in the .dwxmz file
 - [NEW] Fluent API: Flowsheet.WithMetadata sets the process type, the process description and the key compounds, reactants and products
+- [NEW] Case Library: raw sugar mill (100 t/h of cane: diffuser, five-effect falling film evaporator, three-boiling pan house with the B and C sugars as seed, sugar dryer, bagasse boiler and back-pressure turbine; Sugar Solutions package)
 - [CHG] Flowsheet Check: warns when the streams of one fluid around a unit use different property packages
 - [CHG] Fail-safe flash with solids: a warning in the log names the stream, the specification and the original error
 - [CHG] Windows installers of final releases are signed with a code signing certificate
 - [CHG] Naphtali-Sandholm column solver: the bubble point pass that prepares its estimates solves the column once and leaves a composition or stream ratio specification to the Newton iteration; it used to search for the reflux or bottoms rate that met it, which could take longer than the solve itself
 - [CHG] Welcome screen (Classic): a click on an item of the lists selects it and shows its details, a double-click opens it
 - [CHG] Samples and Case Library cases: process type, description, key compounds, reactants and products, and a picture of the flowsheet in the samples
+- [CHG] PH flash, fast mode: near a boiling point it takes about half the PT flashes, with the same result (a cane juice heater: 21 against 41)
 - [FIX] Pipe Segment and Pipe Network with Beggs and Brill: the two-phase friction factor used the wrong branch of the correlation in part of its range, with friction about 3.4 times too high in one band and jumps near another
 - [FIX] Pipe Network: the nodal solver could not raise its damping factor again once it fell below 0.3 and ran to the iteration limit
 - [FIX] Excess enthalpy of NRTL, UNIQUAC, UNIFAC, Modified UNIFAC, NIST-MFAC and Wilson (Excess and Experimental Liquid + Excess modes) was too large where the activity coefficients are far from one
@@ -104,6 +106,13 @@ Version 10.2.17
 - [FIX] Pipe Segment, Beggs and Brill: the liquid velocity number carried the acceleration of gravity twice, so the liquid holdup and the static pressure drop of inclined two-phase pipes were wrong; horizontal pipes don't change
 - [FIX] Fusion data of sucrose, glucose and fructose: melting points and enthalpies of fusion were far off
 - [FIX] Solid-liquid flash: activity coefficients that grow fast with composition made the flash end as all liquid or oscillate
+- [FIX] Flash with forced solids: the liquid was left out of equilibrium with the vapor after crystallizing (a sugar syrup boiled at 0.2 bar came out 4.7 K above its boiling point)
+- [FIX] Solid-liquid-vapor PT flash a few kelvin above the bubble point could end as all liquid (a cane juice at Bx 15 heated to 103 °C at 1 atm)
+- [FIX] Entropy of NRTL, UNIQUAC, UNIFAC, Modified UNIFAC, NIST-MFAC, Wilson, Raoult's Law, Electrolyte Ideal, LIQUAC, Reaktoro and the experimental liquid option of Peng-Robinson and Soave-Redlich-Kwong didn't follow the enthalpy (a steam turbine on NRTL gave 16.0 MW where the steam tables give 5.3 MW)
+- [FIX] Sour Water: the vapor entropy didn't change with pressure, so compressors, expanders and PS flashes didn't have an isentropic path
+- [FIX] Valve with a large pressure drop: the first estimate of the outlet temperature could reach thousands of kelvin and the flash failed
+- [FIX] Flowsheet solver: a large flowsheet without loops could stop with a message about an infinite loop
+- [FIX] Falling Film Evaporator: the concentrated liquid lost the crystals formed in the evaporator, and each profile point cost a full PH flash (an evaporator effect took 7.5 s, now 1.5 s)
 
 Version 10.2.16
 
