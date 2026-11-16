@@ -1184,10 +1184,15 @@ Public Delegate Sub CustomEvent2(ByVal objinfo As CalculationArgs)
                                 If c.IsAttached Then
                                     If c.AttachedConnector.AttachedFrom.ObjectType <> ObjectType.OT_Recycle And
                                         c.AttachedConnector.AttachedFrom.ObjectType <> ObjectType.OT_EnergyRecycle Then
-                                        lists(listidx).Add(c.AttachedConnector.AttachedFrom.Name)
-                                        totalobjs += 1
-                                        If totalobjs > 10000 Then
-                                            Throw New Exception("Infinite loop detected while obtaining flowsheet object calculation order. Please insert recycle blocks where needed.")
+                                        'an object reached through several paths goes into each level once: the order keeps only its deepest
+                                        'occurrence, and one entry per path made the count grow with the number of paths (an evaporator
+                                        'train doubles them at each effect) until a flowsheet without loops passed the limit
+                                        If Not lists(listidx).Contains(c.AttachedConnector.AttachedFrom.Name) Then
+                                            lists(listidx).Add(c.AttachedConnector.AttachedFrom.Name)
+                                            totalobjs += 1
+                                            If totalobjs > 10000 Then
+                                                Throw New Exception("Infinite loop detected while obtaining flowsheet object calculation order. Please insert recycle blocks where needed.")
+                                            End If
                                         End If
                                     End If
                                 End If
