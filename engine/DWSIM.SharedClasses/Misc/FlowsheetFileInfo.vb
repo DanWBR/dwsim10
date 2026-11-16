@@ -28,6 +28,13 @@ Public Class FlowsheetFileInfo
     Public Property Title As String = ""
     Public Property Author As String = ""
     Public Property Comments As String = ""
+
+    ' the flowsheet metadata of the simulation settings (process type, description, key compounds)
+    Public Property ProcessType As String = ""
+    Public Property ProcessDescription As String = ""
+    Public Property KeyCompounds As New List(Of String)
+    Public Property KeyReactants As New List(Of String)
+    Public Property KeyProducts As New List(Of String)
     Public Property SavedOn As Date?
     Public Property BuildVersion As String = ""
     Public Property SavedFromClassicUI As Boolean?
@@ -248,13 +255,7 @@ Public Class FlowsheetFileInfo
                                           End Select
                                       End Sub, "BuildVersion", "SavedOn", "SavedFromClassicUI")
                     Case "Settings"
-                        ReadFields(r, Sub(name, value)
-                                          Select Case name
-                                              Case "SimulationName" : info.Title = value.Trim()
-                                              Case "SimulationAuthor" : info.Author = value.Trim()
-                                              Case "SimulationComments" : info.Comments = value.Trim()
-                                          End Select
-                                      End Sub, "SimulationName", "SimulationAuthor", "SimulationComments")
+                        ReadSettings(r, info)
                     Case "SimulationObjects"
                         ReadChildren(r, "SimulationObject", Sub(fields)
                                                                 Dim t As String = Nothing
@@ -286,6 +287,50 @@ Public Class FlowsheetFileInfo
         If types.ContainsKey(es) Then info.EnergyStreams = types(es) : types.Remove(es)
         info.ObjectCounts = types.OrderByDescending(Function(kv) kv.Value).ThenBy(Function(kv) kv.Key).ToList()
 
+        If info.ProcessDescription <> "" AndAlso Not info.Comments.Contains(info.ProcessDescription) Then
+            info.Comments = If(info.Comments = "", info.ProcessDescription, info.ProcessDescription & vbCrLf & vbCrLf & info.Comments)
+        End If
+
+    End Sub
+
+    ''' <summary>The name, author and comments of the simulation and its flowsheet metadata.</summary>
+    Private Shared Sub ReadSettings(r As XmlReader, info As FlowsheetFileInfo)
+        If r.IsEmptyElement Then r.Read() : Return
+        Dim depth = r.Depth
+        r.Read()
+        While Not r.EOF AndAlso r.Depth > depth
+            If r.NodeType = XmlNodeType.Element AndAlso r.Depth = depth + 1 Then
+                Select Case r.LocalName
+                    Case "SimulationName" : info.Title = r.ReadElementContentAsStringSafe().Trim()
+                    Case "SimulationAuthor" : info.Author = r.ReadElementContentAsStringSafe().Trim()
+                    Case "SimulationComments" : info.Comments = r.ReadElementContentAsStringSafe().Trim()
+                    Case "Metadata"
+                        Dim md = TryCast(Linq.XNode.ReadFrom(r), Linq.XElement)
+                        If md IsNot Nothing Then ReadMetadata(md, info)
+                    Case Else
+                        r.Skip()
+                End Select
+            Else
+                r.Read()
+            End If
+        End While
+    End Sub
+
+    Private Shared Sub ReadMetadata(md As Linq.XElement, info As FlowsheetFileInfo)
+        Dim items = Function(name As String) As List(Of String)
+                        Dim el = md.Element(name)
+                        If el Is Nothing Then Return New List(Of String)
+                        Return el.Elements().Select(Function(e) e.Value.Trim()).Where(Function(v) v <> "").ToList()
+                    End Function
+        Dim pt = If(md.Element("ProcessType")?.Value, "").Trim()
+        If pt <> "" AndAlso pt <> "Unspecified" Then
+            info.ProcessType = Regex.Replace(pt, "(?<=[a-z])(?=[A-Z])", " ")
+            info.ProcessType = info.ProcessType.Substring(0, 1) & info.ProcessType.Substring(1).ToLowerInvariant()
+        End If
+        info.ProcessDescription = If(md.Element("ProcessDescription")?.Value, "").Trim()
+        info.KeyCompounds = items("KeyCompounds")
+        info.KeyReactants = items("KeyReactants")
+        info.KeyProducts = items("KeyProducts")
     End Sub
 
     ''' <summary>
@@ -401,6 +446,11 @@ Public Class FlowsheetFileInfo
         If PatreonComponents.Count > 0 Then
             list.Add(New DetailSection With {.Header = "Patreon Edition components", .Items = PatreonComponents.ToList()})
         End If
+
+        If ProcessType <> "" Then list.Add(New DetailSection With {.Header = "Process", .Items = New List(Of String) From {ProcessType}})
+        If KeyCompounds.Count > 0 Then list.Add(New DetailSection With {.Header = "Key compounds", .Items = KeyCompounds.ToList()})
+        If KeyReactants.Count > 0 Then list.Add(New DetailSection With {.Header = "Reactants", .Items = KeyReactants.ToList()})
+        If KeyProducts.Count > 0 Then list.Add(New DetailSection With {.Header = "Products", .Items = KeyProducts.ToList()})
 
         If PropertyPackages.Count > 0 Then
             list.Add(New DetailSection With {
