@@ -148,8 +148,8 @@ Namespace FlowPackages
                                 </thead>
                                 </table>
                                 <p> Liquid velocity number, N<Sub>LV</Sub> Is given by:</p>
-                                <pre> <code> N<Sub>LV</Sub>= 1.938 V<Sub>sl</Sub>(?<Sub>L</Sub>/ (g.s))<sup>1/4</sup></code></pre>
-                                <p> V<Sub>sl</Sub> Is no slip liquid velocity, ?<Sub>L</Sub> Is liquid density, g Is gravitational constant And s Is surface tension.</p>
+                                <pre> <code> N<Sub>LV</Sub>= 1.938 V<Sub>sl</Sub>(?<Sub>L</Sub>/ s)<sup>1/4</sup></code></pre>
+                                <p> V<Sub>sl</Sub> Is no slip liquid velocity, ?<Sub>L</Sub> Is liquid density And s Is surface tension, with the velocity in ft/s, the density in lb/ft<sup>3</sup> And the surface tension in dyn/cm. The constant already holds the acceleration of gravity for these units.</p>
                                 <p>For transition flow,</p>
                                 <pre> <code> E<Sub>L</Sub>(?)<Sub>transition</Sub>= AE<Sub>L</Sub>(?)<Sub>segregated</Sub> + BE<Sub>L</Sub>(?)<Sub>intermittent</Sub></code></pre>
                                 <p> where A And B are As following &#8211;</p>
@@ -310,7 +310,7 @@ Namespace FlowPackages
                 'calculo do fator de inclinacao
                 Dim beta As Double
                 Dim vsl = ql / ap
-                Dim Nvl = 1.938 * vsl * (rhol / (32.2 * surft)) ^ 0.25
+                Dim Nvl = 1.938 * vsl * (rhol / surft) ^ 0.25
 
                 If deltaz > 0 Then
                     If fluxo = "Segregated" Then
@@ -526,7 +526,7 @@ Namespace FlowPackages
 
             Dim beta As Complex = New Complex(0.0, 0.0)
             Dim vsl = qlz / ap
-            Dim Nvl = 1.938 * vsl * (rhol / (32.2 * surft)) ^ 0.25
+            Dim Nvl = 1.938 * vsl * (rhol / surft) ^ 0.25
             If deltaz > 0 Then
                 If fluxo = "Segregated" Then
                     beta = BetaSegregatedComplex(Cl, Frm, Nvl)

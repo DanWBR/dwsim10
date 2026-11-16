@@ -92,6 +92,7 @@ Version 10.2.17
 - [FIX] Bio Reactor in Batch and Fed-Batch modes: the outlet was the feed scaled to the reactor volume over the batch duration, so its mass flow differed from the inlet whenever the two didn't match; the outlet now keeps the mass flow of the inlet and a warning reports the mismatch
 - [FIX] Material streams without flow that hold a solid phase: the overall enthalpy came out invalid, and the unit operation that received the stream stopped
 - [FIX] Gas-Liquid Separator: with inlets without flow it stopped with an undefined composition; it now takes the composition and conditions of its inlets and returns empty products
+- [FIX] Pipe Segment, Beggs and Brill: the liquid velocity number carried the acceleration of gravity twice, so the liquid holdup and the static pressure drop of inclined two-phase pipes were wrong; horizontal pipes don't change
 
 Version 10.2.16
 
