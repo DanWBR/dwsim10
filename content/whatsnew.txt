@@ -7,6 +7,7 @@
 - [NEW] User Guide: a Reservoir Coupling part
 - [NEW] User Guide: a PVT Analysis part
 - [NEW] User Guide: a Solubility and Solvent Screening part
+- [NEW] User Guide: a Lyophilizer part
 - [NEW] COSMO-SAC property package (Patreon, Premium+): liquid phase activity coefficients predicted from sigma profiles, without binary interaction parameters; LVPP GMHB1808 parametrization and sigma-profile database (1,755 molecules)
 - [NEW] Compounds: solid forms (polymorphs), a list of crystalline forms with their fusion data in the compound editor; the Crystallizer and the Solubility and Solvent Screening tool calculate with any form of the list and report the stable one
 - [NEW] Compounds: heat capacity difference of fusion (liquid minus solid heat capacity at the melting point), used by the solid-liquid equilibrium; zero by default
