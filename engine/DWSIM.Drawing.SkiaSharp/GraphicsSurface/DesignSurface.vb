@@ -907,6 +907,69 @@ Public Class GraphicsSurface
 
     End Sub
 
+    ''' <summary>
+    ''' A small PNG picture of the whole flowsheet, fitted into maxWidth x maxHeight pixels, for the
+    ''' welcome screens. The fit is done on the canvas: the zoom, the object positions and the selection
+    ''' of the surface are the same afterwards. Returns Nothing for an empty flowsheet.
+    ''' </summary>
+    Public Function RenderThumbnailPng(maxWidth As Integer, maxHeight As Integer) As Byte()
+
+        If Flowsheet Is Nothing Then Return Nothing
+
+        Dim objs = DrawingObjects.Where(Function(o) Not o.IsConnector AndAlso o.ObjectType <> ObjectType.Nenhum AndAlso
+                                                    o.Width > 0 AndAlso o.Height > 0).ToList()
+        If objs.Count = 0 Then Return Nothing
+
+        ' the tags are written under the objects, so the bottom gets more room than the other sides
+        Dim minx = objs.Min(Function(o) o.X) - 30.0F
+        Dim miny = objs.Min(Function(o) o.Y) - 30.0F
+        Dim maxx = objs.Max(Function(o) o.X + o.Width) + 30.0F
+        Dim maxy = objs.Max(Function(o) o.Y + o.Height) + 50.0F
+        Dim bw = Math.Max(1.0F, maxx - minx)
+        Dim bh = Math.Max(1.0F, maxy - miny)
+
+        Dim s = Math.Min(1.0F, Math.Min(maxWidth / bw, maxHeight / bh))
+        Dim w = Math.Max(16, CInt(Math.Ceiling(bw * s)))
+        Dim h = Math.Max(16, CInt(Math.Ceiling(bh * s)))
+
+        Dim savedSelected = _SelectedObject
+        Dim savedSelection = New Dictionary(Of String, IGraphicObject)(SelectedObjects)
+        Dim savedGrid = ShowGrid
+        Dim savedOverlays = DrawAdditionalItems
+
+        Try
+            _SelectedObject = Nothing
+            SelectedObjects.Clear()
+            ShowGrid = False
+            DrawAdditionalItems = False
+            Using bmp As New SKBitmap(w, h)
+                Using canvas As New SKCanvas(bmp)
+                    ' UpdateCanvas scales by Zoom after this, so the net transform is s * (p - min)
+                    Dim z = If(Zoom > 0, Zoom, 1.0F)
+                    canvas.Scale(s / z, s / z)
+                    canvas.Translate(-minx * z, -miny * z)
+                    UpdateCanvas(canvas)
+                End Using
+                Using img = SKImage.FromBitmap(bmp)
+                    Using data = img.Encode(SKEncodedImageFormat.Png, 100)
+                        Return data.ToArray()
+                    End Using
+                End Using
+            End Using
+        Catch ex As Exception
+            Return Nothing
+        Finally
+            _SelectedObject = savedSelected
+            For Each kvp In savedSelection
+                SelectedObjects(kvp.Key) = kvp.Value
+                kvp.Value.Selected = True
+            Next
+            ShowGrid = savedGrid
+            DrawAdditionalItems = savedOverlays
+        End Try
+
+    End Function
+
     Public Sub OffsetAll(deltax As Single, deltay As Single)
 
         If deltax > 10000000000.0 Or deltay > 10000000000.0 Then Exit Sub

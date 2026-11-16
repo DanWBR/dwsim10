@@ -630,6 +630,22 @@ namespace DWSIM.Automation
 
                 }
 
+                // the flowsheet picture shown by the welcome screens
+                if (!Options.UsePassword)
+                {
+                    var preview = GetPreviewPng();
+                    if (preview != null)
+                    {
+                        var pe = new ZipEntry(global::DWSIM.SharedClasses.FlowsheetFileInfo.PreviewEntryName)
+                        {
+                            DateTime = DateTime.Now,
+                            Size = preview.Length
+                        };
+                        strmZipOutputStream.PutNextEntry(pe);
+                        strmZipOutputStream.Write(preview, 0, preview.Length);
+                    }
+                }
+
                 strmZipOutputStream.Finish();
                 strmZipOutputStream.Close();
 

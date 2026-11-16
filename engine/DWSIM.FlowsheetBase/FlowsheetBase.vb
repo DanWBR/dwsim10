@@ -6563,6 +6563,19 @@ Label_00CC:
 
     End Sub
 
+    ''' <summary>
+    ''' The flowsheet picture stored in .dwxmz files for the welcome screens, or Nothing for an empty
+    ''' flowsheet. The zoom and the positions of the objects aren't changed.
+    ''' </summary>
+    Public Function GetPreviewPng() As Byte()
+        Try
+            If FlowsheetSurface.Flowsheet Is Nothing Then FlowsheetSurface.Flowsheet = Me
+            Return FlowsheetSurface.RenderThumbnailPng(SharedClasses.FlowsheetFileInfo.PreviewMaxWidth, SharedClasses.FlowsheetFileInfo.PreviewMaxHeight)
+        Catch ex As Exception
+            Return Nothing
+        End Try
+    End Function
+
     Public Sub SavePFDScreenshotToPNG(pngfilepath As String) Implements IFlowsheet.SavePFDScreenshotToPNG
 
         ' UpdateCanvas returns without drawing when the surface has no flowsheet reference, which is

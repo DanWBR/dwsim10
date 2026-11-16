@@ -280,6 +280,36 @@ public partial class MainWindow : Window
         BtnCaseLibraryContribute.Click += (_, _) => OpenUrl("https://github.com/DanWBR/dwsim-case-library/blob/main/CONTRIBUTING.md");
         CaseLibraryList.DoubleTapped += (_, _) => OpenCaseLibraryFlowsheet();
 
+        // details panel: follows the selection of the list on top
+        RecentFilesList.SelectionChanged += (_, _) =>
+        {
+            if (RecentFilesList.SelectedItem is string p)
+                ShowDetails(Path.GetFileNameWithoutExtension(p), () => DWSIM.SharedClasses.FlowsheetFileInfo.Read(p));
+        };
+        SamplesList.SelectionChanged += (_, _) =>
+        {
+            if (SamplesList.SelectedItem is SampleItem s)
+                ShowDetails(s.DisplayName, () => DWSIM.SharedClasses.FlowsheetFileInfo.Read(s.FilePath));
+        };
+        CaseLibraryList.SelectionChanged += (_, _) =>
+        {
+            if (CaseLibraryList.SelectedItem is CaseLibraryItem c)
+                ShowDetails(c.Flowsheet.Title, () => DWSIM.SharedClasses.FlowsheetFileInfo.ReadCaseLibrary(c.Flowsheet));
+        };
+        FosseeList.SelectionChanged += (_, _) =>
+        {
+            if (FosseeList.SelectedItem is FosseeItem f)
+                ShowDetails(f.Flowsheet.Title, () => DWSIM.SharedClasses.FlowsheetFileInfo.FromFossee(f.Flowsheet));
+        };
+        WelcomeTabs.SelectionChanged += (_, e) =>
+        {
+            // the lists raise the same routed event; only a change of tab clears the panel
+            if (!ReferenceEquals(e.Source, WelcomeTabs)) return;
+            foreach (var lb in new[] { RecentFilesList, SamplesList, CaseLibraryList, FosseeList })
+                lb.SelectedItem = null;
+            ClearDetails();
+        };
+
         BtnSettings.Click += async (_, _) => { await new PreferencesWindow().ShowDialog(this); FlowsheetView.NotifyGlobalSettingsChanged(); };
         BtnAbout.Click += (_, _) => ShowAbout();
     }
@@ -301,6 +331,82 @@ public partial class MainWindow : Window
     // -------------------------------------------------------------------------
     // FOSSEE flowsheets
     // -------------------------------------------------------------------------
+
+    // -------------------------------------------------------------------------
+    // Details panel of the welcome screen
+    // -------------------------------------------------------------------------
+
+    private int _detailsRequest;
+
+    private void ClearDetails()
+    {
+        _detailsRequest++;
+        DetailsTitle.Text = "Simulation Details";
+        SetDetailsPreview(null);
+        DetailsComments.IsVisible = false;
+        DetailsLines.Children.Clear();
+        DetailsNote.Text = "Select a simulation in the list to see its details.";
+        DetailsNote.IsVisible = true;
+    }
+
+    /// <summary>Reads the details in the background; only the last request reaches the panel.</summary>
+    private async void ShowDetails(string title, Func<DWSIM.SharedClasses.FlowsheetFileInfo> read)
+    {
+        var req = ++_detailsRequest;
+        DetailsTitle.Text = title;
+        DWSIM.SharedClasses.FlowsheetFileInfo info;
+        try
+        {
+            info = await Task.Run(read);
+        }
+        catch (Exception ex)
+        {
+            if (req != _detailsRequest) return;
+            DetailsNote.Text = ex.Message;
+            DetailsNote.IsVisible = true;
+            return;
+        }
+        if (req != _detailsRequest) return;
+
+        DetailsTitle.Text = info.DisplayTitle();
+        SetDetailsPreview(info.Preview);
+
+        DetailsComments.Text = info.Comments;
+        DetailsComments.IsVisible = !string.IsNullOrWhiteSpace(info.Comments);
+
+        DetailsLines.Children.Clear();
+        foreach (var kv in info.GetDetails())
+        {
+            var tb = new TextBlock { TextWrapping = TextWrapping.Wrap };
+            tb.Inlines!.Add(new global::Avalonia.Controls.Documents.Run(kv.Key + ": ") { FontWeight = FontWeight.SemiBold });
+            tb.Inlines.Add(new global::Avalonia.Controls.Documents.Run(kv.Value));
+            DetailsLines.Children.Add(tb);
+        }
+
+        var note = "";
+        if (!string.IsNullOrEmpty(info.ErrorMessage))
+            note = info.ErrorMessage;
+        else if (info.Preview == null && !string.IsNullOrEmpty(info.FilePath))
+            note = "This file doesn't have a flowsheet picture yet. It gets one the next time it's saved.";
+        DetailsNote.Text = note;
+        DetailsNote.IsVisible = note != "";
+    }
+
+    private void SetDetailsPreview(byte[]? png)
+    {
+        var old = DetailsPreview.Source as IDisposable;
+        DetailsPreview.Source = null;
+        old?.Dispose();
+        DetailsPreview.IsVisible = false;
+        if (png == null) return;
+        try
+        {
+            using var ms = new MemoryStream(png);
+            DetailsPreview.Source = new global::Avalonia.Media.Imaging.Bitmap(ms);
+            DetailsPreview.IsVisible = true;
+        }
+        catch { }
+    }
 
     private sealed class FosseeItem
     {

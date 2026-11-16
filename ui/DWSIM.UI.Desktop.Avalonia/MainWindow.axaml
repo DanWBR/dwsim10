@@ -56,7 +56,7 @@
     <!-- Body: the welcome screen until a simulation is open, then the document tabs -->
     <Grid>
 
-    <Grid Name="WelcomeHost" ColumnDefinitions="380,*" Margin="0">
+    <Grid Name="WelcomeHost" ColumnDefinitions="380,3*,2*" Margin="0">
 
       <!-- Left: "Get Started", the same sections the Windows welcome screen stacks -->
       <ScrollViewer Grid.Column="0"
@@ -128,7 +128,7 @@
       </ScrollViewer>
 
       <!-- Right: recent files, samples and the FOSSEE flowsheets -->
-      <TabControl Grid.Column="1" TabStripPlacement="Top" Margin="0">
+      <TabControl Name="WelcomeTabs" Grid.Column="1" TabStripPlacement="Top" Margin="0">
 
         <TabItem Header="Recent Files">
           <DockPanel Margin="16">
@@ -190,6 +190,23 @@
         </TabItem>
 
       </TabControl>
+
+      <!-- Details of the simulation selected in the lists, read from the file without loading it -->
+      <Border Grid.Column="2" BorderThickness="1,0,0,0" BorderBrush="#22000000">
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+          <StackPanel Spacing="10" Margin="16,52,16,16">
+            <Image Name="DetailsPreview" Stretch="Uniform" StretchDirection="DownOnly" MaxHeight="320"
+                   HorizontalAlignment="Center" IsVisible="False" />
+            <TextBlock Name="DetailsTitle" Text="Simulation Details" TextWrapping="Wrap"
+                       FontSize="16" FontWeight="SemiBold" />
+            <SelectableTextBlock Name="DetailsComments" TextWrapping="Wrap" IsVisible="False"
+                                 FontSize="{DynamicResource FontSizeNormal}" />
+            <StackPanel Name="DetailsLines" Spacing="4" />
+            <TextBlock Name="DetailsNote" TextWrapping="Wrap" Opacity="0.6"
+                       Text="Select a simulation in the list to see its details." />
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
 
     </Grid>
 

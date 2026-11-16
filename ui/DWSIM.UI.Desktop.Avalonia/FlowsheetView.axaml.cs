@@ -1038,6 +1038,15 @@ public partial class FlowsheetView : UserControl
         SetStatus("Saving...");
         AppendLog($"Saving to {Path.GetFileName(path)}...");
 
+        // the flowsheet picture shown by the welcome screens, drawn here on the UI thread
+        byte[]? preview = null;
+        try
+        {
+            preview = _surface?.RenderThumbnailPng(DWSIM.SharedClasses.FlowsheetFileInfo.PreviewMaxWidth,
+                                                   DWSIM.SharedClasses.FlowsheetFileInfo.PreviewMaxHeight);
+        }
+        catch { }
+
         try
         {
             await Task.Run(() =>
@@ -1054,6 +1063,14 @@ public partial class FlowsheetView : UserControl
                         using var zip = new ZipArchive(File.Create(path), ZipArchiveMode.Create);
                         zip.CreateEntryFromFile(xmlfile, Path.GetFileName(xmlfile),
                             CompressionLevel.Optimal);
+                        if (preview != null)
+                        {
+                            // PNG is compressed already
+                            var entry = zip.CreateEntry(DWSIM.SharedClasses.FlowsheetFileInfo.PreviewEntryName,
+                                                        CompressionLevel.NoCompression);
+                            using var es = entry.Open();
+                            es.Write(preview, 0, preview.Length);
+                        }
                     }
                     finally
                     {
