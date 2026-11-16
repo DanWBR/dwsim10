@@ -211,6 +211,24 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                     S = result(7)
                     Vs = result(8)
 
+                ElseIf L2 = 0.0 AndAlso PP.ForcedSolids.Count > 0 AndAlso S < 1.0 AndAlso PP.RET_VTF.SumY > 0.0 Then
+                    ' One liquid next to forced solids. What crystallizes from that liquid changes it, and with it how much
+                    ' of it vaporises, so the fluid part goes through the solid-liquid-vapour flash that alternates the two
+                    ' steps (as above), and the forced solids are added back. A single pass left the liquid above its
+                    ' boiling point: a sugar syrup boiling under vacuum came out with a water fugacity 1.23 times the pressure.
+                    Dim S0 As Double = S
+                    Dim Vs0 As Double() = Vs
+                    nl3.FlashSettings = FlashSettings
+                    result = nl3.Flash_PT(Vfluid, P, T, PP)
+                    L1 = result(0) * (1 - S0)
+                    V = result(1) * (1 - S0)
+                    Vx1 = result(2)
+                    Vy = result(3)
+                    Dim Sl As Double = result(7) * (1 - S0)
+                    If Sl > 0.0 Then
+                        Vs = Vs0.MultiplyConstY(S0).AddY(DirectCast(result(8), Double()).MultiplyConstY(Sl)).NormalizeY()
+                        S = S0 + Sl
+                    End If
                 ElseIf PP.RET_VTF.SumY > 0.0 Then
 
                     result = nl3.Flash_SL(Vx1, P, T, PP)
