@@ -1718,6 +1718,14 @@ Namespace UnitOperations
 
                 T2est = MathNet.Numerics.Interpolation.CubicSpline.InterpolateAkima(Hvec, Tvec).Interpolate(H2)
 
+                'outside the tabulated enthalpies the spline extrapolates without bound (a sugar juice throttled to vacuum,
+                'already mostly boiled at the tabulated temperatures, gave 4374 K); there the nearest tabulated point is the estimate
+                If H2 < Hvec.Min() Then
+                    T2est = Tvec(Array.IndexOf(Hvec, Hvec.Min()))
+                ElseIf H2 > Hvec.Max() Then
+                    T2est = Tvec(Array.IndexOf(Hvec, Hvec.Max()))
+                End If
+
                 IObj?.SetCurrent()
                 Dim tmp = Me.PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureEnthalpy, P2, H2, T2est)
                 T2 = tmp.CalculatedTemperature

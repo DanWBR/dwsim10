@@ -1102,13 +1102,27 @@ out:        d2 = Date.Now
 
                     e3 = (V - Vant)
 
+                    'a vapor fraction held at 0 or 1 is the answer only if the K-values of the current phase compositions keep it
+                    'there: the bound was chosen with K-values from the compositions of the previous estimate
+                    Dim leaveBound As Boolean = False
+                    If V = 0.0 OrElse V = 1.0 Then
+                        Dim F0b = 0.0, F1b = 0.0
+                        For i = 0 To n
+                            If Vz(i) > 0 Then
+                                F0b += Vz(i) * (Ki(i) - 1)
+                                F1b += Vz(i) * (Ki(i) - 1) / Ki(i)
+                            End If
+                        Next
+                        leaveBound = (V = 0.0 AndAlso F0b > 0.0) OrElse (V = 1.0 AndAlso F1b < 0.0)
+                    End If
+
                     IObj3?.Paragraphs.Add(String.Format("Current Vapor Fraction (<math_inline>\beta</math_inline>) error: {0}", e3))
 
                     If Double.IsNaN(e1 + e2) Then
 
                         Throw New Exception(Calculator.GetLocalString("PropPack_FlashError"))
 
-                    ElseIf Math.Abs(e3) < 0.0000000001 And ecount > 0 Then
+                    ElseIf Math.Abs(e3) < 0.0000000001 And ecount > 0 And Not leaveBound Then
 
                         convergiu = 1
 
