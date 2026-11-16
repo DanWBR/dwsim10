@@ -739,11 +739,11 @@ Namespace PropertyPackages
                 If st = State.Liquid Then
                     Select Case EnthalpyEntropyCpCvCalculationMode
                         Case 0, 1 'Ideal
-                            S = Me.RET_Sid(298.15, T, P, Vx) - Me.RET_HVAPM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T) / T + P / 1000 / Me.AUX_LIQDENS(T, Vx, P) / T
+                            S = Me.RET_Sid(298.15, T, P, Vx) + Me.RET_Sid_LiquidVaporPressureTerm(Vx, T, P) - Me.RET_HVAPM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T) / T + P / 1000 / Me.AUX_LIQDENS(T, Vx, P) / T
                         Case 2 'Excess
                             Throw New Exception("Raoult's Law Property Package: Excess Enthalpy/Entropy/CP calculation mode is not supported.")
                         Case 3, 4 'Experimental Liquid
-                            S = AUX_INT_CPDTm_L(298.15, T, Me.AUX_CONVERT_MOL_TO_MASS(Vx)) / T + P / 1000 / Me.AUX_LIQDENS(T, Vx, P) / T
+                            S = AUX_INT_CPDT_Tm_L(298.15, T, Me.AUX_CONVERT_MOL_TO_MASS(Vx)) + P / 1000 / Me.AUX_LIQDENS(T, Vx, P) / T
                     End Select
                 ElseIf st = State.Vapor Then
                     Select Case EnthalpyEntropyCpCvCalculationMode
@@ -757,21 +757,21 @@ Namespace PropertyPackages
                 ElseIf st = State.Solid Then
                     Dim refSolids = SplitSolidsAtReference(Vx)
                     If SolidPhaseEnthalpy_UsesCp OrElse refSolids.AllAtReference Then
-                        S = CalcSolidEnthalpyFromCp(T, Vx, DW_GetConstantProperties) / T
+                        S = CalcSolidEntropyFromCp(T, Vx, DW_GetConstantProperties)
                     Else
                         'compounds solid at the reference state take the solid heat capacity; the rest, this route
                         Dim Vwhole = Vx
                         Vx = refSolids.Rest
                         Select Case EnthalpyEntropyCpCvCalculationMode
                             Case 0, 1 'Ideal
-                                S = Me.RET_Sid(298.15, T, P, Vx) + P / 1000 / Me.AUX_LIQDENS(T, Vx, P) / T - Me.RET_HVAPM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T) / T - Me.RET_SFUSM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T)
+                                S = Me.RET_Sid(298.15, T, P, Vx) + Me.RET_Sid_LiquidVaporPressureTerm(Vx, T, P) + P / 1000 / Me.AUX_LIQDENS(T, Vx, P) / T - Me.RET_HVAPM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T) / T - Me.RET_SFUSM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T)
                             Case 2 'Excess
                                 Throw New Exception("Raoult's Law Property Package: Excess Enthalpy/Entropy/Cp calculation mode is not supported.")
                             Case 3, 4 'Experimental Liquid
-                                S = AUX_INT_CPDTm_L(298.15, T, Me.AUX_CONVERT_MOL_TO_MASS(Vx)) / T - RET_SFUSM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T) + P / 1000 / Me.AUX_LIQDENS(T, Vx, P) / T
+                                S = AUX_INT_CPDT_Tm_L(298.15, T, Me.AUX_CONVERT_MOL_TO_MASS(Vx)) - RET_SFUSM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T) + P / 1000 / Me.AUX_LIQDENS(T, Vx, P) / T
                         End Select
                         Vx = Vwhole
-                        S = refSolids.Combine(S, Function() CalcSolidEnthalpyFromCp(T, refSolids.Reference, DW_GetConstantProperties) / T)
+                        S = refSolids.Combine(S, Function() CalcSolidEntropyFromCp(T, refSolids.Reference, DW_GetConstantProperties))
                     End If
                 End If
 

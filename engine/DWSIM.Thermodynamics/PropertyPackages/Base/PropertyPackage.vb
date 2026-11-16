@@ -10490,6 +10490,51 @@ Final3:
         ''' The integral of a solid heat capacity (kJ/kg.K) from T1 to T2, in kJ/kg (Simpson's rule, 20 intervals; exact
         ''' for a constant or polynomial heat capacity up to the third degree).
         ''' </summary>
+        ''' <summary>
+        ''' Solid entropy [kJ/(kg.K)] along the path of <see cref="CalcSolidEnthalpyFromCp"/>: the liquid at 298.15 K (heated or
+        ''' cooled to the melting point first when it melts below 298.15 K) freezes, taking Hfus/Tf, and the solid then follows
+        ''' its heat capacity to T. Same data and the same branches as the enthalpy, so that H and S describe one path.
+        ''' </summary>
+        Public Function CalcSolidEntropyFromCp(ByVal T As Double, ByVal Vx As Double(), cprops As List(Of Interfaces.ICompoundConstantProperties)) As Double
+
+            Dim n As Integer = Vx.Length - 1
+            Dim SS As Double = 0.0#
+            Dim VMF() As Double = RET_VMM().MultiplyY(Vx).NormalizeY
+
+            For i = 0 To n
+                If Vx(i) > 0 Then
+                    Dim tf = cprops(i).TemperatureOfFusion
+                    Dim mw As Double = cprops(i).Molar_Weight
+                    Dim A = cprops(i).Solid_Heat_Capacity_Const_A, B = cprops(i).Solid_Heat_Capacity_Const_B, C = cprops(i).Solid_Heat_Capacity_Const_C
+                    Dim D = cprops(i).Solid_Heat_Capacity_Const_D, E = cprops(i).Solid_Heat_Capacity_Const_E
+                    Dim eqno As String = cprops(i).SolidHeatCapacityEquation
+                    Dim cpAt As Func(Of Double, Double) = Nothing
+                    If cprops(i).OriginalDB = "ChemSep" Or cprops(i).OriginalDB = "User" Then
+                        Dim numbered = Integer.TryParse(eqno, New Integer)
+                        cpAt = Function(tt) If(numbered, CalcCSTDepProp(eqno, A, B, C, D, E, tt, 0), ParseEquation(eqno, A, B, C, D, E, tt)) / 1000 / mw
+                    ElseIf cprops(i).OriginalDB = "ChEDL Thermo" Then
+                        cpAt = Function(tt) CalcCSTDepProp(eqno, A, B, C, D, E, tt, 0)
+                    End If
+                    Dim sfus = If(tf > 0.0, cprops(i).EnthalpyOfFusionAtTf * 1000 / mw / tf, 0.0)
+                    If cpAt IsNot Nothing Then
+                        If tf < 298.15 Then
+                            SS += VMF(i) * AUX_INT_CPDT_Ti_L(298.15, tf, i)
+                            SS -= VMF(i) * sfus
+                            SS -= VMF(i) * SolidCpIntegral(Function(tt) cpAt(tt) / tt, T, tf)
+                        Else
+                            SS -= VMF(i) * sfus
+                            SS -= VMF(i) * SolidCpIntegral(Function(tt) cpAt(tt) / tt, T, 298.15)
+                        End If
+                    ElseIf tf <> 0.0# Then
+                        SS -= VMF(i) * sfus
+                    End If
+                End If
+            Next
+
+            Return SS
+
+        End Function
+
         Private Shared Function SolidCpIntegral(cp As Func(Of Double, Double), T1 As Double, T2 As Double) As Double
 
             If T1 = T2 Then Return 0.0
@@ -10876,8 +10921,11 @@ Final3:
                 If Vz(i) > 0.0 Then
                     Tv = If(T > Tb, Tb, T)
                     Tvm += Vw(i) * Tv
-                    t1 += Vw(i) * AUX_INT_CPDTi_L(298.15, Tv, i) / T
-                    t2 += Vw(i) * AUX_HVAPi(props(i).Name, Tv) / T
+                    t1 += Vw(i) * AUX_INT_CPDT_Ti_L(298.15, Tv, i)
+                    'vaporization at Tv and at the vapor pressure there; RET_Sid_i then takes the gas from 1 atm to P
+                    t2 += Vw(i) * AUX_HVAPi(props(i).Name, Tv) / Tv
+                    Dim psat = AUX_PVAPi(i, Tv)
+                    If psat > 0.0 Then t2 += Vw(i) * 8.314 / props(i).Molar_Weight * Math.Log(psat / 101325)
                     t3 += Vw(i) * RET_Sid_i(Tv, T, P, props(i).Name)
                 End If
             Next
@@ -11401,6 +11449,69 @@ Final3:
             For Each subst In Me.CurrentMaterialStream.Phases(0).Compounds.Values
                 If Vw(i) > 0.0 Then val += Vw(i) * Me.AUX_INT_CPDTi_L(T1, T2, i)
                 i += 1
+            Next
+
+            Return val
+
+        End Function
+
+        ''' <summary>Term that takes the liquid entropy of the ideal path, S_ig(T, P) - Hvap/T, to the gas at the vapor pressure of
+        ''' each compound: sum of w_i.R/M_i.ln(P/Psat_i(T)), kJ/(kg.K). Without it the liquid entropy fell with the pressure
+        ''' as a gas does. Compounds without a vapor pressure take none.</summary>
+        Public Function RET_Sid_LiquidVaporPressureTerm(ByVal Vx As Double(), ByVal T As Double, ByVal P As Double) As Double
+
+            Dim props = DW_GetConstantProperties()
+            Dim Vw = AUX_CONVERT_MOL_TO_MASS(Vx)
+            Dim val As Double = 0.0
+            For i = 0 To Vx.Length - 1
+                If Vw(i) > 0.0 Then
+                    Dim psat = AUX_PVAPi(i, T)
+                    If psat > 0.0 Then val += Vw(i) * 8.314 / props(i).Molar_Weight * Math.Log(P / psat)
+                End If
+            Next
+
+            Return val
+
+        End Function
+
+        ''' <summary>Integral of the liquid heat capacity of compound <paramref name="index"/> divided by T, from T1 to T2,
+        ''' kJ/(kg.K): the entropy counterpart of <see cref="AUX_INT_CPDTi_L"/>, with the same midpoint rule.</summary>
+        Public Function AUX_INT_CPDT_Ti_L(ByVal T1 As Double, ByVal T2 As Double, ByVal index As Integer) As Double
+
+            Dim nsteps As Integer = Math.Abs(T2 - T1) / 10
+
+            If nsteps < 10 Then
+                If Math.Abs(T2 - T1) < 1 Then
+                    nsteps = 2
+                ElseIf Math.Abs(T2 - T1) < 3 Then
+                    nsteps = 4
+                ElseIf Math.Abs(T2 - T1) < 5 Then
+                    nsteps = 6
+                Else
+                    nsteps = 10
+                End If
+            End If
+
+            Dim deltaT As Double = (T2 - T1) / nsteps
+
+            Dim cprops = DW_GetConstantProperties()
+
+            Dim sum As Double = 0.0
+            For i = 0 To nsteps - 1
+                Dim Ti = T1 + deltaT / 2 + i * deltaT
+                sum += AUX_LIQ_Cpi(cprops(index), Ti) / Ti
+            Next
+
+            Return sum * deltaT
+
+        End Function
+
+        ''' <summary>Mass-weighted <see cref="AUX_INT_CPDT_Ti_L"/> of a liquid mixture, kJ/(kg.K).</summary>
+        Public Function AUX_INT_CPDT_Tm_L(ByVal T1 As Double, ByVal T2 As Double, ByVal Vw As Double()) As Double
+
+            Dim val As Double
+            For i = 0 To Vw.Length - 1
+                If Vw(i) > 0.0 Then val += Vw(i) * AUX_INT_CPDT_Ti_L(T1, T2, i)
             Next
 
             Return val

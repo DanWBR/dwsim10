@@ -709,7 +709,7 @@ Namespace PropertyPackages
                 If LiquidEnthalpyEntropyCpCvCalculationMode_EOS = LiquidEnthalpyEntropyCpCvCalcMode_EOS.EOS Then
                     S = Me.m_pr.S_PR_MIX("L", T, P, Vx, RET_VKij(), RET_VKij2, RET_KAPPA1, RET_KAPPA2, RET_KAPPA3, RET_VTC, RET_VPC, RET_VW, RET_VMM, Me.RET_Sid(298.15, T, P, Vx))
                 Else
-                    S = AUX_INT_CPDTm_L(298.15, T, Me.AUX_CONVERT_MOL_TO_MASS(Vx)) / T + P / 1000 / Me.AUX_LIQDENS(T, Vx, P) / T
+                    S = AUX_INT_CPDT_Tm_L(298.15, T, Me.AUX_CONVERT_MOL_TO_MASS(Vx)) + P / 1000 / Me.AUX_LIQDENS(T, Vx, P) / T
                 End If
             ElseIf st = State.Vapor Then
                 If LiquidEnthalpyEntropyCpCvCalculationMode_EOS = LiquidEnthalpyEntropyCpCvCalcMode_EOS.EOS Then
@@ -720,7 +720,7 @@ Namespace PropertyPackages
             ElseIf st = State.Solid Then
                 Dim refSolids = SplitSolidsAtReference(Vx)
                 If SolidPhaseEnthalpy_UsesCp OrElse refSolids.AllAtReference Then
-                    S = CalcSolidEnthalpyFromCp(T, Vx, DW_GetConstantProperties) / T
+                    S = CalcSolidEntropyFromCp(T, Vx, DW_GetConstantProperties)
                 Else
                     'compounds solid at the reference state take the solid heat capacity; the rest, this route
                     Dim Vwhole = Vx
@@ -728,10 +728,10 @@ Namespace PropertyPackages
                     If LiquidEnthalpyEntropyCpCvCalculationMode_EOS = LiquidEnthalpyEntropyCpCvCalcMode_EOS.EOS Then
                         S = Me.m_pr.S_PR_MIX("L", T, P, Vx, RET_VKij(), RET_VKij2, RET_KAPPA1, RET_KAPPA2, RET_KAPPA3, RET_VTC, RET_VPC, RET_VW, RET_VMM, Me.RET_Sid(298.15, T, P, Vx)) - Me.RET_SFUSM(AUX_CONVERT_MOL_TO_MASS(Vx), T)
                     Else
-                        S = AUX_INT_CPDTm_L(298.15, T, Me.AUX_CONVERT_MOL_TO_MASS(Vx)) / T - RET_SFUSM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T) + P / 1000 / Me.AUX_LIQDENS(T, Vx, P) / T
+                        S = AUX_INT_CPDT_Tm_L(298.15, T, Me.AUX_CONVERT_MOL_TO_MASS(Vx)) - RET_SFUSM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T) + P / 1000 / Me.AUX_LIQDENS(T, Vx, P) / T
                     End If
                     Vx = Vwhole
-                    S = refSolids.Combine(S, Function() CalcSolidEnthalpyFromCp(T, refSolids.Reference, DW_GetConstantProperties) / T)
+                    S = refSolids.Combine(S, Function() CalcSolidEntropyFromCp(T, refSolids.Reference, DW_GetConstantProperties))
                 End If
             End If
 

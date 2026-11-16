@@ -1068,6 +1068,19 @@ Namespace PropertyPackages
 
         End Function
 
+        ''' <summary>Excess Gibbs energy of the liquid, R.T.sum(x.ln(gamma))/M [kJ/kg], from the activity coefficients of the model.</summary>
+        Private Function ExcessGibbsEnergy(ByVal T As Double, ByVal Vx As System.Array) As Double
+            Dim g As Array = Me.m_act.CalcActivityCoefficients(T, Vx, Me.GetArguments())
+            Dim s As Double = 0.0
+            For i = 0 To Vx.Length - 1
+                Dim xi = Convert.ToDouble(Vx.GetValue(i)), gi = Convert.ToDouble(g.GetValue(i))
+                If xi > 0.0 AndAlso gi > 0.0 Then s += xi * Math.Log(gi)
+            Next
+            Dim ge = 8.314 * T * s / Me.AUX_MMM(Vx)
+            If Double.IsNaN(ge) OrElse Double.IsInfinity(ge) Then ge = 0.0
+            Return ge
+        End Function
+
         Public Overrides Function DW_CalcEntropy(ByVal Vx As System.Array, ByVal T As Double, ByVal P As Double, ByVal st As State) As Double
 
             If OverrideEntropyCalculation Then
@@ -1089,17 +1102,17 @@ Namespace PropertyPackages
                         Case 0 'LK
                             S = Me.m_lk.S_LK_MIX("L", T, P, Vx, RET_VKij(), RET_VTC, RET_VPC, RET_VW, RET_VMM, Me.RET_Sid(298.15, T, P, Vx))
                         Case 1 'Ideal
-                            S = Me.RET_Sid(298.15, T, P, Vx) - Me.RET_HVAPM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T) / T + P / 1000 / Me.AUX_LIQDENS(T, Vx, P) / T
+                            S = Me.RET_Sid(298.15, T, P, Vx) + Me.RET_Sid_LiquidVaporPressureTerm(Vx, T, P) - Me.RET_HVAPM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T) / T + P / 1000 / Me.AUX_LIQDENS(T, Vx, P) / T
                         Case 2 'Excess
                             Dim gammaex = Me.m_act.CalcExcessEnthalpy(T, Vx, Me.GetArguments()) / Me.AUX_MMM(Vx)
                             If Double.IsNaN(gammaex) Then gammaex = 0.0
-                            S = Me.RET_Sid(298.15, T, P, Vx) + gammaex / T + P / 1000 / Me.AUX_LIQDENS(T, Vx, P) / T - Me.RET_HVAPM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T) / T
+                            S = Me.RET_Sid(298.15, T, P, Vx) + Me.RET_Sid_LiquidVaporPressureTerm(Vx, T, P) + (gammaex - ExcessGibbsEnergy(T, Vx)) / T + P / 1000 / Me.AUX_LIQDENS(T, Vx, P) / T - Me.RET_HVAPM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T) / T
                         Case 3 'Experimental Liquid
-                            S = AUX_INT_CPDTm_L(298.15, T, Me.AUX_CONVERT_MOL_TO_MASS(Vx)) / T + P / 1000 / Me.AUX_LIQDENS(T, Vx, P) / T
+                            S = AUX_INT_CPDT_Tm_L(298.15, T, Me.AUX_CONVERT_MOL_TO_MASS(Vx)) + P / 1000 / Me.AUX_LIQDENS(T, Vx, P) / T
                         Case 4 'Experimental Liquid + Excess
                             Dim gammaex = Me.m_act.CalcExcessEnthalpy(T, Vx, Me.GetArguments()) / Me.AUX_MMM(Vx)
                             If Double.IsNaN(gammaex) Then gammaex = 0.0
-                            S = AUX_INT_CPDTm_L(298.15, T, Me.AUX_CONVERT_MOL_TO_MASS(Vx)) / T + P / 1000 / Me.AUX_LIQDENS(T, Vx, P) / T + gammaex / T
+                            S = AUX_INT_CPDT_Tm_L(298.15, T, Me.AUX_CONVERT_MOL_TO_MASS(Vx)) + P / 1000 / Me.AUX_LIQDENS(T, Vx, P) / T + (gammaex - ExcessGibbsEnergy(T, Vx)) / T
                     End Select
                 ElseIf st = State.Vapor Then
                     Select Case EnthalpyEntropyCpCvCalculationMode
@@ -1115,7 +1128,7 @@ Namespace PropertyPackages
                 ElseIf st = State.Solid Then
                     Dim refSolids = SplitSolidsAtReference(Vx)
                     If SolidPhaseEnthalpy_UsesCp OrElse refSolids.AllAtReference Then
-                        S = CalcSolidEnthalpyFromCp(T, Vx, DW_GetConstantProperties) / T
+                        S = CalcSolidEntropyFromCp(T, Vx, DW_GetConstantProperties)
                     Else
                         'compounds solid at the reference state take the solid heat capacity; the rest, this route
                         Dim Vwhole = Vx
@@ -1124,14 +1137,14 @@ Namespace PropertyPackages
                             Case 0 'LK
                                 S = Me.m_lk.S_LK_MIX("L", T, P, Vx, RET_VKij(), RET_VTC, RET_VPC, RET_VW, RET_VMM, Me.RET_Sid(298.15, T, P, Vx)) - Me.RET_SFUSM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T)
                             Case 1 'Ideal
-                                S = Me.RET_Sid(298.15, T, P, Vx) + P / 1000 / Me.AUX_LIQDENS(T, Vx, P) / T - Me.RET_HVAPM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T) / T - Me.RET_SFUSM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T)
+                                S = Me.RET_Sid(298.15, T, P, Vx) + Me.RET_Sid_LiquidVaporPressureTerm(Vx, T, P) + P / 1000 / Me.AUX_LIQDENS(T, Vx, P) / T - Me.RET_HVAPM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T) / T - Me.RET_SFUSM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T)
                             Case 2 'Excess
-                                S = Me.RET_Sid(298.15, T, P, Vx) + P / 1000 / Me.AUX_LIQDENS(T, Vx, P) / T - Me.m_act.CalcExcessEnthalpy(T, Vx, Me.GetArguments()) / Me.AUX_MMM(Vx) / T - Me.RET_HVAPM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T) / T - Me.RET_SFUSM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T)
+                                S = Me.RET_Sid(298.15, T, P, Vx) + Me.RET_Sid_LiquidVaporPressureTerm(Vx, T, P) + P / 1000 / Me.AUX_LIQDENS(T, Vx, P) / T - Me.RET_HVAPM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T) / T - Me.RET_SFUSM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T)
                             Case 3, 4 'Experimental Liquid
-                                S = AUX_INT_CPDTm_L(298.15, T, Me.AUX_CONVERT_MOL_TO_MASS(Vx)) / T - RET_SFUSM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T) + P / 1000 / Me.AUX_LIQDENS(T, Vx, P) / T
+                                S = AUX_INT_CPDT_Tm_L(298.15, T, Me.AUX_CONVERT_MOL_TO_MASS(Vx)) - RET_SFUSM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T) + P / 1000 / Me.AUX_LIQDENS(T, Vx, P) / T
                         End Select
                         Vx = Vwhole
-                        S = refSolids.Combine(S, Function() CalcSolidEnthalpyFromCp(T, refSolids.Reference, DW_GetConstantProperties) / T)
+                        S = refSolids.Combine(S, Function() CalcSolidEntropyFromCp(T, refSolids.Reference, DW_GetConstantProperties))
                     End If
                 End If
 
