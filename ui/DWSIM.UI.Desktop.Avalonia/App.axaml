@@ -35,6 +35,13 @@
           <SolidColorBrush x:Key="TabSelectedAccent">#2E7CD6</SolidColorBrush>
           <SolidColorBrush x:Key="LinkForeground">#1565C0</SolidColorBrush>
           <SolidColorBrush x:Key="SplitterBrush">#C4C4C4</SolidColorBrush>
+          <!-- Welcome screen details panel. -->
+          <SolidColorBrush x:Key="DetailsCardBackground">#F7F9FC</SolidColorBrush>
+          <SolidColorBrush x:Key="DetailsCardBorder">#E1E7F0</SolidColorBrush>
+          <SolidColorBrush x:Key="DetailsChipBackground">#EAF1FB</SolidColorBrush>
+          <SolidColorBrush x:Key="DetailsChipForeground">#1F4E8C</SolidColorBrush>
+          <SolidColorBrush x:Key="DetailsWarningBackground">#FFF4E0</SolidColorBrush>
+          <SolidColorBrush x:Key="DetailsWarningForeground">#8A5300</SolidColorBrush>
           <!-- Gradient action buttons (carried over from the mobile theme). -->
           <LinearGradientBrush x:Key="AppButtonBackground" StartPoint="0%,0%" EndPoint="0%,100%">
             <GradientStop Offset="0" Color="#FFFFFF" />
@@ -57,6 +64,13 @@
           <SolidColorBrush x:Key="TabSelectedAccent">#2E7CD6</SolidColorBrush>
           <SolidColorBrush x:Key="LinkForeground">#5AA9E6</SolidColorBrush>
           <SolidColorBrush x:Key="SplitterBrush">#3A3A3A</SolidColorBrush>
+          <!-- Welcome screen details panel. -->
+          <SolidColorBrush x:Key="DetailsCardBackground">#23272F</SolidColorBrush>
+          <SolidColorBrush x:Key="DetailsCardBorder">#3A4150</SolidColorBrush>
+          <SolidColorBrush x:Key="DetailsChipBackground">#2A3445</SolidColorBrush>
+          <SolidColorBrush x:Key="DetailsChipForeground">#BBD3F2</SolidColorBrush>
+          <SolidColorBrush x:Key="DetailsWarningBackground">#3A2E1A</SolidColorBrush>
+          <SolidColorBrush x:Key="DetailsWarningForeground">#F0B45A</SolidColorBrush>
           <!-- Gradient action buttons (carried over from the mobile theme). -->
           <LinearGradientBrush x:Key="AppButtonBackground" StartPoint="0%,0%" EndPoint="0%,100%">
             <GradientStop Offset="0" Color="#3A4150" />
@@ -365,6 +379,38 @@
     <Style Selector="TextBlock.welcomeHeader">
       <Setter Property="FontSize" Value="15" />
       <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <!-- Welcome screen details panel: picture card, section headers and tags. -->
+    <Style Selector="Border.detailsCard">
+      <Setter Property="Background" Value="{DynamicResource DetailsCardBackground}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource DetailsCardBorder}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="8" />
+    </Style>
+    <Style Selector="TextBlock.detailsHeader">
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeSmall}" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Opacity" Value="0.6" />
+      <Setter Property="LetterSpacing" Value="0.6" />
+    </Style>
+    <Style Selector="Border.detailsChip">
+      <Setter Property="Background" Value="{DynamicResource DetailsChipBackground}" />
+      <Setter Property="CornerRadius" Value="11" />
+      <Setter Property="Padding" Value="9,3" />
+      <Setter Property="Margin" Value="0,0,6,6" />
+    </Style>
+    <Style Selector="Border.detailsChip > TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource DetailsChipForeground}" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
+    </Style>
+    <Style Selector="Border.detailsWarning">
+      <Setter Property="Background" Value="{DynamicResource DetailsWarningBackground}" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="10,7" />
+    </Style>
+    <Style Selector="Border.detailsWarning > TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource DetailsWarningForeground}" />
+      <Setter Property="TextWrapping" Value="Wrap" />
     </Style>
     <Style Selector="TextBlock.welcomeSubtitle">
       <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />

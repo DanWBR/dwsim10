@@ -49,6 +49,12 @@ Public Class FlowsheetFileInfo
     ''' <summary>More lines for the details panel, shown after the author (used for the Case Library).</summary>
     Public Property ExtraDetails As New List(Of KeyValuePair(Of String, String))
 
+    ''' <summary>Components of the Patreon Edition a Case Library case uses.</summary>
+    Public Property PatreonComponents As New List(Of String)
+
+    ''' <summary>Something the user must know before opening it (a Case Library case this DWSIM can't open), or empty.</summary>
+    Public Property Warning As String = ""
+
     Private Shared ReadOnly Cache As New ConcurrentDictionary(Of String, FlowsheetFileInfo)(StringComparer.OrdinalIgnoreCase)
 
     ''' <summary>
@@ -72,12 +78,10 @@ Public Class FlowsheetFileInfo
             info.ErrorMessage = "The case description couldn't be downloaded (" & ex.Message & ")."
         End Try
 
-        If item.PatreonComponents.Count > 0 Then
-            info.ExtraDetails.Add(New KeyValuePair(Of String, String)("Uses from the Patreon Edition", String.Join(", ", item.PatreonComponents)))
-        End If
+        info.PatreonComponents.AddRange(item.PatreonComponents)
         Dim missing = item.MissingComponents
         If missing.Count > 0 Then
-            info.ExtraDetails.Add(New KeyValuePair(Of String, String)("Doesn't open here", "needs DWSIM Patreon Edition (" & String.Join(", ", missing) & ")"))
+            info.Warning = "This case needs DWSIM Patreon Edition (" & String.Join(", ", missing) & ") and doesn't open here."
         End If
 
         Try
@@ -369,51 +373,78 @@ Public Class FlowsheetFileInfo
         Return Regex.Replace(n, "\s+", " ").Trim()
     End Function
 
-    ''' <summary>The lines of the details panel, as label and text, in display order.</summary>
-    Public Function GetDetails() As List(Of KeyValuePair(Of String, String))
+    ''' <summary>A block of the details panel: a header and either short items (shown as tags) or label/value facts.</summary>
+    Public Class DetailSection
+        Public Property Header As String = ""
+        Public Property Items As New List(Of String)
+        Public Property Facts As New List(Of KeyValuePair(Of String, String))
+    End Class
 
-        Dim d As New List(Of KeyValuePair(Of String, String))
-        Dim add = Sub(k As String, v As String)
-                      If Not String.IsNullOrWhiteSpace(v) Then d.Add(New KeyValuePair(Of String, String)(k, v))
-                  End Sub
+    ''' <summary>Author, save date and interface, the line under the title.</summary>
+    Public Function Subtitle() As String
+        Dim parts As New List(Of String)
+        If Not String.IsNullOrWhiteSpace(Author) Then parts.Add(Author)
+        If SavedOn.HasValue Then parts.Add("saved " & FormatDate(SavedOn.Value))
+        If SavedFromClassicUI.HasValue Then parts.Add(If(SavedFromClassicUI.Value, "Classic UI", "Cross-Platform UI"))
+        Return String.Join(Sep, parts)
+    End Function
 
-        add("Author", Author)
-        For Each kv In ExtraDetails
-            add(kv.Key, kv.Value)
-        Next
+    ''' <summary>The blocks of the panel under the description, in display order; empty ones are left out.</summary>
+    Public Function GetSections() As List(Of DetailSection)
 
-        If SavedOn.HasValue Then
-            Dim ui = ""
-            If SavedFromClassicUI.HasValue Then ui = If(SavedFromClassicUI.Value, " in the Classic UI", " in the Cross-Platform UI")
-            Dim ver = If(BuildVersion <> "", " (version " & BuildVersion & ")", "")
-            add("Saved", SavedOn.Value.ToString("g") & ui & ver)
+        Dim list As New List(Of DetailSection)
+
+        If ExtraDetails.Count > 0 Then
+            list.Add(New DetailSection With {.Header = "About", .Facts = ExtraDetails.Where(Function(kv) Not String.IsNullOrWhiteSpace(kv.Value)).ToList()})
         End If
 
-        add("Property packages", String.Join(", ", PropertyPackages.GroupBy(Function(n) n).
-                                                  Select(Function(g) If(g.Count() > 1, g.Key & " x" & g.Count().ToString(), g.Key))))
+        If PatreonComponents.Count > 0 Then
+            list.Add(New DetailSection With {.Header = "Patreon Edition components", .Items = PatreonComponents.ToList()})
+        End If
+
+        If PropertyPackages.Count > 0 Then
+            list.Add(New DetailSection With {
+                .Header = If(PropertyPackages.Count > 1, "Property packages", "Property package"),
+                .Items = PropertyPackages.GroupBy(Function(n) n).Select(Function(g) If(g.Count() > 1, g.Key & "  " & ChrW(215) & g.Count().ToString(), g.Key)).ToList()})
+        End If
 
         If Compounds.Count > 0 Then
-            Dim shown = Compounds.Take(12).ToList()
-            Dim more = If(Compounds.Count > shown.Count, ", and " & (Compounds.Count - shown.Count).ToString() & " more", "")
-            add("Compounds (" & Compounds.Count.ToString() & ")", String.Join(", ", shown) & more)
+            Dim shown = Compounds.Take(24).ToList()
+            If Compounds.Count > shown.Count Then shown.Add("+" & (Compounds.Count - shown.Count).ToString() & " more")
+            list.Add(New DetailSection With {.Header = "Compounds (" & Compounds.Count.ToString() & ")", .Items = shown})
         End If
 
-        Dim streams As New List(Of String)
-        If MaterialStreams > 0 Then streams.Add(MaterialStreams.ToString() & " material")
-        If EnergyStreams > 0 Then streams.Add(EnergyStreams.ToString() & " energy")
-        add("Streams", String.Join(", ", streams))
+        Dim objects As New List(Of String)
+        If MaterialStreams > 0 Then objects.Add(Plural(MaterialStreams, "material stream"))
+        If EnergyStreams > 0 Then objects.Add(Plural(EnergyStreams, "energy stream"))
+        For Each kv In ObjectCounts
+            objects.Add(If(kv.Value > 1, kv.Key & "  " & ChrW(215) & kv.Value.ToString(), kv.Key))
+        Next
+        If objects.Count > 0 Then list.Add(New DetailSection With {.Header = "Flowsheet", .Items = objects})
 
-        If ObjectCounts.Count > 0 Then
-            add("Objects", String.Join(", ", ObjectCounts.Select(Function(kv) If(kv.Value > 1, kv.Value.ToString() & " " & kv.Key, kv.Key))))
-        End If
+        Return list
 
-        If FilePath <> "" Then
-            add("File", Path.GetFileName(FilePath) & ", " & FormatSize(SizeBytes) & ", modified " & LastModified.ToString("g"))
-            add("Folder", Path.GetDirectoryName(FilePath))
-        End If
+    End Function
 
-        Return d
+    ''' <summary>The small print at the bottom: file, size, dates, version and folder.</summary>
+    Public Function FooterLines() As List(Of String)
+        Dim lines As New List(Of String)
+        If FilePath = "" Then Return lines
+        lines.Add(Path.GetFileName(FilePath) & Sep & FormatSize(SizeBytes) & Sep & "modified " & FormatDate(LastModified))
+        If BuildVersion <> "" Then lines.Add("Saved with DWSIM " & BuildVersion.Trim())
+        lines.Add(Path.GetDirectoryName(FilePath))
+        Return lines
+    End Function
 
+    ''' <summary>Two spaces, a middle dot and two spaces.</summary>
+    Private Shared ReadOnly Sep As String = "  " & ChrW(183) & "  "
+
+    Private Shared Function FormatDate(d As Date) As String
+        Return d.ToString("d MMM yyyy, HH:mm", CultureInfo.InvariantCulture)
+    End Function
+
+    Private Shared Function Plural(n As Integer, noun As String) As String
+        Return n.ToString() & " " & noun & If(n = 1, "", "s")
     End Function
 
     ''' <summary>The simulation name, or the file name without extension when the simulation doesn't have one.</summary>
