@@ -193,6 +193,10 @@
 
       <!-- Details of the simulation selected in the lists, read from the file without loading it -->
       <Border Grid.Column="2" BorderThickness="1,0,0,0" BorderBrush="{DynamicResource SplitterBrush}">
+        <DockPanel>
+        <!-- opens the item shown, the same as a double-click in the list -->
+        <Button Name="DetailsOpen" DockPanel.Dock="Bottom" Classes="detailsOpen" Content="Open"
+                Margin="20,8,20,18" IsVisible="False" />
         <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
           <StackPanel Spacing="14" Margin="20,52,20,20">
             <Border Name="DetailsPreviewCard" Classes="detailsCard" Padding="10" IsVisible="False">
@@ -215,6 +219,7 @@
                        Text="Select a simulation in the list to see its details." />
           </StackPanel>
         </ScrollViewer>
+        </DockPanel>
       </Border>
 
     </Grid>

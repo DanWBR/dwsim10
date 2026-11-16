@@ -403,6 +403,24 @@
       <Setter Property="Foreground" Value="{DynamicResource DetailsChipForeground}" />
       <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
     </Style>
+    <Style Selector="Button.detailsOpen">
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="Padding" Value="0,9" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Background" Value="{DynamicResource TabSelectedAccent}" />
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.detailsOpen:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#2569B8" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.detailsOpen:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#1E5698" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
     <Style Selector="Border.detailsWarning">
       <Setter Property="Background" Value="{DynamicResource DetailsWarningBackground}" />
       <Setter Property="CornerRadius" Value="6" />

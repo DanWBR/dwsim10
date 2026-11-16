@@ -277,6 +277,7 @@ public partial class MainWindow : Window
 
         // Case Library
         BtnCaseLibraryRepo.Click += (_, _) => OpenUrl("https://github.com/DanWBR/dwsim-case-library");
+        DetailsOpen.Click += (_, _) => _detailsOpen?.Invoke();
         BtnCaseLibraryContribute.Click += (_, _) => OpenUrl("https://github.com/DanWBR/dwsim-case-library/blob/main/CONTRIBUTING.md");
         CaseLibraryList.DoubleTapped += (_, _) => OpenCaseLibraryFlowsheet();
 
@@ -284,22 +285,34 @@ public partial class MainWindow : Window
         RecentFilesList.SelectionChanged += (_, _) =>
         {
             if (RecentFilesList.SelectedItem is string p)
+            {
+                SetOpenButton("Open", () => OpenFlowsheetFile(p));
                 ShowDetails(Path.GetFileNameWithoutExtension(p), () => DWSIM.SharedClasses.FlowsheetFileInfo.Read(p));
+            }
         };
         SamplesList.SelectionChanged += (_, _) =>
         {
             if (SamplesList.SelectedItem is SampleItem s)
+            {
+                SetOpenButton("Open", () => OpenFlowsheetFile(s.FilePath));
                 ShowDetails(s.DisplayName, () => DWSIM.SharedClasses.FlowsheetFileInfo.Read(s.FilePath));
+            }
         };
         CaseLibraryList.SelectionChanged += (_, _) =>
         {
             if (CaseLibraryList.SelectedItem is CaseLibraryItem c)
+            {
+                SetOpenButton("Download and Open", OpenCaseLibraryFlowsheet);
                 ShowDetails(c.Flowsheet.Title, () => DWSIM.SharedClasses.FlowsheetFileInfo.ReadCaseLibrary(c.Flowsheet));
+            }
         };
         FosseeList.SelectionChanged += (_, _) =>
         {
             if (FosseeList.SelectedItem is FosseeItem f)
+            {
+                SetOpenButton("Download and Open", OpenFosseeFlowsheet);
                 ShowDetails(f.Flowsheet.Title, () => DWSIM.SharedClasses.FlowsheetFileInfo.FromFossee(f.Flowsheet));
+            }
         };
         WelcomeTabs.SelectionChanged += (_, e) =>
         {
@@ -338,6 +351,16 @@ public partial class MainWindow : Window
 
     private int _detailsRequest;
 
+    // what the Open button at the bottom of the panel does for the item shown
+    private Action? _detailsOpen;
+
+    private void SetOpenButton(string text, Action? action)
+    {
+        _detailsOpen = action;
+        DetailsOpen.Content = text;
+        DetailsOpen.IsVisible = action != null;
+    }
+
     private void ClearDetails()
     {
         _detailsRequest++;
@@ -345,6 +368,7 @@ public partial class MainWindow : Window
         DetailsSubtitle.IsVisible = false;
         DetailsWarning.IsVisible = false;
         SetDetailsPreview(null);
+        SetOpenButton("Open", null);
         DetailsComments.IsVisible = false;
         DetailsSections.Children.Clear();
         DetailsFooter.Children.Clear();
