@@ -30,6 +30,7 @@ namespace DWSIM.FluentAPI.Tests
             // NaturalLayout dies on some external-UO topologies; AutoLayout always works.
             try { fs.NaturalLayout(); }
             catch (Exception) { fs.AutoLayout(); }
+            CaseLibraryMetadata.Apply(fs, caseName);
             fs.Save(dwxmz);
             fs.SaveScreenshot(Path.Combine(dir, caseName + ".png"));
 
