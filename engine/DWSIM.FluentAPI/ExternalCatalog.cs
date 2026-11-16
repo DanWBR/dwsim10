@@ -116,6 +116,8 @@ namespace DWSIM.Automation.FluentAPI
             public const string VaporCompressionChiller = "Vapor Compression Chiller";
             /// <summary>Zeolite molecular-sieve adsorber (PSA or equilibrium).</summary>
             public const string ZeoliteAdsorber = "Zeolite Adsorber";
+            /// <summary>Vacuum contact dryer for wet cakes (agitated bed or trays).</summary>
+            public const string ContactDryer = "Contact Dryer";
             /// <summary>Freeze dryer for solutions in vials (freezing, primary and secondary drying).</summary>
             public const string Lyophilizer = "Lyophilizer";
             /// <summary>Copper-bed mercury removal (capacity-based or Wheeler-Jonas).</summary>
@@ -146,7 +148,7 @@ namespace DWSIM.Automation.FluentAPI
                 VaporCompressionChiller, ZeoliteAdsorber, CopperBedHgAdsorber,
                 AirCooler2, EnergyMixer, EnergySplitter, EnergyStreamSwitch,
                 MaterialStreamSwitch, MaterialStreamMapper, FallingFilmEvaporator,
-                ThermoPropertyEditor, DividedWallColumn, Lyophilizer
+                ThermoPropertyEditor, DividedWallColumn, Lyophilizer, ContactDryer
             };
         }
 

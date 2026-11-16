@@ -53,6 +53,7 @@ Version 10.2.17
 - [NEW] Compounds: solid forms (polymorphs), a list of crystalline forms with their fusion data in the compound editor; the Crystallizer and the Solubility and Solvent Screening tool calculate with any form of the list and report the stable one
 - [NEW] Compounds: heat capacity difference of fusion (liquid minus solid heat capacity at the melting point), used by the solid-liquid equilibrium; zero by default
 - [NEW] Additional compounds: aspirin, paracetamol, 4-aminophenol, ibuprofen, the two intermediates of the ibuprofen synthesis (4-isobutylacetophenone and 1-(4-isobutylphenyl)ethanol) and four of its by-products
+- [NEW] Contact Dryer unit operation (Patreon, Premium+): vacuum contact drying of a wet cake in batches, with an agitated bed (filter-dryer, pan, paddle, conical or tumble dryer) or a bed at rest on heated plates (tray dryer); drying time, bed temperature, capacity, duties, drying curve, operating map and the solvents left in the product against the ICH Q3C limits
 - [NEW] Lyophilizer unit operation (Patreon, Premium+): freeze drying of aqueous solutions in vials, with the time of the freezing, primary drying and secondary drying steps, the product temperature against the collapse temperature, the capacity of the freeze dryer, cycle charts and an operating map
 - [CHG] Flowsheet Check: warns when the streams of one fluid around a unit use different property packages
 - [CHG] Fail-safe flash with solids: a warning in the log names the stream, the specification and the original error
