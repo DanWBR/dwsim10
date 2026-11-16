@@ -5908,7 +5908,7 @@
     <Solid_Heat_Capacity_Constant_D>0</Solid_Heat_Capacity_Constant_D>
     <Solid_Heat_Capacity_Constant_E>0</Solid_Heat_Capacity_Constant_E>
     <Solid_Heat_Capacity_TMin>0</Solid_Heat_Capacity_TMin>
-    <Solid_Heat_Capacity_TMax>799.43</Solid_Heat_Capacity_TMax>
+    <Solid_Heat_Capacity_TMax>459.15</Solid_Heat_Capacity_TMax>
     <Solid_Density_EqNo>2</Solid_Density_EqNo>
     <Solid_Density_Constant_A>8.98178987907444</Solid_Density_Constant_A>
     <Solid_Density_Constant_B>-0.005</Solid_Density_Constant_B>
@@ -5916,12 +5916,12 @@
     <Solid_Density_Constant_D>0</Solid_Density_Constant_D>
     <Solid_Density_Constant_E>0</Solid_Density_Constant_E>
     <Solid_Density_TMin>0</Solid_Density_TMin>
-    <Solid_Density_TMax>799.43</Solid_Density_TMax>
+    <Solid_Density_TMax>459.15</Solid_Density_TMax>
     <Normal_Boiling_Point>1290.3</Normal_Boiling_Point>
     <UNIQUAC_q>0</UNIQUAC_q>
     <UNIQUAC_r>0</UNIQUAC_r>
-    <Temperature_of_fusion>799.43</Temperature_of_fusion>
-    <Enthalpy_of_fusion>63.66</Enthalpy_of_fusion>
+    <Temperature_of_fusion>459.15</Temperature_of_fusion>
+    <Enthalpy_of_fusion>57</Enthalpy_of_fusion>
     <PC_SAFT_sigma>0</PC_SAFT_sigma>
     <PC_SAFT_m>0</PC_SAFT_m>
     <PC_SAFT_epsilon_k>0</PC_SAFT_epsilon_k>
@@ -5952,8 +5952,8 @@
     <DelGF_kJ_mol>0</DelGF_kJ_mol>
     <DelHf_kJ_mol>0</DelHf_kJ_mol>
     <Cp_J_mol_K>0</Cp_J_mol_K>
-    <Tf_C>799.43</Tf_C>
-    <Hfus_at_Tf_kJ_mol>63.66</Hfus_at_Tf_kJ_mol>
+    <Tf_C>459.15</Tf_C>
+    <Hfus_at_Tf_kJ_mol>57</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>0</DenS_T_C>
     <DenS_g_mL>0</DenS_g_mL>
     <elements>
