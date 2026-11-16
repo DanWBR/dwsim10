@@ -1622,6 +1622,18 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
             Dim fx_bracket_pos As Double = Double.NaN
             Dim fx_bracket_neg As Double = Double.NaN
 
+            'The enthalpy error by temperature, kept for the whole flash: the Newton steps, the bracket and its
+            'fallbacks come back to temperatures already evaluated (a step clamped to the maximum change lands on a
+            'bracket end it already knew, and the bracket solver starts from both ends).
+            Dim herrCache As New Dictionary(Of Double, Double)
+            Dim herrPT As Func(Of Double, Double) =
+                Function(tv)
+                    Dim hv As Double
+                    If herrCache.TryGetValue(tv, hv) Then Return hv
+                    hv = Herror("PT", tv, P, Vz, PP, Ki_est IsNot Nothing, Ki_est)(0)
+                    herrCache(tv) = hv
+                    Return hv
+                End Function
             'A temperature interval does not bound enthalpy error near a vaporization front.
             'Use the configured absolute enthalpy tolerance for every bracketed exit.
             Dim bisectEnthalpy As Func(Of Double, Double, Double) =
@@ -1629,23 +1641,33 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                     Try
                         Dim lo = Math.Min(ta, tb)
                         Dim hi = Math.Max(ta, tb)
-                        Dim flo As Double = Herror("PT", lo, P, Vz, PP, Ki_est IsNot Nothing, Ki_est)(0)
-                        Dim fhi As Double = Herror("PT", hi, P, Vz, PP, Ki_est IsNot Nothing, Ki_est)(0)
+                        Dim flo As Double = herrPT(lo)
+                        Dim fhi As Double = herrPT(hi)
                         If Double.IsNaN(flo) OrElse Double.IsNaN(fhi) Then Return Double.NaN
                         If Math.Abs(flo) <= tolEXT Then Return lo
                         If Math.Abs(fhi) <= tolEXT Then Return hi
                         If Math.Sign(flo) = Math.Sign(fhi) Then Return Double.NaN
+                        'Illinois (regula falsi with the stale end halved): superlinear where H(T) is smooth, which
+                        'bisection is not; inside a two-phase region a juice gains 1500 kJ/kg per K, and bisection
+                        'needed some 25 halvings of the bracket to reach tolEXT
+                        Dim side As Integer = 0
                         For bcnt As Integer = 0 To 200
-                            Dim mid = lo + (hi - lo) / 2.0
-                            Dim fmid As Double = Herror("PT", mid, P, Vz, PP, Ki_est IsNot Nothing, Ki_est)(0)
+                            Dim mid = (lo * fhi - hi * flo) / (fhi - flo)
+                            If Not (mid > lo AndAlso mid < hi) Then mid = lo + (hi - lo) / 2.0
+                            Dim fmid As Double = herrPT(mid)
                             If Double.IsNaN(fmid) Then Return Double.NaN
                             If Math.Abs(fmid) <= tolEXT Then Return mid
                             If mid = lo OrElse mid = hi Then Return Double.NaN
                             If Math.Sign(fmid) = Math.Sign(flo) Then
                                 lo = mid
                                 flo = fmid
+                                If side = -1 Then fhi /= 2.0
+                                side = -1
                             Else
                                 hi = mid
+                                fhi = fmid
+                                If side = 1 Then flo /= 2.0
+                                side = 1
                             End If
                         Next
                         Return Double.NaN
@@ -1669,23 +1691,28 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
 
                 fx_ant = fx
 
-                Dim herrobj As Object
+                If Not herrCache.TryGetValue(x1, fx) Then
 
-                IObj2?.SetCurrent()
-                herrobj = Herror("PT", x1, P, Vz, PP, Ki_est IsNot Nothing, Ki_est)
-                fx = herrobj(0)
+                    Dim herrobj As Object
 
-                ' Extract Ki from result for reuse in next iteration
-                Dim Vy_tmp = DirectCast(herrobj(4), Double())
-                Dim Vx1_tmp = DirectCast(herrobj(5), Double())
-                Ki_est = New Double(n) {}
-                For i = 0 To n
-                    If Vx1_tmp(i) > 1.0E-20 Then
-                        Ki_est(i) = Vy_tmp(i) / Vx1_tmp(i)
-                    Else
-                        Ki_est(i) = 1.0
-                    End If
-                Next
+                    IObj2?.SetCurrent()
+                    herrobj = Herror("PT", x1, P, Vz, PP, Ki_est IsNot Nothing, Ki_est)
+                    fx = herrobj(0)
+                    herrCache(x1) = fx
+
+                    ' Extract Ki from result for reuse in next iteration
+                    Dim Vy_tmp = DirectCast(herrobj(4), Double())
+                    Dim Vx1_tmp = DirectCast(herrobj(5), Double())
+                    Ki_est = New Double(n) {}
+                    For i = 0 To n
+                        If Vx1_tmp(i) > 1.0E-20 Then
+                            Ki_est(i) = Vy_tmp(i) / Vx1_tmp(i)
+                        Else
+                            Ki_est(i) = 1.0
+                        End If
+                    Next
+
+                End If
 
                 IObj2?.Paragraphs.Add(String.Format("Current Enthalpy error: {0} kJ/kg", fx))
 
@@ -1722,8 +1749,10 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                     signChanges += 1
                 End If
 
-                ' Oscillation fallback: solve the enthalpy residual on the bracket
-                If signChanges >= 3 Then
+                ' Bracket found (or the steps oscillate): solve the enthalpy residual on the bracket. H(T) is
+                ' monotonic, so a bracket holds the root; Newton steps clamped to the maximum temperature change
+                ' only bounced between its ends.
+                If signChanges >= 3 OrElse (Not Double.IsNaN(T_bracket_pos) AndAlso Not Double.IsNaN(T_bracket_neg)) Then
 
                     If Not Double.IsNaN(T_bracket_pos) AndAlso Not Double.IsNaN(T_bracket_neg) Then
                         x1 = bisectEnthalpy(T_bracket_pos, T_bracket_neg)
@@ -1739,7 +1768,7 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                             Else
                                 x1 = bmin.BrentOpt2(Ta, Tb, 100, tolEXT, maxitEXT,
                                     Function(tval)
-                                        Return Herror("PT", tval, P, Vz, PP, Kbrent IsNot Nothing, Kbrent)(0)
+                                        Return herrPT(tval)
                                     End Function)
                             End If
                         End If
@@ -1762,8 +1791,8 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                 ' real local slope, which is how the pre-net10 algorithm stayed stable here.
                 Dim eps_fd As Double = Math.Max(0.1, Math.Min(1.0, x1 * 0.002))
                 IObj2?.SetCurrent()
-                Dim fxp As Double = Herror("PT", x1 + eps_fd, P, Vz, PP, Ki_est IsNot Nothing, Ki_est)(0)
-                Dim fxm As Double = Herror("PT", x1 - eps_fd, P, Vz, PP, Ki_est IsNot Nothing, Ki_est)(0)
+                Dim fxp As Double = herrPT(x1 + eps_fd)
+                Dim fxm As Double = herrPT(x1 - eps_fd)
                 dfdx = (fxp - fxm) / (2.0 * eps_fd)
 
                 ' Guard against near-zero derivative
@@ -1839,11 +1868,11 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                     'not resolvable to tolEXT: keep the previous answer
                     Dim lo As Double = Math.Min(T_bracket_pos, T_bracket_neg)
                     Dim hi As Double = Math.Max(T_bracket_pos, T_bracket_neg)
-                    Dim flo As Double = Herror("PT", lo, P, Vz, PP, Ki_est IsNot Nothing, Ki_est)(0)
+                    Dim flo As Double = herrPT(lo)
                     Dim bcnt As Integer = 0
                     Do
                         Dim mid As Double = (lo + hi) / 2.0
-                        Dim fmid As Double = Herror("PT", mid, P, Vz, PP, Ki_est IsNot Nothing, Ki_est)(0)
+                        Dim fmid As Double = herrPT(mid)
                         If Double.IsNaN(fmid) Then Exit Do
                         If Math.Abs(fmid) <= tolEXT OrElse (hi - lo) < 0.0005 Then
                             lo = mid : hi = mid : Exit Do
