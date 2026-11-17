@@ -125,6 +125,7 @@ Version 10.2.17
 - [FIX] AI Assistant settings: the General and Ollama tabs list every model installed in Ollama, mark the models without tool calling, show why Ollama can't be reached, and the GPU shown is the one of this computer
 - [FIX] Advanced Heat Exchanger in counter-current flow: the cold fluid was marched from the wrong end, so the exchanger behaved almost as co-current and transferred too little heat (808 kW instead of about 927 kW in a water/water case)
 - [FIX] Advanced Heat Exchanger Design mode: the required duty came from the inlet heat capacity and missed the outlet temperature spec, and the maximum shell-side pressure drop wasn't enforced; the baffle spacing is widened and tubes are added to meet it
+- [FIX] Advanced Heat Exchanger overall coefficient: the Rating results applied the correction factor of a 1-2 exchanger to a pure counter-current profile and read about 25 % high; the Fouling Factor mode took the duty from the inlet heat capacity and gave its outlets the duty of its internal clean rating
 
 Version 10.2.16
 
