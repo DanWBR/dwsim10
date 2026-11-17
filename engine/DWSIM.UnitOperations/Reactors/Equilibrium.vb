@@ -1715,6 +1715,7 @@ Namespace Reactors
             H = tmp.CalculatedEnthalpy
             S = tmp.CalculatedEntropy
             Vx = tmp.GetLiquidPhase1MoleFractions
+            GetTotalLiquid(tmp, xl, Vx)
             Vy = tmp.GetVaporPhaseMoleFractions
             'an absent phase leaves its outlet empty, with the overall composition of the product
             If xl = 0.0# OrElse Vx.Sum() <= 0.0# Then Vx = ims.GetOverallComposition()
@@ -2528,6 +2529,7 @@ Namespace Reactors
             H = tmp.CalculatedEnthalpy
             S = tmp.CalculatedEntropy
             Vx = tmp.GetLiquidPhase1MoleFractions
+            GetTotalLiquid(tmp, xl, Vx)
             Vy = tmp.GetVaporPhaseMoleFractions
             'an absent phase leaves its outlet empty, with the overall composition of the product
             If xl = 0.0# OrElse Vx.Sum() <= 0.0# Then Vx = ims.GetOverallComposition()
@@ -3309,6 +3311,7 @@ Namespace Reactors
             H = tmp.CalculatedEnthalpy
             S = tmp.CalculatedEntropy
             Vx = tmp.GetLiquidPhase1MoleFractions
+            GetTotalLiquid(tmp, xl, Vx)
             Vy = tmp.GetVaporPhaseMoleFractions
             'an absent phase leaves its outlet empty, with the overall composition of the product
             If xl = 0.0# OrElse Vx.Sum() <= 0.0# Then Vx = ims.GetOverallComposition()

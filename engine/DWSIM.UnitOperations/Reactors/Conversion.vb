@@ -846,6 +846,7 @@ Namespace Reactors
             H = tmp.CalculatedEnthalpy.GetValueOrDefault
             S = tmp.CalculatedEntropy.GetValueOrDefault
             Vx = tmp.GetLiquidPhase1MoleFractions
+            GetTotalLiquid(tmp, xl, Vx)
             Vy = tmp.GetVaporPhaseMoleFractions
             Vs = tmp.GetSolidPhaseMoleFractions
 

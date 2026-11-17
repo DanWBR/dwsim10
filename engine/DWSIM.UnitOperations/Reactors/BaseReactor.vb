@@ -403,6 +403,37 @@ Namespace Reactors
             Return True
         End Function
 
+        ''' <summary>Mole fraction and composition of all the liquid in a flash result, both liquid phases
+        ''' together: the liquid outlet carries the second liquid too.</summary>
+        Protected Shared Sub GetTotalLiquid(tmp As Interfaces.IFlashCalculationResult, ByRef xl As Double, ByRef Vx As Double())
+            Dim xl2 = tmp.GetLiquidPhase2MoleFraction()
+            If xl2 <= 0.0 Then Return
+            Dim xl1 = tmp.GetLiquidPhase1MoleFraction()
+            Dim Vx1 = tmp.GetLiquidPhase1MoleFractions()
+            Dim Vx2 = tmp.GetLiquidPhase2MoleFractions()
+            Dim Vxt(Vx1.Length - 1) As Double
+            For i = 0 To Vx1.Length - 1
+                Vxt(i) = (Vx1(i) * xl1 + Vx2(i) * xl2) / (xl1 + xl2)
+            Next
+            xl = xl1 + xl2
+            Vx = Vxt
+        End Sub
+
+        ''' <summary>Mass fraction and mass composition of all the liquid in a flash result, both liquid phases together.</summary>
+        Protected Shared Sub GetTotalLiquidMass(tmp As Interfaces.IFlashCalculationResult, ByRef wl As Double, ByRef Vwx As Double())
+            Dim wl2 = tmp.GetLiquidPhase2MassFraction()
+            If wl2 <= 0.0 Then Return
+            Dim wl1 = tmp.GetLiquidPhase1MassFraction()
+            Dim Vw1 = tmp.GetLiquidPhase1MassFractions()
+            Dim Vw2 = tmp.GetLiquidPhase2MassFractions()
+            Dim Vwt(Vw1.Length - 1) As Double
+            For i = 0 To Vw1.Length - 1
+                Vwt(i) = (Vw1(i) * wl1 + Vw2(i) * wl2) / (wl1 + wl2)
+            Next
+            wl = wl1 + wl2
+            Vwx = Vwt
+        End Sub
+
         ''' <summary>Writes the overall composition of the reactor product into an outlet whose phase is absent,
         ''' so the stream leaves with zero flow and a defined composition.</summary>
         Protected Shared Sub SetProductComposition(ms As Thermodynamics.Streams.MaterialStream, overall As Double(), ids As List(Of String))

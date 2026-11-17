@@ -1757,12 +1757,14 @@ Namespace Reactors
             H = tmp.CalculatedEnthalpy
             S = tmp.CalculatedEntropy
             Vx = tmp.GetLiquidPhase1MoleFractions
+            GetTotalLiquid(tmp, xl, Vx)
             Vy = tmp.GetVaporPhaseMoleFractions
             Vs = tmp.GetSolidPhaseMoleFractions
             Vwx = tmp.GetLiquidPhase1MassFractions
             Vwy = tmp.GetVaporPhaseMassFractions
             Vws = tmp.GetSolidPhaseMassFractions
             wl = tmp.GetLiquidPhase1MassFraction
+            GetTotalLiquidMass(tmp, wl, Vwx)
             wv = tmp.GetVaporPhaseMassFraction
             ws = tmp.GetSolidPhaseMassFraction
             Ki = tmp.Kvalues.ToArray
@@ -2670,12 +2672,14 @@ Namespace Reactors
             H = tmp.CalculatedEnthalpy
             S = tmp.CalculatedEntropy
             Vx = tmp.GetLiquidPhase1MoleFractions
+            GetTotalLiquid(tmp, xl, Vx)
             Vy = tmp.GetVaporPhaseMoleFractions
             Vs = tmp.GetSolidPhaseMoleFractions
             Vwx = tmp.GetLiquidPhase1MassFractions
             Vwy = tmp.GetVaporPhaseMassFractions
             Vws = tmp.GetSolidPhaseMassFractions
             wl = tmp.GetLiquidPhase1MassFraction
+            GetTotalLiquidMass(tmp, wl, Vwx)
             wv = tmp.GetVaporPhaseMassFraction
             ws = tmp.GetSolidPhaseMassFraction
             Ki = tmp.Kvalues.ToArray
