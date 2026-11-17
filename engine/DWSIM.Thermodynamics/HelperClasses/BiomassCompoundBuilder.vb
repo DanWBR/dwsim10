@@ -138,6 +138,9 @@ Namespace Utilities.Biomass
             Dim rhoL As Double = 1100.0 ' kg/m3
             Dim Tc As Double = 8000.0 ' K
             Dim Pc As Double = 0.0778 * 8.314 * Tc / (mw / 1000.0 / rhoL) ' Pa
+            ' heat capacities of 1.5 (ideal gas) and 1.3 (liquid) kJ/(kg K); the equations take J/(kmol K)
+            Dim CpIG As Double = 1500.0 * mw
+            Dim CpL As Double = 1300.0 * mw
 
             If cmolsPerMol <= 0.0 Then cmolsPerMol = c.C
             If String.IsNullOrWhiteSpace(name) Then name = "Biomass_Custom"
@@ -166,7 +169,7 @@ Namespace Utilities.Biomass
                 {"HVap_TMAX", 0.0}, {"HVap_TMIN", 0.0},
                 {"HydrationNumber", 0.0},
                 {"ID", 20100 + DateTime.Now.Second},
-                {"Ideal_Gas_Heat_Capacity_Const_A", 1500.0},
+                {"Ideal_Gas_Heat_Capacity_Const_A", CpIG},
                 {"Ideal_Gas_Heat_Capacity_Const_B", 0.0},
                 {"Ideal_Gas_Heat_Capacity_Const_C", 0.0},
                 {"Ideal_Gas_Heat_Capacity_Const_D", 0.0},
@@ -183,7 +186,7 @@ Namespace Utilities.Biomass
                 {"Liquid_Density_Const_B", 0.0}, {"Liquid_Density_Const_C", 0.0},
                 {"Liquid_Density_Const_D", 0.0}, {"Liquid_Density_Const_E", 0.0},
                 {"Liquid_Density_Tmax", 1000.0}, {"Liquid_Density_Tmin", 200.0},
-                {"Liquid_Heat_Capacity_Const_A", 1300.0},
+                {"Liquid_Heat_Capacity_Const_A", CpL},
                 {"Liquid_Heat_Capacity_Const_B", 0.0}, {"Liquid_Heat_Capacity_Const_C", 0.0},
                 {"Liquid_Heat_Capacity_Const_D", 0.0}, {"Liquid_Heat_Capacity_Const_E", 0.0},
                 {"Liquid_Heat_Capacity_Tmax", 1000.0}, {"Liquid_Heat_Capacity_Tmin", 200.0},
