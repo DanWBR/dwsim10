@@ -123,6 +123,8 @@ Version 10.2.17
 - [FIX] Biodiesel Production sample: stream M2 came out as vapor and liquid where it is two liquids; the sample uses the vapor-liquid-liquid flash
 - [FIX] Advanced Heat Exchanger with a gas or vapor stream: an all-vapor side took the properties of an absent liquid (shell pressure drop near 46 MPa, tube coefficient near 1e27), steam condensing in the tubes was treated as vapor, and Simulation mode put the pressure drops on the wrong sides with the cold fluid in the shell
 - [FIX] AI Assistant settings: the General and Ollama tabs list every model installed in Ollama, mark the models without tool calling, show why Ollama can't be reached, and the GPU shown is the one of this computer
+- [FIX] Advanced Heat Exchanger in counter-current flow: the cold fluid was marched from the wrong end, so the exchanger behaved almost as co-current and transferred too little heat (808 kW instead of about 927 kW in a water/water case)
+- [FIX] Advanced Heat Exchanger Design mode: the required duty came from the inlet heat capacity and missed the outlet temperature spec, and the maximum shell-side pressure drop wasn't enforced; the baffle spacing is widened and tubes are added to meet it
 
 Version 10.2.16
 
