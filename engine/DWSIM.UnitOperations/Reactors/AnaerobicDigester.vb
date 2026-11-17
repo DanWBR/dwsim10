@@ -186,6 +186,17 @@ Namespace Reactors
         ''' the biogas and understates the methane fraction. Only ADM1-Full and ADM1-S read it.</summary>
         Public Property InfluentAlkalinity_eqL As Double = 0.0
 
+        ''' <summary>(ADM1-Full and ADM1-S, influent from the feed stream) Reads the inorganic nitrogen the
+        ''' feed carries - the ammonia compound and any ammonium ion (NH4+) in the stream - into the
+        ''' influent S_IN, on top of Operating.Sin_IN, and writes the reactor's final S_IN back into the
+        ''' effluent as ammonium and free ammonia, so a recycle or a separator downstream carries the
+        ''' nitrogen the digestion released. Ammonium enters with the same amount of inorganic carbon:
+        ''' in manure it is ammonium bicarbonate from urea hydrolysis, and an ammonium cation without its
+        ''' anion would act as a strong base on the charge-balance pH. Free ammonia enters as N only.
+        ''' On for a new digester; a file saved before this option existed loads with it off, so it
+        ''' gives the same results as before.</summary>
+        Public Property InorganicNitrogenFromFeed As Boolean = True
+
         ' ----------- ADM1-LITE INITIAL STATE (concentrations, g COD/L unless noted) -----------
 
         ''' <summary>(ADM1-Lite) Initial soluble-substrate COD (g COD/L) - lumped sugars/amino-acids/LCFA from hydrolysed particulates.</summary>
@@ -555,6 +566,43 @@ Namespace Reactors
             fPr = Max(0.0, Min(fPr, 1.0 - st.f_sI_xc - st.f_xI_xc - st.f_li_xc))
             st.f_pr_xc = fPr
             st.f_ch_xc = 1.0 - st.f_sI_xc - st.f_xI_xc - st.f_li_xc - fPr
+        End Sub
+
+        ''' <summary>True when the compound's formula is exactly N(1)H(h) with the given charge.</summary>
+        Private Shared Function IsNitrogenHydride(cp As ICompoundConstantProperties, hydrogens As Integer, charge As Integer) As Boolean
+            If cp Is Nothing OrElse cp.Elements Is Nothing OrElse cp.Elements.Count <> 2 Then Return False
+            If Not cp.Elements.Contains("N") OrElse Not cp.Elements.Contains("H") Then Return False
+            Return Convert.ToDouble(cp.Elements("N")) = 1.0 AndAlso
+                   Convert.ToDouble(cp.Elements("H")) = hydrogens AndAlso cp.Charge = charge
+        End Function
+
+        ''' <summary>The compounds that carry inorganic nitrogen: the mapped ammonia compound (or, when it
+        ''' isn't mapped, a neutral NH3), and an ammonium ion NH4+. When several ammonium entries exist,
+        ''' the one with the largest flow is taken.</summary>
+        Private Sub FindInorganicNitrogenCompounds(compounds As Dictionary(Of String, ICompound),
+                                                   ByRef nh3 As ICompound, ByRef nh4 As ICompound)
+            nh3 = Nothing : nh4 = Nothing
+            If Not String.IsNullOrEmpty(NH3Compound) AndAlso compounds.ContainsKey(NH3Compound) Then nh3 = compounds(NH3Compound)
+            For Each c In compounds.Values
+                If nh3 Is Nothing AndAlso IsNitrogenHydride(c.ConstantProperties, 3, 0) Then nh3 = c
+                If IsNitrogenHydride(c.ConstantProperties, 4, 1) Then
+                    If nh4 Is Nothing OrElse c.MassFlow.GetValueOrDefault > nh4.MassFlow.GetValueOrDefault Then nh4 = c
+                End If
+            Next
+        End Sub
+
+        ''' <summary>Inorganic nitrogen in the feed, in kmol N/s: free ammonia and ammonium ion.</summary>
+        Private Sub FeedInorganicNitrogen(compounds As Dictionary(Of String, ICompound),
+                                          ByRef nNH3_kmols As Double, ByRef nNH4_kmols As Double)
+            nNH3_kmols = 0.0 : nNH4_kmols = 0.0
+            Dim nh3 As ICompound = Nothing, nh4 As ICompound = Nothing
+            FindInorganicNitrogenCompounds(compounds, nh3, nh4)
+            If nh3 IsNot Nothing AndAlso nh3.ConstantProperties.Molar_Weight > 0.0 Then
+                nNH3_kmols = Max(nh3.MassFlow.GetValueOrDefault, 0.0) / nh3.ConstantProperties.Molar_Weight
+            End If
+            If nh4 IsNot Nothing AndAlso nh4.ConstantProperties.Molar_Weight > 0.0 Then
+                nNH4_kmols = Max(nh4.MassFlow.GetValueOrDefault, 0.0) / nh4.ConstantProperties.Molar_Weight
+            End If
         End Sub
 
         ''' <summary>
@@ -1502,13 +1550,18 @@ Namespace Reactors
         ''' and writes the Effluent and Biogas outlet streams on a COD basis.</summary>
         Public Sub CalculateADM1Full()
 
-            ' Hydrate parameter object from JSON if we just came back from a save/load
-            If ADM1Params Is Nothing Then ADM1Params = New ADM1.ADM1Parameters()
-            If Not String.IsNullOrWhiteSpace(ADM1ParamsJSON) Then
-                Try
-                    ADM1Params = ADM1.ADM1Parameters.FromJSON(ADM1ParamsJSON)
-                Catch
-                End Try
+            ' LoadData already hydrates the parameter set from the saved JSON. Reading the JSON again here
+            ' on every run threw away whatever had been edited in memory since the last solve (the
+            ' cross-platform parameter window, scripts, the MCP server), so those edits never reached the
+            ' integrator; the JSON is only the fallback when the object isn't there.
+            If ADM1Params Is Nothing Then
+                ADM1Params = New ADM1.ADM1Parameters()
+                If Not String.IsNullOrWhiteSpace(ADM1ParamsJSON) Then
+                    Try
+                        ADM1Params = ADM1.ADM1Parameters.FromJSON(ADM1ParamsJSON)
+                    Catch
+                    End Try
+                End If
             End If
 
             If String.IsNullOrEmpty(SubstrateCompound) Then
@@ -1617,6 +1670,13 @@ Namespace Reactors
                 Dim alk = Max(InfluentAlkalinity_eqL, 0.0)
                 Sin(10) = op.Sin_IN   ' inorganic N
                 Sin(9) = op.Sin_IC    ' inorganic C
+                If InorganicNitrogenFromFeed Then
+                    ' The feed's own ammonia and ammonium join Sin_IN; the ammonium brings its bicarbonate.
+                    Dim nNH3 As Double, nNH4 As Double
+                    FeedInorganicNitrogen(compounds, nNH3, nNH4)
+                    Sin(10) += (nNH3 + nNH4) / Q_liquid_m3s
+                    Sin(9) += nNH4 / Q_liquid_m3s
+                End If
                 Sin(24) = op.Sin_cat + alk
                 Sin(25) = op.Sin_an
 
@@ -1791,6 +1851,30 @@ Namespace Reactors
                 effMass(h2s.Name) = sFinal.S_IS * Q_liquid_m3s * MW_H2S
             End If
 
+            ' Inorganic nitrogen: the effluent carries the reactor's S_IN, the feed's ammonia plus what the
+            ' digestion mineralised, split into ammonium and free ammonia by the final pH. The feed's
+            ' own ammonia and ammonium went into Sin, so they are replaced here and not passed through.
+            If useStream AndAlso InorganicNitrogenFromFeed Then
+                Dim nh3Out As ICompound = Nothing, nh4Out As ICompound = Nothing
+                FindInorganicNitrogenCompounds(compounds, nh3Out, nh4Out)
+                Dim nFree = Max(Min(sFinal.S_nh3, sFinal.S_IN), 0.0) * Q_liquid_m3s     ' kmol N/s
+                Dim nIon = Max(sFinal.S_IN, 0.0) * Q_liquid_m3s - nFree
+                If nh4Out Is Nothing AndAlso nh3Out IsNot Nothing Then
+                    effMass(nh3Out.Name) = (nFree + nIon) * nh3Out.ConstantProperties.Molar_Weight
+                ElseIf nh3Out Is Nothing AndAlso nh4Out IsNot Nothing Then
+                    effMass(nh4Out.Name) = (nFree + nIon) * nh4Out.ConstantProperties.Molar_Weight
+                ElseIf nh3Out IsNot Nothing Then
+                    effMass(nh3Out.Name) = nFree * nh3Out.ConstantProperties.Molar_Weight
+                    effMass(nh4Out.Name) = nIon * nh4Out.ConstantProperties.Molar_Weight
+                ElseIf sFinal.S_IN * Q_liquid_m3s > 0.0 Then
+                    FlowSheet?.ShowMessage(String.Format(
+                        "{0}: the effluent holds {1:G4} kmol N/m³ of ammonia nitrogen, but the flowsheet doesn't " &
+                        "have an ammonia or ammonium compound to carry it. Add Ammonia (and Ammonium) to the " &
+                        "compounds so the digestate shows it.", Me.GraphicObject.Tag, sFinal.S_IN),
+                        IFlowsheet.MessageType.Warning)
+                End If
+            End If
+
             ' Sulfate the reducers did not get to. Only ADM1-S can leave any: the other models
             ' assume complete reduction, so S_so4 is zero there and this is a no-op.
             If srbKinetics Then
@@ -1933,6 +2017,10 @@ Namespace Reactors
 
         Public Overrides Function LoadData(data As System.Collections.Generic.List(Of System.Xml.Linq.XElement)) As Boolean
             Dim ok = MyBase.LoadData(data)
+            ' A digester saved before the feed's inorganic nitrogen was read keeps the old behaviour.
+            If data IsNot Nothing AndAlso Not data.Any(Function(x) x.Name.LocalName = "InorganicNitrogenFromFeed") Then
+                InorganicNitrogenFromFeed = False
+            End If
             Try
                 If Not String.IsNullOrWhiteSpace(ADM1ParamsJSON) Then
                     ADM1Params = ADM1.ADM1Parameters.FromJSON(ADM1ParamsJSON)
@@ -2173,6 +2261,8 @@ Namespace Reactors
             "Influent Sulfate Sulfur",
             "Substrate Organic Sulfur",
             "Assumed pH for Sulfide",
+            "Feed Alkalinity",
+            "Inorganic N from Feed",
             "ADM1 k_hyd",
             "ADM1 km_su",
             "ADM1 Ks_su",
@@ -2235,6 +2325,9 @@ Namespace Reactors
                     If Model <> DigesterModel.ADM1Lite Then unused.UnionWith(_inputProps.Where(Function(p) p.StartsWith("ADM1 ")))
                     If Model = DigesterModel.ADM1Full OrElse Model = DigesterModel.ADM1Sulfate Then unused.Add("Assumed pH for Sulfide")
                     If Model <> DigesterModel.ADM1Sulfate Then unused.Add("Sulfate Compound")
+                    If Model <> DigesterModel.ADM1Full AndAlso Model <> DigesterModel.ADM1Sulfate Then
+                        unused.Add("Feed Alkalinity") : unused.Add("Inorganic N from Feed")
+                    End If
                     Return _inputProps.Where(Function(p) Not unused.Contains(p)).ToArray()
                 Case PropertyType.RO : Return _outputProps
                 Case Else : Return _inputProps.Concat(_outputProps).Concat(baseprops).ToArray()
@@ -2263,6 +2356,8 @@ Namespace Reactors
                 Case "Influent Sulfate Sulfur" : Return InfluentSulfateS_mgL
                 Case "Substrate Organic Sulfur" : Return SubstrateOrganicS_gPerKg
                 Case "Assumed pH for Sulfide" : Return AssumedPH_ForSulfide
+                Case "Feed Alkalinity" : Return InfluentAlkalinity_eqL
+                Case "Inorganic N from Feed" : Return InorganicNitrogenFromFeed
                 Case "ADM1 k_hyd" : Return ADM1_k_hyd_d
                 Case "ADM1 km_su" : Return ADM1_km_su_d
                 Case "ADM1 Ks_su" : Return ADM1_Ks_su
@@ -2335,6 +2430,7 @@ Namespace Reactors
                 Case "Influent Sulfate Sulfur" : Return "mg S/L"
                 Case "Substrate Organic Sulfur" : Return "g S/kg"
                 Case "Assumed pH for Sulfide" : Return "-"
+                Case "Feed Alkalinity" : Return "eq/L"
                 Case "H2S in Biogas" : Return "ppmv"
                 Case "Dissolved Sulfide" : Return "kg S/m3"
                 Case "Residual Sulfate" : Return "kg S/m3"
@@ -2365,6 +2461,11 @@ Namespace Reactors
                 Case "Influent Sulfate Sulfur" : InfluentSulfateS_mgL = d : Return True
                 Case "Substrate Organic Sulfur" : SubstrateOrganicS_gPerKg = d : Return True
                 Case "Assumed pH for Sulfide" : AssumedPH_ForSulfide = d : Return True
+                Case "Feed Alkalinity" : InfluentAlkalinity_eqL = d : Return True
+                Case "Inorganic N from Feed"
+                    Dim b As Boolean
+                    If Boolean.TryParse(propval?.ToString(), b) Then InorganicNitrogenFromFeed = b Else InorganicNitrogenFromFeed = d <> 0.0
+                    Return True
                 Case "COD Removal Efficiency" : CODRemovalEfficiency = d : Return True
                 Case "Biomass Yield on COD" : BiomassYield_gVSSpergCOD = d : Return True
                 Case "Methane Fraction Override" : MethaneFractionOverride = d : Return True
@@ -2530,6 +2631,27 @@ Namespace Reactors
                     End If
                 End Sub)
 
+            container.CreateAndAddLabelRow("Feed Nitrogen and Alkalinity (ADM1 Full and ADM1-S)")
+            container.CreateAndAddDescriptionRow(
+                "With Inorganic N from Feed on, the ammonia and the ammonium ion the feed stream carries enter " &
+                "the influent inorganic nitrogen (on top of Sin_IN in the ADM1 parameters), the ammonium with " &
+                "its bicarbonate, and the digestate leaves with the ammonia nitrogen of the reactor. Feed " &
+                "Alkalinity is the strong-cation excess of the substrate (eq/L), calibrated to the measured " &
+                "pH of the feed or digestate; it isn't the titrated alkalinity, which already counts the " &
+                "ammonia and bicarbonate the model adds itself.")
+            container.CreateAndAddCheckBoxRow("Inorganic N from Feed", InorganicNitrogenFromFeed,
+                Sub(chk, e)
+                    InorganicNitrogenFromFeed = chk.IsChecked.GetValueOrDefault()
+                    If GlobalSettings.Settings.CallSolverOnEditorPropertyChanged Then FlowSheet.RequestCalculation()
+                End Sub)
+            container.CreateAndAddTextBoxRow(nf, "Feed Alkalinity (eq/L)", InfluentAlkalinity_eqL,
+                Sub(tb, e)
+                    If tb.Text.IsValidDoubleExpression() Then
+                        InfluentAlkalinity_eqL = tb.Text.ParseExpressionToDouble()
+                        If GlobalSettings.Settings.CallSolverOnEditorPropertyChanged Then FlowSheet.RequestCalculation()
+                    End If
+                End Sub)
+
             container.CreateAndAddLabelRow("Parameters")
 
             container.CreateAndAddButtonRow("Simplified Model Parameters...", Nothing,
@@ -2624,8 +2746,73 @@ Namespace Reactors
             w.Show()
         End Sub
 
+        Private _adm1FullParamsWindow As EditorWindow = Nothing
+
+        ''' <summary>Short description of an ADM1 parameter by its Rosen and Jeppsson name, shown as the
+        ''' tip of its field in the parameter window.</summary>
+        Private Shared Function DescribeADM1Parameter(name As String) As String
+            Select Case name
+                Case "f_sI_xc", "f_xI_xc", "f_ch_xc", "f_pr_xc", "f_li_xc" : Return "Composite disintegration fraction (-)"
+                Case "N_xc", "N_I", "N_aa", "N_bac" : Return "Nitrogen content (kmol N/kg COD)"
+                Case "f_fa_li" : Return "LCFA fraction from lipid hydrolysis (-)"
+                Case "k_dis" : Return "Composite disintegration rate (1/d)"
+                Case "k_hyd_ch", "k_hyd_pr", "k_hyd_li" : Return "Hydrolysis rate (1/d)"
+                Case "K_S_IN" : Return "Inorganic nitrogen half-saturation (kmol N/m³)"
+                Case "K_I_nh3" : Return "Free ammonia inhibition of the acetoclastic methanogens (kmol N/m³). " &
+                                        "0.0018 is the ADM1 value for an inoculum that isn't adapted to ammonia; " &
+                                        "an acclimatised manure digester tolerates more."
+                Case "K_La" : Return "Gas-liquid mass transfer (1/d)"
+                Case "V_liq" : Return "Liquid volume (m³); the digester volume replaces it when set"
+                Case "V_gas" : Return "Headspace volume (m³)"
+                Case "Q_in" : Return "Influent flow (m³/d); the feed stream replaces it when the influent comes from the stream"
+                Case "T_op_K", "T_base_K" : Return "Temperature (K)"
+                Case "SimulationTime_d" : Return "Integration horizon (d)"
+                Case "UseInfluentFromFeedStream" : Return "Characterise the influent from the feed stream; off uses the Sin_*/Xin_* values below"
+                Case "Sin_IN" : Return "Influent inorganic nitrogen (kmol N/m³). With the influent from the feed stream, it adds to the " &
+                                       "ammonia and ammonium the feed carries when Inorganic N from Feed is on."
+                Case "Sin_IC" : Return "Influent inorganic carbon (kmol C/m³)"
+                Case "Sin_cat" : Return "Influent strong cations (kmol/m³)"
+                Case "Sin_an" : Return "Influent strong anions (kmol/m³)"
+                Case Else
+                    If name.StartsWith("Y_") Then Return "Biomass yield (kg COD biomass/kg COD substrate)"
+                    If name.StartsWith("k_m_") Then Return "Maximum specific uptake rate (1/d)"
+                    If name.StartsWith("K_S_") Then Return "Monod half-saturation constant (kg COD/m³)"
+                    If name.StartsWith("k_dec") Then Return "First-order decay rate (1/d)"
+                    If name.StartsWith("K_I_") Then Return "Inhibition constant"
+                    If name.StartsWith("pH_") Then Return "pH inhibition limit"
+                    If name.StartsWith("K_a_") Then Return "Acid dissociation constant"
+                    If name.StartsWith("K_H_") Then Return "Henry's law coefficient (kmol/m³/bar)"
+                    If name.StartsWith("C_") Then Return "Carbon content (kmol C/kg COD)"
+                    If name.StartsWith("Sin_") Then Return "Influent soluble concentration"
+                    If name.StartsWith("Xin_") Then Return "Influent particulate concentration"
+                    If name.StartsWith("S_") Then Return "Soluble species initial concentration"
+                    If name.StartsWith("X_") Then Return "Particulate species initial concentration"
+                    Return ""
+            End Select
+        End Function
+
+        ''' <summary>Folder of the parameter sets that ship with DWSIM (BSM2, swine manure, thermophilic).</summary>
+        Private Shared Function ADM1SamplesFolder() As String
+            Try
+                Dim baseDir = IO.Path.GetDirectoryName(GetType(Reactor_AnaerobicDigester).Assembly.Location)
+                For Each d In {IO.Path.Combine(baseDir, "Reactors", "ADM1", "Samples"),
+                               IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Reactors", "ADM1", "Samples")}
+                    If IO.Directory.Exists(d) Then Return d
+                Next
+            Catch
+            End Try
+            Return Nothing
+        End Function
+
         Private Sub ShowADM1FullParamsFormAvalonia(nf As String)
             If ADM1Params Is Nothing Then ADM1Params = New ADM1.ADM1Parameters()
+            ' The parameters span 1e-10 to 1e6, so they are shown in general format.
+            Const pf As String = "G6"
+
+            ' Every edit is kept in the JSON blob too, which is what a save writes.
+            Dim commit = Sub()
+                             Try : ADM1ParamsJSON = ADM1Params.ToJSON() : Catch : End Try
+                         End Sub
 
             Dim buildGroupTab = Function(grp As Object, label As String) As AvaloniaEditorPanel
                                     Dim layout As AvaloniaEditorPanel = AvaloniaCommon.GetDefaultContainer()
@@ -2635,33 +2822,98 @@ Namespace Reactors
                                         Return layout
                                     End If
                                     layout.CreateAndAddLabelRow(label)
-                                    Dim props = grp.GetType().GetProperties().
-                                        Where(Function(p) p.CanRead AndAlso p.CanWrite AndAlso p.PropertyType = GetType(Double)).
-                                        ToList()
-                                    For Each p In props
+                                    For Each p In grp.GetType().GetProperties(Reflection.BindingFlags.Public Or Reflection.BindingFlags.Instance)
+                                        If Not p.CanRead OrElse Not p.CanWrite OrElse p.GetIndexParameters().Length > 0 Then Continue For
                                         Dim propRef = p
-                                        Dim val = CDbl(propRef.GetValue(grp, Nothing))
-                                        layout.CreateAndAddTextBoxRow(nf, propRef.Name, val,
-                                            Sub(tb, e)
-                                                If tb.Text.IsValidDoubleExpression() Then
-                                                    propRef.SetValue(grp, tb.Text.ParseExpressionToDouble(), Nothing)
-                                                End If
-                                            End Sub)
+                                        Dim tip = DescribeADM1Parameter(propRef.Name)
+                                        If propRef.PropertyType Is GetType(Double) Then
+                                            Dim tb = layout.CreateAndAddTextBoxRow(pf, propRef.Name, CDbl(propRef.GetValue(grp, Nothing)),
+                                                Sub(t, e)
+                                                    If t.Text.IsValidDoubleExpression() Then
+                                                        propRef.SetValue(grp, t.Text.ParseExpressionToDouble(), Nothing)
+                                                        commit()
+                                                    End If
+                                                End Sub)
+                                            AvaloniaFileDialogs.SetTip(tb, tip)
+                                        ElseIf propRef.PropertyType Is GetType(Integer) Then
+                                            Dim tb = layout.CreateAndAddTextBoxRow("0", propRef.Name, CInt(propRef.GetValue(grp, Nothing)),
+                                                Sub(t, e)
+                                                    If t.Text.IsValidDoubleExpression() Then
+                                                        propRef.SetValue(grp, CInt(Math.Round(t.Text.ParseExpressionToDouble())), Nothing)
+                                                        commit()
+                                                    End If
+                                                End Sub)
+                                            AvaloniaFileDialogs.SetTip(tb, tip)
+                                        ElseIf propRef.PropertyType Is GetType(Boolean) Then
+                                            Dim cb = layout.CreateAndAddCheckBoxRow(propRef.Name, CBool(propRef.GetValue(grp, Nothing)),
+                                                Sub(c, e)
+                                                    propRef.SetValue(grp, c.IsChecked.GetValueOrDefault(), Nothing)
+                                                    commit()
+                                                End Sub)
+                                            AvaloniaFileDialogs.SetTip(cb, tip)
+                                        End If
                                     Next
                                     Return layout
                                 End Function
 
+            ' Reopens the window on the current values after a reset or a load.
+            Dim reopen = Sub()
+                             commit()
+                             If _adm1FullParamsWindow IsNot Nothing Then _adm1FullParamsWindow.Close()
+                             ShowADM1FullParamsFormAvalonia(nf)
+                         End Sub
+
+            Dim tSet As AvaloniaEditorPanel = AvaloniaCommon.GetDefaultContainer()
+            tSet.Tag = "Parameter Set"
+            tSet.CreateAndAddLabelRow("Parameter Set")
+            tSet.CreateAndAddDescriptionRow(
+                "These parameters are read by the ADM1 Full and ADM1-S models. A value takes effect when you " &
+                "press Enter or leave the field, and the next calculation of the digester uses it. Load a " &
+                "parameter set saved as JSON, or one of the sets that ship with DWSIM (BSM2 mesophilic, " &
+                "swine manure, thermophilic) from the Samples folder.")
+            tSet.CreateAndAddButtonRow("Load JSON...", Nothing,
+                Async Sub(btn, e)
+                    Dim path = Await AvaloniaFileDialogs.OpenFileAsync(btn, "Load ADM1 Parameters", "JSON file", "*.json", ADM1SamplesFolder())
+                    If String.IsNullOrEmpty(path) Then Return
+                    Try
+                        ADM1Params = ADM1.ADM1Parameters.FromJSON(IO.File.ReadAllText(path))
+                        reopen()
+                    Catch ex As Exception
+                        FlowSheet?.ShowMessage(Me.GraphicObject.Tag & ": the ADM1 parameters couldn't be loaded from " & path & ": " & ex.Message,
+                                               IFlowsheet.MessageType.GeneralError)
+                    End Try
+                End Sub)
+            tSet.CreateAndAddButtonRow("Save JSON...", Nothing,
+                Async Sub(btn, e)
+                    Dim path = Await AvaloniaFileDialogs.SaveFileAsync(btn, "Save ADM1 Parameters", "JSON file", "json", "adm1_parameters.json")
+                    If String.IsNullOrEmpty(path) Then Return
+                    Try
+                        IO.File.WriteAllText(path, ADM1Params.ToJSON())
+                    Catch ex As Exception
+                        FlowSheet?.ShowMessage(Me.GraphicObject.Tag & ": the ADM1 parameters couldn't be saved to " & path & ": " & ex.Message,
+                                               IFlowsheet.MessageType.GeneralError)
+                    End Try
+                End Sub)
+            tSet.CreateAndAddButtonRow("Reset to Benchmark (BSM2)", Nothing,
+                Sub(btn, e)
+                    ADM1Params = New ADM1.ADM1Parameters()
+                    reopen()
+                End Sub)
+
             Dim tabs As New List(Of AvaloniaEditorPanel)
+            tabs.Add(tSet)
             tabs.Add(buildGroupTab(ADM1Params.Stoichiometry, "Stoichiometry"))
             tabs.Add(buildGroupTab(ADM1Params.Kinetics, "Kinetics"))
-            tabs.Add(buildGroupTab(ADM1Params.Inhibition, "Inhibition"))
+            tabs.Add(buildGroupTab(ADM1Params.Inhibition, "Inhibition & pH"))
             tabs.Add(buildGroupTab(ADM1Params.Physicochemical, "Physicochemical"))
+            tabs.Add(buildGroupTab(ADM1Params.InitialConditions, "Initial Conditions"))
             tabs.Add(buildGroupTab(ADM1Params.Operating, "Operating"))
             ' Only read when the model is ADM1-S; harmless to show and edit either way.
             tabs.Add(buildGroupTab(ADM1Params.Sulfate, "Sulfate Reduction"))
+            tabs.Add(buildGroupTab(ADM1Params.Numerics, "Numerics"))
 
-            Dim w = AvaloniaCommon.GetDefaultTabbedForm("ADM1 Full Parameters (Batstone 2002)", 640, 560, tabs.ToArray())
-            w.Show()
+            _adm1FullParamsWindow = AvaloniaCommon.GetDefaultTabbedForm("ADM1 Full Parameters (Batstone 2002)", 720, 600, tabs.ToArray())
+            _adm1FullParamsWindow.Show()
         End Sub
 
         Private Sub ShowADM1ResultsFormAvalonia(nf As String)

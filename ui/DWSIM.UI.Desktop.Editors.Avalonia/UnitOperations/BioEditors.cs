@@ -243,6 +243,13 @@ namespace DWSIM.UI.Desktop.Editors
                     BioRows.Number(panel, digester, "Assumed pH for Sulfide Speciation",
                         digester.AssumedPH_ForSulfide, v => digester.AssumedPH_ForSulfide = v);
 
+                    BioRows.Section(panel, "Feed Nitrogen and Alkalinity (ADM1 Full and ADM1-S)");
+
+                    panel.CreateAndAddCheckBoxRow("Inorganic N from Feed", digester.InorganicNitrogenFromFeed,
+                        (chk, e) => digester.InorganicNitrogenFromFeed = chk.IsChecked.GetValueOrDefault());
+                    BioRows.Number(panel, digester, "Feed Alkalinity (eq/L)",
+                        digester.InfluentAlkalinity_eqL, v => digester.InfluentAlkalinity_eqL = v);
+
                     BioRows.Section(panel, "Digester Parameters");
 
                     BioRows.Number(panel, digester, "COD Removal Efficiency (0-1)",

@@ -29,6 +29,7 @@
 - [CHG] Welcome screen (Classic): a click on an item of the lists selects it and shows its details, a double-click opens it
 - [CHG] Samples and Case Library cases: process type, description, key compounds, reactants and products, and a picture of the flowsheet in the samples
 - [CHG] PH flash, fast mode: near a boiling point it takes about half the PT flashes, with the same result (a cane juice heater: 21 against 41)
+- [CHG] ADM1 Full Parameters window (cross-platform interface): every parameter group with the on/off options and the solver settings, a description of each parameter, and load and save of JSON parameter sets (the BSM2, swine manure and thermophilic sets open from the Samples folder)
 - [FIX] Pipe Segment and Pipe Network with Beggs and Brill: the two-phase friction factor used the wrong branch of the correlation in part of its range, with friction about 3.4 times too high in one band and jumps near another
 - [FIX] Pipe Network: the nodal solver could not raise its damping factor again once it fell below 0.3 and ran to the iteration limit
 - [FIX] Excess enthalpy of NRTL, UNIQUAC, UNIFAC, Modified UNIFAC, NIST-MFAC and Wilson (Excess and Experimental Liquid + Excess modes) was too large where the activity coefficients are far from one
@@ -88,3 +89,5 @@
 - [FIX] Advanced Heat Exchanger with more than one tube pass: the Rating mode computed a single tube stream, as in a pure counter-current or co-current exchanger; each pass is now computed in its own direction along the shell (858 kW instead of 930 kW in a water/water case with 2 passes, within 0.4 % of a 1-2 shell), and Design warns when more tubes no longer add duty
 - [FIX] Advanced Heat Exchanger with shells in series: the rating computed a single shell; the shells are now computed in series, each with its tube passes, with the area and the pressure drops of every shell, and the Simulation mode uses the matching correction factor
 - [FIX] Scripts and MCP server: compound names are matched ignoring case when the exact name isn't found (n-butane adds N-butane); the MCP server lists each compound once and returns the stored names
+- [FIX] Anaerobic Digester (ADM1 Full and ADM1-S): the ammonia and the ammonium of the feed stream were ignored and only Sin_IN counted, so a high-ammonia slurry didn't show inhibition; the new Inorganic N from Feed option adds them (the ammonium with its bicarbonate) and the digestate leaves with the ammonia nitrogen of the reactor; Feed Alkalinity is shown in both editors
+- [FIX] Anaerobic Digester: ADM1 parameters changed after the first calculation (cross-platform parameter window, scripts, MCP server) were replaced by the saved copy and didn't change the results
