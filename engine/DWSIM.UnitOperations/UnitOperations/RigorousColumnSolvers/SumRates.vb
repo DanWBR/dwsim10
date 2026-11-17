@@ -780,7 +780,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                             ElseIf pp.ShouldUseKvalueMethod2 Then
                                 tmp = pp.DW_CalcKvalue(xc(i).MultiplyConstY(Lj(i)).AddY(yc(i).MultiplyConstY(Vj(i))).MultiplyConstY(1 / (Lj(i) + Vj(i))), Tj(i), P(i))
                             Else
-                                tmp = pp.DW_CalcKvalue(xc(i), yc(i), Tj(i), P(i))
+                                tmp = If(rc IsNot Nothing, rc.StageKvalues(pp, i, xc(i), yc(i), Tj(i), P(i)), pp.DW_CalcKvalue(xc(i), yc(i), Tj(i), P(i)))
                             End If
                         End If
                     End If

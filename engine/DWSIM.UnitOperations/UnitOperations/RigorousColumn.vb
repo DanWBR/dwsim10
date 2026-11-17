@@ -7380,6 +7380,9 @@ Namespace UnitOperations
 
             ColumnPropertiesProfile = ""
 
+            'three-phase stages start each solution from the stability test
+            ResetThreePhaseCache()
+
             Dim inputdata As ColumnSolverInputData
 
             If InitialEstimatesProvider <> "" AndAlso Column.ExternalInitialEstimatesProviders.ContainsKey(InitialEstimatesProvider) Then

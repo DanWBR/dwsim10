@@ -74,6 +74,15 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
         End Function
 
         Dim llextr As Boolean = False
+
+        'the column, for its three-phase stages (apparent K-values of the total liquid)
+        Private _threePhaseCol As Column
+
+        Private Function StageK(i As Integer, x As Double(), y As Double(), T As Double, P As Double) As Double()
+            If _threePhaseCol IsNot Nothing Then Return _threePhaseCol.StageKvalues(_pp, i, x, y, T, P)
+            Return _pp.DW_CalcKvalue(x, y, T, P)
+        End Function
+
         Dim _Kval()() As Double
         Dim _maxtchange, _Tj_ant(), _maxT, _maxvc, _maxlc As Double
         Dim _scalef As Double
@@ -441,9 +450,9 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                                                                      End If
                                                                  Else
                                                                      If ipar = 0 And Math.Abs(_subcoolingDeltaT) > 0 Then
-                                                                         tmp0 = _pp.DW_CalcKvalue(xc(ipar), yc(ipar), Tj(ipar) + _subcoolingDeltaT, P(ipar))
+                                                                         tmp0 = StageK(ipar, xc(ipar), yc(ipar), Tj(ipar) + _subcoolingDeltaT, P(ipar))
                                                                      Else
-                                                                         tmp0 = _pp.DW_CalcKvalue(xc(ipar), yc(ipar), Tj(ipar), P(ipar))
+                                                                         tmp0 = StageK(ipar, xc(ipar), yc(ipar), Tj(ipar), P(ipar))
                                                                      End If
                                                                  End If
                                                              End If
@@ -961,9 +970,9 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                     End If
                 Else
                     If i = 0 And Math.Abs(_subcoolingDeltaT) > 0 Then
-                        tmp0 = _pp.DW_CalcKvalue(xc(i), yc(i), Tj(i) + _subcoolingDeltaT, P(i))
+                        tmp0 = StageK(i, xc(i), yc(i), Tj(i) + _subcoolingDeltaT, P(i))
                     Else
-                        tmp0 = _pp.DW_CalcKvalue(xc(i), yc(i), Tj(i), P(i))
+                        tmp0 = StageK(i, xc(i), yc(i), Tj(i), P(i))
                     End If
                 End If
             End If
@@ -1540,6 +1549,8 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
             IObj?.Paragraphs.Add("<h2>Calculated Parameters</h2>")
 
             llextr = LLEX 'liquid-liquid extractor
+
+            _threePhaseCol = If(dc IsNot Nothing AndAlso dc.HasThreePhaseStages(), dc, Nothing)
 
             Dim rebabs As Boolean = False, refabs As Boolean = False
             If TypeOf dc Is DistillationColumn Then

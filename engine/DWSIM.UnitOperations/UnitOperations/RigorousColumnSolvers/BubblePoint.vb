@@ -1516,10 +1516,18 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                                                                      Sub(ipar)
                                                                          If ipar = 0 AndAlso noliq0 Then Exit Sub
                                                                          Try
-                                                                             Dim tmpvar As Object = flashalgs(ipar).Flash_PV(xc(ipar), P(ipar), 0.0, Tj(ipar), pp, True, K(ipar))
-                                                                             Tj(ipar) = tmpvar(4)
-                                                                             Kant(ipar) = K(ipar)
-                                                                             K(ipar) = tmpvar(6)
+                                                                             If rc.IsThreePhaseStage(ipar) Then
+                                                                                 'two liquids: bubble point of the total liquid from the apparent K-values
+                                                                                 Dim Kb As Double() = Nothing
+                                                                                 Tj(ipar) = rc.StageBubbleTemperature(pp, ipar, xc(ipar), P(ipar), Tj(ipar), Kb)
+                                                                                 Kant(ipar) = K(ipar)
+                                                                                 K(ipar) = Kb
+                                                                             Else
+                                                                                 Dim tmpvar As Object = flashalgs(ipar).Flash_PV(xc(ipar), P(ipar), 0.0, Tj(ipar), pp, True, K(ipar))
+                                                                                 Tj(ipar) = tmpvar(4)
+                                                                                 Kant(ipar) = K(ipar)
+                                                                                 K(ipar) = tmpvar(6)
+                                                                             End If
                                                                              If Tj(ipar) < 0.0 Or Double.IsNaN(Tj(ipar)) Then
                                                                                  Tj(ipar) = Tj_ant(ipar)
                                                                                  K(ipar) = Kant(ipar)
@@ -1539,16 +1547,30 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                             IObj2?.SetCurrent
                             pp.CurrentMaterialStream.Flowsheet.CheckStatus()
                             If i = 0 AndAlso noliq0 Then Continue For
-                            Try
-                                tmp = flashalgs(i).Flash_PV(xc(i), P(i), 0.0, Tj(i), pp, True, K(i))
-                            Catch ex As Exception When Not TypeOf ex Is OperationCanceledException
-                                'the stage keeps its temperature and K values for this sweep
-                                bpfailed = True
-                                Continue For
-                            End Try
-                            Tj(i) = tmp(4)
-                            Kant(i) = K(i)
-                            K(i) = tmp(6)
+                            If rc.IsThreePhaseStage(i) Then
+                                'two liquids: bubble point of the total liquid from the apparent K-values
+                                Dim Kb As Double() = Nothing
+                                Try
+                                    Dim Tb = rc.StageBubbleTemperature(pp, i, xc(i), P(i), Tj(i), Kb)
+                                    Kant(i) = K(i)
+                                    Tj(i) = Tb
+                                    K(i) = Kb
+                                Catch ex As Exception When Not TypeOf ex Is OperationCanceledException
+                                    bpfailed = True
+                                    Continue For
+                                End Try
+                            Else
+                                Try
+                                    tmp = flashalgs(i).Flash_PV(xc(i), P(i), 0.0, Tj(i), pp, True, K(i))
+                                Catch ex As Exception When Not TypeOf ex Is OperationCanceledException
+                                    'the stage keeps its temperature and K values for this sweep
+                                    bpfailed = True
+                                    Continue For
+                                End Try
+                                Tj(i) = tmp(4)
+                                Kant(i) = K(i)
+                                K(i) = tmp(6)
+                            End If
                             If Tj(i) < 0.0 Or Double.IsNaN(Tj(i)) Then
                                 Tj(i) = Tj_ant(i)
                                 K(i) = Kant(i)
@@ -1636,13 +1658,13 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                                                                              If pp.ShouldUseKvalueMethod2 Then
                                                                                  K(ipar) = pp.DW_CalcKvalue(xc(ipar).MultiplyConstY(Lj(ipar)).AddY(yc(ipar).MultiplyConstY(Vj(ipar))).MultiplyConstY(1 / (Lj(ipar) + Vj(ipar))), Tj(ipar) - _subcoolingdeltat, P(ipar))
                                                                              Else
-                                                                                 K(ipar) = pp.DW_CalcKvalue(xc(ipar), yc(ipar), Tj(ipar) - _subcoolingdeltat, P(ipar))
+                                                                                 K(ipar) = rc.StageKvalues(pp, ipar, xc(ipar), yc(ipar), Tj(ipar) - _subcoolingdeltat, P(ipar))
                                                                              End If
                                                                          Else
                                                                              If pp.ShouldUseKvalueMethod2 Then
                                                                                  K(ipar) = pp.DW_CalcKvalue(xc(ipar).MultiplyConstY(Lj(ipar)).AddY(yc(ipar).MultiplyConstY(Vj(ipar))).MultiplyConstY(1 / (Lj(ipar) + Vj(ipar))), Tj(ipar), P(ipar))
                                                                              Else
-                                                                                 K(ipar) = pp.DW_CalcKvalue(xc(ipar), yc(ipar), Tj(ipar), P(ipar))
+                                                                                 K(ipar) = rc.StageKvalues(pp, ipar, xc(ipar), yc(ipar), Tj(ipar), P(ipar))
                                                                              End If
                                                                          End If
                                                                      End Sub)
@@ -1660,7 +1682,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                                 ElseIf pp.ShouldUseKvalueMethod2 Then
                                     K(i) = pp.DW_CalcKvalue(xc(i).MultiplyConstY(Lj(i)).AddY(yc(i).MultiplyConstY(Vj(i))).MultiplyConstY(1 / (Lj(i) + Vj(i))), Tj(i) - _subcoolingdeltat, P(i))
                                 Else
-                                    K(i) = pp.DW_CalcKvalue(xc(i), yc(i), Tj(i) - _subcoolingdeltat, P(i))
+                                    K(i) = rc.StageKvalues(pp, i, xc(i), yc(i), Tj(i) - _subcoolingdeltat, P(i))
                                 End If
                             Else
                                 If pp.ShouldUseKvalueMethod3 Then
@@ -1668,7 +1690,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                                 ElseIf pp.ShouldUseKvalueMethod2 Then
                                     K(i) = pp.DW_CalcKvalue(xc(i).MultiplyConstY(Lj(i)).AddY(yc(i).MultiplyConstY(Vj(i))).MultiplyConstY(1 / (Lj(i) + Vj(i))), Tj(i), P(i))
                                 Else
-                                    K(i) = pp.DW_CalcKvalue(xc(i), yc(i), Tj(i), P(i))
+                                    K(i) = rc.StageKvalues(pp, i, xc(i), yc(i), Tj(i), P(i))
                                 End If
                             End If
                         Next
