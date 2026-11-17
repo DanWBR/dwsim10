@@ -126,6 +126,7 @@ Version 10.2.17
 - [FIX] Advanced Heat Exchanger in counter-current flow: the cold fluid was marched from the wrong end, so the exchanger behaved almost as co-current and transferred too little heat (808 kW instead of about 927 kW in a water/water case)
 - [FIX] Advanced Heat Exchanger Design mode: the required duty came from the inlet heat capacity and missed the outlet temperature spec, and the maximum shell-side pressure drop wasn't enforced; the baffle spacing is widened and tubes are added to meet it
 - [FIX] Advanced Heat Exchanger overall coefficient: the Rating results applied the correction factor of a 1-2 exchanger to a pure counter-current profile and read about 25 % high; the Fouling Factor mode took the duty from the inlet heat capacity and gave its outlets the duty of its internal clean rating
+- [FIX] Advanced Heat Exchanger with more than one tube pass: the Rating mode computed a single tube stream, as in a pure counter-current or co-current exchanger; each pass is now computed in its own direction along the shell (858 kW instead of 930 kW in a water/water case with 2 passes, within 0.4 % of a 1-2 shell), and Design warns when more tubes no longer add duty
 
 Version 10.2.16
 
