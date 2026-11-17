@@ -630,6 +630,10 @@ out:        Return New Object() {L, V, Vx, Vy, ecount, 0.0#, PP.RET_NullVector, 
                     End If
                     'Supercritical gases are put to liquid phase
                     If T > Tc(i) Then MaxX(i) = 1.0
+                    'A compound above its melting point can't form its pure solid, however high its activity coefficient: it
+                    'stays in the liquid. Judged with the activity coefficient of the feed composition, ethanol at 1 % in
+                    'paracetamol looked saturated, and the whole mixture, ethanol included, was returned as a solid.
+                    If MaxAct(i) >= 1.0 AndAlso Not constprop.IsSalt Then MaxX(i) = Math.Max(MaxX(i), 1.0)
                     'If compound is in forced solids list, put it in solid phase
                     If PP.ForcedSolids.Contains(Vn(i)) Then MaxX(i) = 0.0
                 Next
@@ -694,7 +698,8 @@ out:        Return New Object() {L, V, Vx, Vy, ecount, 0.0#, PP.RET_NullVector, 
                 MaxLiquPhase = Vz.DivideY(MaxX)
                 SF = 0
                 For i = 0 To n
-                    If MaxLiquPhase(i) > 0.0001 Then
+                    'a trace of a compound that can't form a solid still needs a liquid to hold it
+                    If MaxLiquPhase(i) > 0.0001 OrElse (Vz(i) > 0.0 AndAlso MaxX(i) >= 1.0) Then
                         SF += MaxX(i)
                     End If
                 Next
@@ -1062,8 +1067,11 @@ out:        d2 = Date.Now
                 Vy = Vy.NormalizeY
 
                 Dim convergiu As Integer = 0
-                Dim F, dF, e1, e2, e3 As Double
+                Dim e1, e2, e3 As Double
                 ecount = 0
+
+                'ln K of the last two passes, for the acceleration of the substitution below
+                Dim lnK1 As Double() = Nothing, lnK2 As Double() = Nothing
 
                 Do
 
@@ -1082,6 +1090,92 @@ out:        d2 = Date.Now
 
                     IObj3?.Paragraphs.Add(String.Format("K values where updated. Current values: {0}", Ki.ToMathArrayString))
 
+                    'Rachford-Rice error of the current vapor fraction with these K-values: zero at equilibrium
+                    Dim Ftrue = 0.0
+                    For i = 0 To n
+                        If Vz(i) > 0 Then Ftrue += Vz(i) * (Ki(i) - 1) / (1 + V * (Ki(i) - 1))
+                    Next
+
+                    'The K-values are found by substitution: K from the phase compositions, the compositions from K. Each pass
+                    'changes ln K by a factor of the previous change, set by how fast the activity of the volatile compounds
+                    'follows the liquid composition. In a concentrated solution of a nonvolatile solute (a sugar syrup) the
+                    'water activity falls quickly as the water leaves: the factor approaches minus one, and the passes
+                    'alternate around the answer for hundreds of iterations, or move away from it. Once two successive steps
+                    'of ln K point the same way, or opposite ways, with a steady ratio, the rest of the series is added at once.
+                    Dim lnK0(n) As Double
+                    For i = 0 To n
+                        lnK0(i) = If(Vz(i) > 0.0 AndAlso Ki(i) > 0.0, Log(Ki(i)), 0.0)
+                    Next
+                    Dim kAccelerated As Boolean = False
+                    If lnK1 IsNot Nothing AndAlso lnK2 IsNot Nothing Then
+                        Dim s0 = 0.0, s1 = 0.0, dot = 0.0
+                        For i = 0 To n
+                            s0 += (lnK0(i) - lnK1(i)) ^ 2
+                            s1 += (lnK1(i) - lnK2(i)) ^ 2
+                            dot += (lnK0(i) - lnK1(i)) * (lnK1(i) - lnK2(i))
+                        Next
+                        If s1 > 0.0 AndAlso s0 > 1.0E-20 Then
+                            Dim ratio = Sqrt(s0 / s1)
+                            Dim cosine = dot / Sqrt(s0 * s1)
+                            Dim fac = 0.0
+                            If cosine > 0.9 AndAlso ratio > 0.5 AndAlso ratio < 0.999 Then fac = Math.Min(ratio / (1.0 - ratio), 50.0)
+                            If cosine < -0.9 AndAlso ratio > 0.3 Then fac = -ratio / (1.0 + ratio)
+                            If fac <> 0.0 Then
+                                For i = 0 To n
+                                    If Vz(i) > 0.0 AndAlso Ki(i) > 0.0 Then Ki(i) = Exp(lnK0(i) + fac * (lnK0(i) - lnK1(i)))
+                                Next
+                                kAccelerated = True
+                            End If
+                        End If
+                    End If
+                    If kAccelerated Then
+                        lnK1 = Nothing
+                        lnK2 = Nothing
+                    Else
+                        lnK2 = lnK1
+                        lnK1 = lnK0
+                    End If
+
+                    'the vapor fraction that solves the Rachford-Rice equation for these K-values; the function at both ends
+                    'of the interval tells whether the root is inside it
+                    Vant = V
+                    Dim F0 = 0.0, F1 = 0.0
+                    For i = 0 To n
+                        If Vz(i) > 0 Then
+                            F0 += Vz(i) * (Ki(i) - 1)
+                            F1 += Vz(i) * (Ki(i) - 1) / Ki(i)
+                        End If
+                    Next
+                    If F0 <= 0.0 Then
+                        V = 0.0
+                    ElseIf F1 >= 0.0 Then
+                        V = 1.0
+                    Else
+                        'the function falls with V: positive at zero, negative at one
+                        Dim Va = 0.0, Vb = 1.0
+                        If V <= 0.0 OrElse V >= 1.0 Then V = 0.5
+                        For it As Integer = 1 To 100
+                            Dim Fv = 0.0, dFv = 0.0
+                            For i = 0 To n
+                                If Vz(i) > 0 Then
+                                    Fv += Vz(i) * (Ki(i) - 1) / (1 + V * (Ki(i) - 1))
+                                    dFv -= Vz(i) * (Ki(i) - 1) ^ 2 / (1 + V * (Ki(i) - 1)) ^ 2
+                                End If
+                            Next
+                            If Fv > 0.0 Then Va = V Else Vb = V
+                            If Math.Abs(Fv) < 1.0E-15 Then Exit For
+                            Dim Vn = V - Fv / dFv
+                            If Double.IsNaN(Vn) OrElse Vn <= Va OrElse Vn >= Vb Then Vn = (Va + Vb) / 2
+                            If Math.Abs(Vn - V) < 1.0E-15 Then
+                                V = Vn
+                                Exit For
+                            End If
+                            V = Vn
+                        Next
+                    End If
+
+                    IObj3?.Paragraphs.Add(String.Format("Updated Vapor Fraction (<math_inline>\beta</math_inline>) value: {0}", V))
+
                     Vy_ant = Vy.Clone
                     Vx_ant = Vx.Clone
 
@@ -1099,93 +1193,21 @@ out:        d2 = Date.Now
 
                     e1 = Vx.SubtractY(Vx_ant).AbsSumY
                     e2 = Vy.SubtractY(Vy_ant).AbsSumY
-
-                    e3 = (V - Vant)
-
-                    'a vapor fraction held at 0 or 1 is the answer only if the K-values of the current phase compositions keep it
-                    'there: the bound was chosen with K-values from the compositions of the previous estimate
-                    Dim leaveBound As Boolean = False
-                    If V = 0.0 OrElse V = 1.0 Then
-                        Dim F0b = 0.0, F1b = 0.0
-                        For i = 0 To n
-                            If Vz(i) > 0 Then
-                                F0b += Vz(i) * (Ki(i) - 1)
-                                F1b += Vz(i) * (Ki(i) - 1) / Ki(i)
-                            End If
-                        Next
-                        leaveBound = (V = 0.0 AndAlso F0b > 0.0) OrElse (V = 1.0 AndAlso F1b < 0.0)
-                    End If
+                    e3 = V - Vant
 
                     IObj3?.Paragraphs.Add(String.Format("Current Vapor Fraction (<math_inline>\beta</math_inline>) error: {0}", e3))
 
-                    If Double.IsNaN(e1 + e2) Then
+                    If Double.IsNaN(e1 + e2) Then Throw New Exception(Calculator.GetLocalString("PropPack_FlashError"))
+                    If Double.IsNaN(V) Then Throw New Exception(Calculator.GetLocalString("PropPack_FlashTPVapFracError"))
 
-                        Throw New Exception(Calculator.GetLocalString("PropPack_FlashError"))
-
-                    ElseIf Math.Abs(e3) < 0.0000000001 And ecount > 0 And Not leaveBound Then
-
-                        convergiu = 1
-
-                        Exit Do
-
-                    Else
-
-                        Vant = V
-
-                        F = 0.0#
-                        dF = 0.0#
-                        i = 0
-                        Do
-                            If Vz(i) > 0 Then
-                                F = F + Vz(i) * (Ki(i) - 1) / (1 + V * (Ki(i) - 1))
-                                dF = dF - Vz(i) * (Ki(i) - 1) ^ 2 / (1 + V * (Ki(i) - 1)) ^ 2
-                            End If
-                            i = i + 1
-                        Loop Until i = n + 1
-
-                        IObj3?.Paragraphs.Add(String.Format("Current value of the Rachford-Rice error function: {0}", F))
-
-                        If Abs(F) < etol / 100 Then Exit Do
-
-                        Dim dfac = (ecount + 1) * 0.1
-                        If dfac > 1.0 Then dfac = 1.0
-
-                        V = -F / dF * dfac + Vant
-
-                        'the Rachford-Rice function at both ends of the interval tells where the root is
-                        Dim F0 = 0.0, F1 = 0.0
-                        For i = 0 To n
-                            If Vz(i) > 0 Then
-                                F0 += Vz(i) * (Ki(i) - 1)
-                                F1 += Vz(i) * (Ki(i) - 1) / Ki(i)
-                            End If
-                        Next
-                        If F0 <= 0.0 Then
-                            'root at or below zero: no vapor
-                            V = 0.0
-                        ElseIf F1 >= 0.0 Then
-                            'root at or above one: no liquid
-                            V = 1.0
-                        ElseIf V < 0.0 Then
-                            'root inside and the step overshot it: halve the distance to the bound
-                            V = Vant / 2
-                        ElseIf V > 1.0 Then
-                            V = (Vant + 1.0) / 2
-                        End If
-
-                    IObj3?.Paragraphs.Add(String.Format("Updated Vapor Fraction (<math_inline>\beta</math_inline>) value: {0}", V))
-
-                    End If
-
-                    If V < 0.0# Then V = 0.0#
-                    If V > 1.0# Then V = 1.0#
+                    'converged when the vapor fraction stops moving with K-values from the current compositions
+                    If ecount > 0 AndAlso Not kAccelerated AndAlso Math.Abs(e3) < 0.0000000001 Then convergiu = 1
 
                     L = 1 - V
 
                     ecount += 1
 
-                    If Double.IsNaN(V) Then Throw New Exception(Calculator.GetLocalString("PropPack_FlashTPVapFracError"))
-                    If ecount > maxit_e Then Throw New Exception(Calculator.GetLocalString("PropPack_FlashMaxIt2"))
+                    If ecount > maxit_e AndAlso convergiu = 0 Then Throw New Exception(Calculator.GetLocalString("PropPack_FlashMaxIt2"))
 
                     WriteDebugInfo("PT Flash [NL-SLE]: Iteration #" & ecount & ", VF = " & V)
 
