@@ -586,6 +586,20 @@ Namespace Streams
         End Function
 
         ''' <summary>
+        ''' The package set or read through the base class or <see cref="ISimulationObject"/> (the FluentAPI, scripts)
+        ''' is this stream's own package: before, it went to a separate field that the stream never used.
+        ''' </summary>
+        Protected Overrides Function GetPropertyPackageInterface() As IPropertyPackage
+            Return PropertyPackage
+        End Function
+
+        Protected Overrides Sub SetPropertyPackageInterface(value As IPropertyPackage)
+            Dim pp = TryCast(value, PropertyPackage)
+            If value IsNot Nothing AndAlso pp Is Nothing Then Throw New ArgumentException("A material stream needs a DWSIM property package.")
+            PropertyPackage = pp
+        End Sub
+
+        ''' <summary>
         ''' Gets or sets the associated Property Package for this stream.
         ''' </summary>
         ''' <value></value>
@@ -624,6 +638,10 @@ Namespace Streams
                     Else
                         If FlowSheet.PropertyPackages.ContainsKey(value.UniqueID) Then
                             _ppid = value.UniqueID
+                            'a package assigned directly (before the stream joined the flowsheet) comes first in the
+                            'getter, and kept the stream on it after this change
+                            _pp = Nothing
+                            _ppwasset = False
                         Else
                             _ppwasset = True
                             _pp = value

@@ -622,6 +622,10 @@ Namespace UnitOperations
                     Else
                         If FlowSheet.PropertyPackages.ContainsKey(value.UniqueID) Then
                             _ppid = value.UniqueID
+                            'a package assigned directly (before the object joined the flowsheet) comes first in the
+                            'getter, and kept the object on it after this change
+                            _pp = Nothing
+                            _ppwasset = False
                         Else
                             _ppwasset = True
                             _pp = value

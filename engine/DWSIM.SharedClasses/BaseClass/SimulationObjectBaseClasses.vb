@@ -1030,7 +1030,32 @@ Namespace UnitOperations
             Return GetProperties(PropertyType.ALL)
         End Function
 
+        Private _basePropertyPackage As IPropertyPackage
+
+        ''' <summary>
+        ''' Gets or sets the property package of this object. A class that keeps its package elsewhere (a material
+        ''' stream declares its own typed property) overrides <see cref="GetPropertyPackageInterface"/> and
+        ''' <see cref="SetPropertyPackageInterface"/>, so that a package set through this property, or through
+        ''' <see cref="ISimulationObject"/>, is the one the object uses.
+        ''' </summary>
         Public Overridable Property PropertyPackage As IPropertyPackage Implements ISimulationObject.PropertyPackage
+            Get
+                Return GetPropertyPackageInterface()
+            End Get
+            Set(value As IPropertyPackage)
+                SetPropertyPackageInterface(value)
+            End Set
+        End Property
+
+        ''' <summary>Returns the property package seen through <see cref="PropertyPackage"/>.</summary>
+        Protected Overridable Function GetPropertyPackageInterface() As IPropertyPackage
+            Return _basePropertyPackage
+        End Function
+
+        ''' <summary>Stores the property package set through <see cref="PropertyPackage"/>.</summary>
+        Protected Overridable Sub SetPropertyPackageInterface(value As IPropertyPackage)
+            _basePropertyPackage = value
+        End Sub
 
         Public Function GetFlowsheet() As IFlowsheet Implements ISimulationObject.GetFlowsheet
             Return FlowSheet
