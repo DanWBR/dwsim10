@@ -21,14 +21,20 @@ namespace DWSIM.MCPServer.Tools.Thermo
         [McpTool("dwsim_thermo_list_compounds", "List all available compounds in the DWSIM database. Returns compound names that can be used with add_compounds.")]
         public JObject ListCompounds()
         {
+            // the databases spell some names in another case (ChemSep N-butane, CoolProp n-Butane); a
+            // flowsheet keeps the first one loaded, so the list does the same and shows each compound once
             var compounds = _automation.AvailableCompounds;
+            var seen = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+            var names = new List<string>();
+            foreach (var name in compounds.Keys)
+                if (seen.Add(name)) names.Add(name);
             var arr = new JArray();
-            foreach (var name in compounds.Keys.OrderBy(k => k))
+            foreach (var name in names.OrderBy(k => k))
                 arr.Add(name);
             return new JObject { ["compounds"] = arr, ["count"] = arr.Count };
         }
 
-        [McpTool("dwsim_thermo_add_compounds", "Add one or more compounds to the flowsheet by name (e.g. 'Water', 'Methane', 'Ethanol').")]
+        [McpTool("dwsim_thermo_add_compounds", "Add one or more compounds to the flowsheet by name (e.g. 'Water', 'Methane', 'Ethanol'). The name is matched ignoring case when it isn't found exactly; 'added' gives the names as the flowsheet stores them.")]
         public JObject AddCompounds(
             [McpParam("Flowsheet handle")] string flowsheet_id,
             [McpParam("Array of compound names to add", JsonType = "array")] string[] names)
@@ -37,8 +43,8 @@ namespace DWSIM.MCPServer.Tools.Thermo
             var added = new JArray();
             foreach (var name in names)
             {
-                fs.WithCompound(name);
-                added.Add(name);
+                var c = fs.Inner.AddCompound(name);
+                added.Add(c.Name);
             }
             return new JObject { ["added"] = added };
         }

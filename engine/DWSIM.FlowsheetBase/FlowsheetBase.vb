@@ -4700,7 +4700,19 @@ Label_00CC:
     End Function
 
     Public Function GetCompound(name As String) As ICompoundConstantProperties Implements IFlowsheet.GetCompound
-        Return AvailableCompounds(name)
+        Dim c As ICompoundConstantProperties = Nothing
+        If AvailableCompounds.TryGetValue(name, c) Then Return c
+        ' the databases spell some names in another case (ChemSep writes N-butane and P-xylene, CoolProp
+        ' n-Butane and p-Xylene) and the flowsheet keeps one of them: a single name that differs only in
+        ' case is the same compound
+        Dim matches = AvailableCompounds.Keys.Where(Function(k) String.Equals(k, name, StringComparison.OrdinalIgnoreCase)).ToList()
+        If matches.Count = 1 Then Return AvailableCompounds(matches(0))
+        ' the same compound from two databases (same CAS number): the first one loaded
+        If matches.Count > 1 AndAlso matches.Select(Function(k) AvailableCompounds(k).CAS_Number).Distinct().Count() = 1 Then Return AvailableCompounds(matches(0))
+        If matches.Count > 1 Then
+            Throw New KeyNotFoundException(String.Format("Compound '{0}' matches {1}; give the name exactly as listed.", name, String.Join(", ", matches)))
+        End If
+        Throw New KeyNotFoundException(String.Format("Compound '{0}' isn't in the compound database.", name))
     End Function
 
     Public Function GetPropertyPackage(name As String) As IPropertyPackage Implements IFlowsheet.GetPropertyPackage
@@ -5137,6 +5149,8 @@ Label_00CC:
     Public Function AddCompound(compname As String) As ICompoundConstantProperties Implements IFlowsheet.AddCompound
 
         Dim c = GetCompound(compname)
+        ' a compound already in the flowsheet (the name may differ in case) stays as it is
+        If Options.SelectedComponents.ContainsKey(c.Name) Then Return Options.SelectedComponents(c.Name)
         Options.SelectedComponents.Add(c.Name, c)
         If Options.NotSelectedComponents.ContainsKey(c.Name) Then Options.NotSelectedComponents.Remove(c.Name)
         Return c
