@@ -51,9 +51,9 @@ Namespace UnitOperations
         PinchPoint = 7
         ''' <summary>Calculate outlet temperatures using a specified thermal efficiency.</summary>
         ThermalEfficiency = 8
-        ''' <summary>Calculate so the hot-side outlet reaches a specified vapour fraction.</summary>
+        ''' <summary>Calculate so the outlet of the stream on the first inlet reaches a specified vapour fraction, whichever side it is on.</summary>
         OutletVaporFraction1 = 9
-        ''' <summary>Calculate so the cold-side outlet reaches a specified vapour fraction.</summary>
+        ''' <summary>Calculate so the outlet of the stream on the second inlet reaches a specified vapour fraction, whichever side it is on.</summary>
         OutletVaporFraction2 = 10
     End Enum
 
@@ -197,9 +197,9 @@ Namespace UnitOperations
         Public Property CorrectionFactorLMTD As Double = 1.0
         ''' <summary>Gets or sets the fractional heat loss to the environment (kW).</summary>
         Public Property HeatLoss As Double = 0.0
-        ''' <summary>Gets or sets the target vapour fraction for the hot-side outlet when using <see cref="HeatExchangerCalcMode.OutletVaporFraction1"/>.</summary>
+        ''' <summary>Gets or sets the target vapour fraction for the outlet of the stream on the first inlet when using <see cref="HeatExchangerCalcMode.OutletVaporFraction1"/>.</summary>
         Public Property OutletVaporFraction1 As Double = 0.0
-        ''' <summary>Gets or sets the target vapour fraction for the cold-side outlet when using <see cref="HeatExchangerCalcMode.OutletVaporFraction2"/>.</summary>
+        ''' <summary>Gets or sets the target vapour fraction for the outlet of the stream on the second inlet when using <see cref="HeatExchangerCalcMode.OutletVaporFraction2"/>.</summary>
         Public Property OutletVaporFraction2 As Double = 0.0
 
         ''' <summary>Gets or sets whether the pinch-point specification applies at the exchanger outlets rather than internally.</summary>
@@ -1937,6 +1937,62 @@ Namespace UnitOperations
 
         End Function
 
+        ''' <summary>
+        ''' Temperature of a stream taken as the cold side once it reaches the cold-side outlet pressure with its inlet
+        ''' enthalpy (K). A boiling liquid comes out colder; without a cold-side pressure drop, or when the flash fails,
+        ''' it is the inlet temperature.
+        ''' </summary>
+        Private Function TemperatureAfterColdSideDrop(st As MaterialStream) As Double
+
+            Dim T0 = st.GetTemperature()
+            If ColdSidePressureDrop <= 0.0 Then Return T0
+
+            Try
+                Dim tmp As MaterialStream = st.Clone
+                tmp.PropertyPackage = st.PropertyPackage
+                tmp.SetFlowsheet(st.FlowSheet)
+                tmp.AssignSelfToPP()
+                tmp.SetPressure(st.GetPressure() - ColdSidePressureDrop)
+                tmp.SetMassEnthalpy(st.GetMassEnthalpy())
+                tmp.SetFlashSpec("PH")
+                tmp.Calculate()
+                Dim T1 = tmp.GetTemperature()
+                tmp.PropertyPackage = Nothing
+                tmp.Dispose()
+                If Double.IsNaN(T1) OrElse T1 <= 0.0 Then Return T0
+                Return T1
+            Catch ex As Exception
+                Return T0
+            End Try
+
+        End Function
+
+        ''' <summary>
+        ''' Index (0 or 1) of the cold inlet when both inlets are at the same temperature: the assignment in which the
+        ''' hot inlet is warmer than the cold stream after the cold-side pressure drop by the larger margin. With equal
+        ''' margins (no pressure drop) the second inlet is the cold one, as before.
+        ''' </summary>
+        Private Function ColdInletOnTie(st0 As MaterialStream, st1 As MaterialStream) As Integer
+
+            Dim margin0 = st1.GetTemperature() - TemperatureAfterColdSideDrop(st0) 'inlet 1 cold, inlet 2 hot
+            Dim margin1 = st0.GetTemperature() - TemperatureAfterColdSideDrop(st1) 'inlet 2 cold, inlet 1 hot
+            If margin0 > margin1 Then Return 0 Else Return 1
+
+        End Function
+
+        ''' <summary>
+        ''' Stops the Outlet Vapor Fraction modes when the specified vapor fraction would need heat to flow from the
+        ''' cold side to the hot side. <paramref name="Q1"/> is the heat the stream gives (kW, positive when it cools).
+        ''' </summary>
+        Private Sub CheckVaporFractionHeatDirection(st As MaterialStream, Q1 As Double, isHot As Boolean)
+
+            If (isHot AndAlso Q1 < -0.000001) OrElse (Not isHot AndAlso Q1 > 0.000001) Then
+                Throw New Exception(String.Format("The outlet vapor fraction specified for {0} needs {1} heat, but {0} is the {2} side of the exchanger. Specify the vapor fraction of the other stream, or check which stream is on each inlet.",
+                                                  st.GraphicObject?.Tag, If(isHot, "to take", "to give"), If(isHot, "hot", "cold")))
+            End If
+
+        End Sub
+
         Public Overrides Sub Calculate(Optional ByVal args As Object = Nothing)
 
             Dim IObj As Inspector.InspectorItem = Inspector.Host.GetNewInspectorItem()
@@ -2041,7 +2097,18 @@ Namespace UnitOperations
 
             'Let us use properties at the entrance as an initial implementation.
 
-            If Ti1 < Ti2 Then
+            'Both inlets at the same temperature (an evaporator effect fed with the vapor and the liquid that left the
+            'effect before it): the comparison below would be decided by the last digits of two flashes, and could
+            'change from one pass of a recycle to the next. The side whose stream is colder after the cold-side
+            'pressure drop is the cold one.
+            Dim coldFirst As Boolean
+            If Math.Abs(Ti1 - Ti2) < 0.001 Then
+                coldFirst = (ColdInletOnTie(StIn0, StIn1) = 0)
+            Else
+                coldFirst = Ti1 < Ti2
+            End If
+
+            If coldFirst Then
                 'Input1 is the cold stream.
                 Tc1 = Ti1
                 Th1 = Ti2
@@ -2116,11 +2183,18 @@ Namespace UnitOperations
             Dim HHx As Double
             Dim tmpstr As MaterialStream = StInHot.Clone
 
+            'The cold stream can be colder inside the exchanger than at its inlet: a liquid that enters at the
+            'temperature of the hot stream boils at the lower outlet pressure (an evaporator effect fed from the one
+            'before it). The hot stream can be cooled down to that temperature. Thermal Efficiency keeps the inlet
+            'temperature, since its duty is a fraction of this bound.
+            Dim TcRef As Double = Tc1
+            If CalcMode <> HeatExchangerCalcMode.ThermalEfficiency Then TcRef = Math.Min(Tc1, TemperatureAfterColdSideDrop(StInCold))
+
             tmpstr = StInHot.Clone
             tmpstr.PropertyPackage = StInHot.PropertyPackage
             tmpstr.SetFlowsheet(StInHot.FlowSheet)
             tmpstr.AssignSelfToPP()
-            tmpstr.SetTemperature(Tc1)
+            tmpstr.SetTemperature(TcRef)
             tmpstr.SetPressure(Ph2)
             tmpstr.SetFlashSpec("PT")
             IObj?.SetCurrent()
@@ -2738,7 +2812,7 @@ Namespace UnitOperations
                     T10 = StIn0.GetTemperature()
                     T20 = StIn1.GetTemperature()
 
-                    If T10 > T20 Then
+                    If coldidx = 1 Then 'inlet 1 is the hot side
                         P1 = Ph1
                         P2 = Pc1
                         DP1 = HotSidePressureDrop
@@ -2761,6 +2835,8 @@ Namespace UnitOperations
                     T11 = tmp.CalculatedTemperature.GetValueOrDefault()
                     H11 = OverriddenEnthalpy(StIn0, P1 - DP1, T11, tmp.CalculatedEnthalpy)
                     Q1 = -StIn0.GetMassFlow() * (H11 - StIn0.GetMassEnthalpy())
+
+                    CheckVaporFractionHeatDirection(StIn0, Q1, coldidx = 1)
 
                     Q = Math.Abs(Q1)
 
@@ -2786,7 +2862,7 @@ Namespace UnitOperations
                     T21 = OverriddenTemperature(StIn1, P2 - DP2, H21, tmp.CalculatedTemperature.GetValueOrDefault())
                     'OutletVaporFraction2 = tmp.GetVaporPhaseMoleFraction()
 
-                    If T10 > T20 Then
+                    If coldidx = 1 Then
                         Tc1 = T20
                         Tc2 = T21
                         Th1 = T10
@@ -2826,7 +2902,7 @@ Namespace UnitOperations
                     T10 = StIn1.GetTemperature()
                     T20 = StIn0.GetTemperature()
 
-                    If T10 > T20 Then
+                    If coldidx = 0 Then 'inlet 2 is the hot side
                         P1 = Ph1
                         P2 = Pc1
                         DP1 = HotSidePressureDrop
@@ -2849,6 +2925,8 @@ Namespace UnitOperations
                     T11 = tmp.CalculatedTemperature.GetValueOrDefault()
                     H11 = OverriddenEnthalpy(StIn1, P1 - DP1, T11, tmp.CalculatedEnthalpy)
                     Q1 = -StIn1.GetMassFlow() * (H11 - StIn1.GetMassEnthalpy())
+
+                    CheckVaporFractionHeatDirection(StIn1, Q1, coldidx = 0)
 
                     Q = Math.Abs(Q1)
 
@@ -2874,7 +2952,7 @@ Namespace UnitOperations
                     T21 = OverriddenTemperature(StIn0, P2 - DP2, H21, tmp.CalculatedTemperature.GetValueOrDefault())
                     'OutletVaporFraction1 = tmp.GetVaporPhaseMoleFraction()
 
-                    If T10 > T20 Then
+                    If coldidx = 0 Then
                         Tc1 = T20
                         Tc2 = T21
                         Th1 = T10
