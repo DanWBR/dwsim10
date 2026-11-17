@@ -635,6 +635,17 @@ Namespace PropertyPackages.Auxiliary
         Public InteracParam As System.Collections.Generic.Dictionary(Of Integer, System.Collections.Generic.Dictionary(Of Integer, Double))
         Protected m_groups As System.Collections.Generic.Dictionary(Of Integer, UnifacGroup)
 
+        ''' <summary>
+        ''' Main groups of unifac_ll_ip.txt (Magnussen, Rasmussen and Fredenslund, 1981) to the VLE main
+        ''' groups of unifac.txt. Group 15 is labelled CH2CO in the file and is CH2O. The LLE groups
+        ''' 6 (1-propanol), 7 (2-propanol), 26 (DEOH) and 29 (MFA) don't have a VLE counterpart and
+        ''' are left out.
+        ''' </summary>
+        Private Shared ReadOnly LLEMainGroupToVLE As New System.Collections.Generic.Dictionary(Of Integer, Integer) From {
+            {1, 1}, {2, 2}, {3, 3}, {4, 4}, {5, 5}, {8, 7}, {9, 8}, {10, 9}, {11, 10}, {12, 30},
+            {13, 20}, {14, 11}, {15, 13}, {16, 21}, {17, 22}, {18, 23}, {19, 24}, {20, 25}, {21, 19},
+            {22, 17}, {23, 26}, {24, 27}, {25, 31}, {27, 18}, {28, 37}, {30, 39}, {31, 52}, {32, 35}}
+
         Sub New(ll As Boolean)
 
             Dim pathsep = System.IO.Path.DirectorySeparatorChar
@@ -697,6 +708,13 @@ Namespace PropertyPackages.Auxiliary
                         parser.SetDelimiters(delimiter)
                         While Not parser.EndOfData
                             fields = parser.ReadFields()
+                            ' the file numbers its main groups as Magnussen's LLE table does; the
+                            ' dictionary is keyed by the VLE main groups of unifac.txt
+                            Dim mg1, mg2 As Integer
+                            If Not LLEMainGroupToVLE.TryGetValue(Integer.Parse(fields(0)), mg1) Then Continue While
+                            If Not LLEMainGroupToVLE.TryGetValue(Integer.Parse(fields(2)), mg2) Then Continue While
+                            fields(0) = mg1.ToString()
+                            fields(2) = mg2.ToString()
                             If Not Me.InteracParam.ContainsKey(fields(0)) Then
                                 Me.InteracParam.Add(fields(0), New System.Collections.Generic.Dictionary(Of Integer, Double))
                                 Me.InteracParam(fields(0)).Add(fields(2), Double.Parse(fields(4), cult))
