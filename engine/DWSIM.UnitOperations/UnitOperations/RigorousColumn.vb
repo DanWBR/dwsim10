@@ -2344,7 +2344,7 @@ Namespace UnitOperations
                 _Streams(i).PropertyPackage = PropertyPackage
                 _Streams(i).AssignSelfToPP()
                 _Streams(i).SetFlashSpec("PH")
-                _Streams(i).Calculate()
+                CalculateStageHoldup(_Streams(i), i)
                 rhov = _Streams(i).Vapor.Properties.density.GetValueOrDefault()
                 rhol = _Streams(i).OverallLiquid.Properties.density.GetValueOrDefault()
                 vv = _Streams(i).Vapor.Properties.volumetric_flow.GetValueOrDefault() / _Streams(i).Vapor.Properties.molarflow.GetValueOrDefault()
@@ -2393,7 +2393,7 @@ Namespace UnitOperations
                         Stages(i + 1).Lin.Value = Fl
                         If rhol > 0 AndAlso vl > 0 AndAlso Fl > 0 Then
                             Dim lt = DirectCast(_Streams(i).CloneXML(), MaterialStream)
-                            lt.AssignFromPhase(PhaseLabel.Liquid1, _Streams(i), True)
+                            AssignHoldupLiquid(lt, _Streams(i), True)
                             lt.SetMassFlow(Fl * vl * rhol)
                             lt.PropertyPackage = PropertyPackage
                             lt.SetFlowsheet(FlowSheet)
@@ -2440,7 +2440,7 @@ Namespace UnitOperations
                         If i < Stages.Count - 1 Then Stages(i + 1).Lin.Value = Fl
                         If rhol > 0 AndAlso vl > 0 AndAlso Fl > 0 Then
                             Dim lt = DirectCast(_Streams(i).CloneXML(), MaterialStream)
-                            lt.AssignFromPhase(PhaseLabel.Liquid1, _Streams(i), True)
+                            AssignHoldupLiquid(lt, _Streams(i), True)
                             lt.SetMassFlow(Fl * vl * rhol)
                             lt.PropertyPackage = PropertyPackage
                             lt.SetFlowsheet(FlowSheet)
@@ -2568,7 +2568,7 @@ Namespace UnitOperations
                 'current segment pressure
 
                 _Streams(i).AssignSelfToPP()
-                _Streams(i).Calculate()
+                CalculateStageHoldup(_Streams(i), i)
 
                 If i = 0 AndAlso topTray Then
 
@@ -2581,7 +2581,7 @@ Namespace UnitOperations
                         _Streams(0).SetPressure(P0)
                         _Streams(0).SpecType = StreamSpec.Pressure_and_Enthalpy
                         _Streams(0).AssignSelfToPP()
-                        _Streams(0).Calculate()
+                        CalculateStageHoldup(_Streams(0), 0)
                     End If
 
                 ElseIf _Streams(i).GetMolarFlow() > 1.0E-10 Then
@@ -2618,7 +2618,7 @@ Namespace UnitOperations
                     _Streams(i).SpecType = StreamSpec.Pressure_and_Enthalpy
 
                     _Streams(i).AssignSelfToPP()
-                    _Streams(i).Calculate()
+                    CalculateStageHoldup(_Streams(i), i)
 
                 End If
 
@@ -2663,7 +2663,7 @@ Namespace UnitOperations
                 If side IsNot Nothing Then
                     Dim sidestream = DirectCast(FlowSheet.SimulationObjects(side.StreamID), MaterialStream)
                     If side.StreamPhase = StreamInformation.Phase.L Then
-                        sidestream.AssignFromPhase(PhaseLabel.Liquid1, _Streams(i), False)
+                        AssignHoldupLiquid(sidestream, _Streams(i), False)
                         sidestream.MaximumAllowableDynamicMassFlowRate = liquidDrawLimit(i)
                     ElseIf side.StreamPhase = StreamInformation.Phase.V Then
                         sidestream.AssignFromPhase(PhaseLabel.Vapor, _Streams(i), False)
@@ -2686,7 +2686,7 @@ Namespace UnitOperations
                     If _Distillate IsNot Nothing Then
                         'Liquid distillate: assign from the condenser holdup liquid phase.
                         Dim diststream = DirectCast(FlowSheet.SimulationObjects(_Distillate.StreamID), MaterialStream)
-                        diststream.AssignFromPhase(PhaseLabel.Liquid1, _Streams(i), False)
+                        AssignHoldupLiquid(diststream, _Streams(i), False)
                         diststream.MaximumAllowableDynamicMassFlowRate = liquidDrawLimit(i)
                         diststream.SetPressure(_Streams(i).GetPressure())
                         diststream.SpecType = StreamSpec.Pressure_and_Enthalpy
@@ -2695,7 +2695,7 @@ Namespace UnitOperations
                 ElseIf i = bottomsIndex Then
                     If _BottomsProduct IsNot Nothing Then
                         Dim bottomstream = DirectCast(FlowSheet.SimulationObjects(_BottomsProduct.StreamID), MaterialStream)
-                        bottomstream.AssignFromPhase(PhaseLabel.Liquid1, _Streams(i), False)
+                        AssignHoldupLiquid(bottomstream, _Streams(i), False)
                         bottomstream.MaximumAllowableDynamicMassFlowRate = liquidDrawLimit(i)
                         If botTray Then
                             'the liquid over the weir of the bottom tray, at the tray pressure

@@ -286,6 +286,19 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
         End Function
 
         ''' <summary>Fraction of the second phase for the K-values of phase 2 over phase 1; False when no root lies in (0, 1).</summary>
+        ''' <summary>Vapor fraction of <paramref name="z"/> for the K-values <paramref name="K"/>; ok is False when
+        ''' the K-values are all above or all below one (or the root is outside 0..1).</summary>
+        Friend Shared Function RachfordRiceFraction(z As Double(), K As Double(), guess As Double, ByRef ok As Boolean) As Double
+            Return RachfordRice(z, K, guess, ok)
+        End Function
+
+        ''' <summary>The second liquid of the last split found on a stage, or Nothing.</summary>
+        Friend Shared Function SecondLiquid(cache As SplitCache, stage As Integer) As Double()
+            Dim st As StageState = Nothing
+            If cache Is Nothing OrElse Not cache.States.TryGetValue(stage, st) Then Return Nothing
+            Return st.X2
+        End Function
+
         Private Shared Function RachfordRice(z As Double(), K As Double(), guess As Double, ByRef ok As Boolean) As Double
             Dim n = z.Length
             Dim g = Function(b As Double) As Double

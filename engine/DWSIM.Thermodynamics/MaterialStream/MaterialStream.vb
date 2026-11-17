@@ -73,6 +73,12 @@ Namespace Streams
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public _pp As PropertyPackages.PropertyPackage
 
         ''' <summary>
+        ''' Flash algorithm that replaces the one of the property package while this stream is calculated, such as the
+        ''' vapor-liquid-liquid flash of a three-phase column stage. Nothing for the package's own. Not saved.
+        ''' </summary>
+        <NonSerialized> <Xml.Serialization.XmlIgnore> Public FlashOverride As PropertyPackages.Auxiliary.FlashAlgorithms.FlashAlgorithm
+
+        ''' <summary>
         ''' The unique ID of the associated property package.
         ''' </summary>
         Public _ppid As String = ""

@@ -201,6 +201,10 @@ namespace DWSIM.UI.Desktop.Editors
                     column.InternalLoopTolerance = v;
                 });
 
+            panel.CreateAndAddStringEditorRow("Three-Phase Stages (VLLE)", column.ThreePhaseStages ?? "",
+                (tb, e) => column.ThreePhaseStages = (tb.Text ?? "").Trim());
+            panel.CreateAndAddDescriptionRow("Stages whose liquid may split into two liquid phases: \"all\", or stage numbers and ranges such as \"4-12, 30\", counted from the top stage as 1 (the condenser, when the column has one). These stages test their liquid for stability and use the K-values of the total liquid. Leave it empty for vapor-liquid stages only.");
+
             AddPropertyPackageRow(column, panel);
 
             var solvers = SolverNames(column);

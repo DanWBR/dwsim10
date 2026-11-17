@@ -1758,10 +1758,18 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                                                                  Sub(ipar)
                                                                      If ipar = 0 AndAlso noliq0 Then Exit Sub
                                                                      Try
-                                                                         Dim tmpvar As Object = flashalgs(ipar).Flash_PV(xc(ipar), P(ipar), 0.0, Tj(ipar), pp, True, K(ipar))
-                                                                         Tj(ipar) = tmpvar(4)
-                                                                         Kant(ipar) = K(ipar)
-                                                                         K(ipar) = tmpvar(6)
+                                                                         If rc IsNot Nothing AndAlso rc.IsThreePhaseStage(ipar) Then
+                                                                             'two liquids: bubble point of the total liquid from the apparent K-values
+                                                                             Dim Kb As Double() = Nothing
+                                                                             Tj(ipar) = rc.StageBubbleTemperature(pp, ipar, xc(ipar), P(ipar), Tj(ipar), Kb)
+                                                                             Kant(ipar) = K(ipar)
+                                                                             K(ipar) = Kb
+                                                                         Else
+                                                                             Dim tmpvar As Object = flashalgs(ipar).Flash_PV(xc(ipar), P(ipar), 0.0, Tj(ipar), pp, True, K(ipar))
+                                                                             Tj(ipar) = tmpvar(4)
+                                                                             Kant(ipar) = K(ipar)
+                                                                             K(ipar) = tmpvar(6)
+                                                                         End If
                                                                          If Tj(ipar) < 0.0 Or Double.IsNaN(Tj(ipar)) Then
                                                                              Tj(ipar) = Tj_ant(ipar)
                                                                              K(ipar) = Kant(ipar)
@@ -1781,16 +1789,30 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                         IObj2?.SetCurrent
                         pp.CurrentMaterialStream.Flowsheet.CheckStatus()
                         If i = 0 AndAlso noliq0 Then Continue For
-                        Try
-                            tmp = pp.FlashBase.Flash_PV(xc(i), P(i), 0.0, Tj(i), pp, True, K(i))
-                        Catch ex As Exception When Not TypeOf ex Is OperationCanceledException
-                            'the stage keeps its temperature and K values for this sweep
-                            bpfailed = True
-                            Continue For
-                        End Try
-                        Tj(i) = tmp(4)
-                        Kant(i) = K(i)
-                        K(i) = tmp(6)
+                        If rc IsNot Nothing AndAlso rc.IsThreePhaseStage(i) Then
+                            'two liquids: bubble point of the total liquid from the apparent K-values
+                            Dim Kb As Double() = Nothing
+                            Try
+                                Dim Tb = rc.StageBubbleTemperature(pp, i, xc(i), P(i), Tj(i), Kb)
+                                Kant(i) = K(i)
+                                Tj(i) = Tb
+                                K(i) = Kb
+                            Catch ex As Exception When Not TypeOf ex Is OperationCanceledException
+                                bpfailed = True
+                                Continue For
+                            End Try
+                        Else
+                            Try
+                                tmp = pp.FlashBase.Flash_PV(xc(i), P(i), 0.0, Tj(i), pp, True, K(i))
+                            Catch ex As Exception When Not TypeOf ex Is OperationCanceledException
+                                'the stage keeps its temperature and K values for this sweep
+                                bpfailed = True
+                                Continue For
+                            End Try
+                            Tj(i) = tmp(4)
+                            Kant(i) = K(i)
+                            K(i) = tmp(6)
+                        End If
                         If Tj(i) < 0.0 Or Double.IsNaN(Tj(i)) Then
                             Tj(i) = Tj_ant(i)
                             K(i) = Kant(i)

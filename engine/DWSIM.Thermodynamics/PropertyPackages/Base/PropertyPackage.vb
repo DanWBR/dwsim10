@@ -608,6 +608,8 @@ Namespace PropertyPackages
                     Return GetFlash()
                 Else
                     If CurrentMaterialStream IsNot Nothing Then
+                        Dim ms = TryCast(CurrentMaterialStream, Streams.MaterialStream)
+                        If ms IsNot Nothing AndAlso ms.FlashOverride IsNot Nothing Then Return ms.FlashOverride
                         Select Case CurrentMaterialStream.ForcePhase
                             Case ForcedPhase.None
                                 Return GetFlash()

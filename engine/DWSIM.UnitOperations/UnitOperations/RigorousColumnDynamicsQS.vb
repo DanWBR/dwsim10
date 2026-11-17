@@ -203,7 +203,7 @@ Namespace UnitOperations
                     Dim dutySign As Double = If(duty.StreamBehavior = StreamInformation.Behavior.Distillate, -1.0, 1.0)
                     ApplyDuty(streams(i), dutySign * estream.EnergyFlow.GetValueOrDefault(), dt, coolantT)
                 End If
-                FlashHoldup(streams(i))
+                FlashHoldup(streams(i), i)
             Next
 
             ' ---------------------------------------------------------------- liquid over the weirs, top-down
@@ -250,7 +250,7 @@ Namespace UnitOperations
                 If i < ns - 1 Then Stages(i + 1).Lin.Value = Fl
                 If Fl > 0 Then
                     Dim lt = DirectCast(st.CloneXML(), MaterialStream)
-                    lt.AssignFromPhase(PhaseLabel.Liquid1, st, True)
+                    AssignHoldupLiquid(lt, st, True)
                     lt.SetMassFlow(Fl * vl * liq.density.GetValueOrDefault())
                     lt.PropertyPackage = PropertyPackage
                     lt.SetFlowsheet(FlowSheet)
@@ -274,7 +274,7 @@ Namespace UnitOperations
             Dim vTrans(streams.Count - 1) As MaterialStream
             For i = reb To If(topTray, 0, 1) Step -1
                 Dim st = streams(i)
-                FlashHoldup(st)
+                FlashHoldup(st, i)
                 Dim vap = st.Phases(2).Properties
                 Dim nV = vap.molarflow.GetValueOrDefault()
                 Dim vvap = vap.volumetric_flow.GetValueOrDefault()
@@ -344,7 +344,7 @@ Namespace UnitOperations
             'A closed drum with no inerts sits at the bubble pressure of its liquid: more condensing duty than the
             'arriving vapor brings sub-cools the liquid and the pressure falls, which is what a pressure controller
             'on the condenser duty reads. The change per sub-step is limited by "Max. P change".
-            FlashHoldup(streams(0))
+            FlashHoldup(streams(0), 0)
             If topTray Then
                 'no drum: the top tray sits at the pressure of the equipment its vapor flows into
                 Dim P1i = streams(0).GetPressure()
@@ -352,7 +352,7 @@ Namespace UnitOperations
                 If P1.IsValidDouble() AndAlso P1 > 0 AndAlso P1i > 0 Then
                     If Math.Abs((P1 - P1i) / P1i * 100) > maxDP Then P1 = P1i * (1 + maxDP / 100.0 * Math.Sign(P1 - P1i))
                     streams(0).SetPressure(P1)
-                    FlashHoldup(streams(0))
+                    FlashHoldup(streams(0), 0)
                 End If
             ElseIf streams(0).GetMolarFlow() > 1.0E-10 Then
                 Dim P1i = streams(0).GetPressure()
@@ -372,14 +372,14 @@ Namespace UnitOperations
                     If P1.IsValidDouble() AndAlso P1 > 0 Then
                         If Math.Abs((P1 - P1i) / P1i * 100) > maxDP Then P1 = P1i * (1 + maxDP / 100.0 * Math.Sign(P1 - P1i))
                         streams(0).SetPressure(P1)
-                        FlashHoldup(streams(0))
+                        FlashHoldup(streams(0), 0)
                     End If
                 Catch ex As Exception
                     'the drum keeps its pressure for this sub-step
                 End Try
             End If
             For i = 1 To streams.Count - 1
-                FlashHoldup(streams(i))
+                FlashHoldup(streams(i), i)
             Next
 
             ' ---------------------------------------------------------------- levels, temperatures, checks
@@ -443,22 +443,22 @@ Namespace UnitOperations
             If Not avail.IsValidDouble() OrElse avail <= 0 Then Return holdup
             W = Math.Min(W, 0.9 * avail / dt)
             Dim tr = DirectCast(holdup.CloneXML(), MaterialStream)
-            tr.AssignFromPhase(phase, holdup, True)
+            If phase = PhaseLabel.Liquid1 Then AssignHoldupLiquid(tr, holdup, True) Else tr.AssignFromPhase(phase, holdup, True)
             tr.SetMassFlow(W)
             tr.PropertyPackage = PropertyPackage
             tr.SetFlowsheet(FlowSheet)
             Return holdup.Subtract(tr, dt)
         End Function
 
-        ''' <summary>A pressure-enthalpy flash of a holdup at its own pressure.</summary>
-        Private Sub FlashHoldup(st As MaterialStream)
+        ''' <summary>A pressure-enthalpy flash of the holdup of stage <paramref name="index"/> at its own pressure.</summary>
+        Private Sub FlashHoldup(st As MaterialStream, index As Integer)
             st.SetFlowsheet(FlowSheet)
             st.PropertyPackage = PropertyPackage
             st.AssignSelfToPP()
             Dim H0 = st.GetMassEnthalpy(), T0 = st.GetTemperature()
             Dim wl0 = st.OverallLiquid.Properties.massfraction.GetValueOrDefault()
             st.SetFlashSpec("PH")
-            st.Calculate()
+            CalculateStageHoldup(st, index)
             'A pressure-enthalpy flash of a holdup sitting exactly on its bubble point can come back on the wrong
             'side of the boundary, as vapor at the bubble temperature, with an enthalpy a latent heat above the
             'one asked for. That is not a state the holdup can have (a reboiler that "boiled dry" in one sub-step
@@ -468,11 +468,11 @@ Namespace UnitOperations
             If H0.IsValidDouble() AndAlso H1.IsValidDouble() AndAlso T0 > 0 AndAlso Math.Abs(H1 - H0) > 20.0 + 0.02 * Math.Abs(H0) Then
                 st.SetTemperature(T0)
                 st.SetFlashSpec("PT")
-                st.Calculate()
+                CalculateStageHoldup(st, index)
                 If wl0 > 0.5 AndAlso st.OverallLiquid.Properties.massfraction.GetValueOrDefault() < 0.5 Then
                     st.SetTemperature(T0 - 1.0)
                     st.SetFlashSpec("PT")
-                    st.Calculate()
+                    CalculateStageHoldup(st, index)
                 End If
             End If
         End Sub

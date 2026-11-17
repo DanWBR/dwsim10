@@ -92,6 +92,48 @@ Namespace UnitOperations
             Return pp.DW_CalcKvalue(x, y, T, P)
         End Function
 
+        ''' <summary>Liquid splits of the three-phase stages through a dynamic run.</summary>
+        <NonSerialized> <Xml.Serialization.XmlIgnore> Private _threePhaseDynCache As ThreePhaseStage.SplitCache
+
+        ''' <summary>
+        ''' Calculates the holdup stream of the stage of index <paramref name="index"/> (0 for the top stage) at the
+        ''' flash spec it carries; on a three-phase stage the flash may give two liquids.
+        ''' </summary>
+        Friend Sub CalculateStageHoldup(st As Thermodynamics.Streams.MaterialStream, index As Integer)
+            If index < 0 OrElse Not IsThreePhaseStage(index) Then
+                st.Calculate()
+                Return
+            End If
+            If _threePhaseDynCache Is Nothing Then _threePhaseDynCache = New ThreePhaseStage.SplitCache
+            st.AssignSelfToPP()
+            Dim pp = DirectCast(st.PropertyPackage, PropertyPackage)
+            st.FlashOverride = Nothing
+            Dim baseFlash = pp.FlashBase
+            st.FlashOverride = New ThreePhaseHoldupFlash(baseFlash, index, _threePhaseDynCache)
+            Try
+                st.Calculate()
+            Finally
+                st.FlashOverride = Nothing
+            End Try
+        End Sub
+
+        ''' <summary>
+        ''' Puts the liquid of a holdup into <paramref name="target"/> (a liquid transfer or a liquid product): the first
+        ''' liquid when there is one, both liquids together, at their mean enthalpy, when the holdup has two.
+        ''' </summary>
+        Friend Shared Sub AssignHoldupLiquid(target As Thermodynamics.Streams.MaterialStream, holdup As Thermodynamics.Streams.MaterialStream, SetW As Boolean)
+            Dim l2 = holdup.Phases(4).Properties
+            If l2.molarfraction.GetValueOrDefault() <= 0.0 Then
+                target.AssignFromPhase(Interfaces.Enums.PhaseLabel.Liquid1, holdup, SetW)
+                Return
+            End If
+            target.AssignFromPhase(Interfaces.Enums.PhaseLabel.LiquidMixture, holdup, SetW)
+            Dim l1 = holdup.Phases(3).Properties
+            Dim w1 = l1.massflow.GetValueOrDefault(), w2 = l2.massflow.GetValueOrDefault()
+            Dim h1 = l1.enthalpy.GetValueOrDefault(), h2 = l2.enthalpy.GetValueOrDefault()
+            If w1 + w2 > 0.0 AndAlso h1.IsValidDouble() AndAlso h2.IsValidDouble() Then target.SetMassEnthalpy((w1 * h1 + w2 * h2) / (w1 + w2))
+        End Sub
+
     End Class
 
 End Namespace
