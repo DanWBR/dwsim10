@@ -514,5 +514,114 @@ namespace DWSIM.Engine.SmokeTests
             Assert.That(atHalf, Is.GreaterThan(atOne), "less gas absorbed at 0.5");
             Assert.That(sumKx, Is.EqualTo(1.0).Within(1e-3), "the bottom stage at its liquid's bubble point (sum of K x)");
         }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void MixedPhaseBottomFeedUsesItsVapourInMurphreeEquation(bool pressureDrop)
+        {
+            var fs = Load("SimpleAbsorberSample.dwxml");
+            var column = fs.SimulationObjects.Values.OfType<AbsorptionColumn>().Single();
+            var gas = fs.SimulationObjects.Values.OfType<MaterialStream>().Single(s => s.GraphicObject.Tag == "Gas");
+            gas.SetOverallComposition(new[] { .3, .3, .3, 1.0/30, 1.0/30, 1.0/30 });
+            if (pressureDrop) gas.SetPressure(gas.GetPressure() * 1.4);
+            column.SolvingMethodName = "Naphtali-Sandholm";
+            foreach (var stage in column.Stages) stage.Efficiency = .5;
+            var errors = fs.SolveFlowsheet2();
+            Assert.That(errors, Is.Empty, string.Join("; ", errors.Select(e => e.Message)));
+            int ns = column.Stages.Count - 1;
+            var pp = (DWSIM.Thermodynamics.PropertyPackages.PropertyPackage)column.PropertyPackage;
+            pp.CurrentMaterialStream = gas;
+            var z = gas.Phases[0].Compounds.Values.Select(c => c.MoleFraction.Value).ToArray();
+            var flash = (object[])pp.FlashBase.Flash_PH(z, column.Stages[ns].P, gas.GetMassEnthalpy(), gas.GetTemperature(), pp);
+            double vf = System.Convert.ToDouble(flash[1]);
+            Assert.That(vf, Is.InRange(.001, .999), "the fixture must remain genuinely two-phase");
+            var incoming = (double[])flash[3];
+            var k = (double[])column.Kf[ns]; var x = (double[])column.xf[ns]; var y = (double[])column.yf[ns];
+            var residual = y.Select((v,j) => System.Math.Abs(v - .5*k[j]*x[j] - .5*incoming[j])).Max();
+            TestContext.WriteLine($"mixed feed vapour fraction {vf}, Murphree residual {residual}");
+            Assert.That(residual, Is.LessThan(1e-5));
+        }
+
+        // Exercise the public legacy Solve contract repeatedly on the SAME solver instance.
+        // Its existing setup-only mode avoids conflating boundary construction with Newton convergence.
+        [Test]
+        public void BottomFeedBoundaryIsResetAcrossLegacySolveCalls()
+        {
+            var fs = Load("SimpleAbsorberSample.dwxml");
+            var column = fs.SimulationObjects.Values.OfType<AbsorptionColumn>().Single();
+            column.SolvingMethodName = "Naphtali-Sandholm";
+            foreach (var stage in column.Stages) stage.Efficiency = .5;
+            var errors = fs.SolveFlowsheet2();
+            Assert.That(errors, Is.Empty);
+            var gas = fs.SimulationObjects.Values.OfType<MaterialStream>().Single(s => s.GraphicObject.Tag == "Gas");
+            var pp = (DWSIM.Thermodynamics.PropertyPackages.PropertyPackage)column.PropertyPackage;
+            pp.CurrentMaterialStream = gas;
+            var type = typeof(AbsorptionColumn).Assembly.GetTypes().Single(t => t.GetMethod("FlashBottomFeedVapour", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static) != null);
+            var solver = System.Activator.CreateInstance(type);
+            const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+            type.GetField("_captureOnly", flags).SetValue(solver, true);
+            type.GetField("_setupOnly", flags).SetValue(solver, true);
+            var field = type.GetField("_bottomInletVapour", flags);
+            double[] Run(bool liquid, bool noFeed, bool lle, bool mixFeeds = false)
+            {
+                var input = column.GetSolverInputData();
+                int ns = input.NumberOfStages;
+                var f = input.FeedFlows.ToArray(); var hf = input.FeedEnthalpies.ToArray();
+                var fc = input.FeedCompositions.Select(v => v.ToArray()).ToArray();
+                var t = input.StageTemperatures.ToArray(); var pressures = input.StagePressures.ToArray();
+                if (liquid)
+                {
+                    fc[ns] = new double[input.NumberOfCompounds]; fc[ns][input.NumberOfCompounds - 1] = 1.0;
+                    hf[ns] = pp.DW_CalcEnthalpy(fc[ns], 230.0, pressures[ns], DWSIM.Thermodynamics.PropertyPackages.State.Liquid) * pp.AUX_MMM(fc[ns]);
+                }
+                double[] expectedMixed = null;
+                if (mixFeeds)
+                {
+                    var solvent = fs.SimulationObjects.Values.OfType<MaterialStream>().Single(v => v.GraphicObject.Tag == "Liquid Solvent");
+                    double gasFlow = gas.Phases[0].Properties.molarflow.Value;
+                    double solventFlow = solvent.Phases[0].Properties.molarflow.Value;
+                    gas.Phases[0].Properties.molarflow = 2.0;
+                    solvent.Phases[0].Properties.molarflow = 1.0;
+                    f[ns] = hf[ns] = 0.0; fc[ns] = new double[input.NumberOfCompounds];
+                    var ft = new double[ns + 1]; var z = fc.Select(v => v.ToArray()).ToArray(); var sumcf = new double[input.NumberOfCompounds];
+                    var mix = typeof(Column).GetMethod("MixFeedIntoStage", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+                    try
+                    {
+                        mix.Invoke(null, new object[] {gas, ns, f, hf, ft, fc, z, sumcf});
+                        mix.Invoke(null, new object[] {solvent, ns, f, hf, ft, fc, z, sumcf});
+                    }
+                    finally
+                    {
+                        gas.Phases[0].Properties.molarflow = gasFlow;
+                        solvent.Phases[0].Properties.molarflow = solventFlow;
+                    }
+                    Assert.That(f[ns], Is.EqualTo(3.0));
+                    double hm = (2 * gas.GetMassEnthalpy() * gas.Phases[0].Properties.molecularWeight.Value
+                                 + solvent.GetMassEnthalpy() * solvent.Phases[0].Properties.molecularWeight.Value) / 3;
+                    Assert.That(hf[ns], Is.EqualTo(hm).Within(1e-7));
+                    var flash = (object[])pp.FlashBase.Flash_PH(fc[ns], pressures[ns], hm / pp.AUX_MMM(fc[ns]), t[ns], pp);
+                    Assert.That(System.Convert.ToDouble(flash[1]), Is.GreaterThan(0.0), "mixed fixture must contain vapour");
+                    expectedMixed = (double[])flash[3];
+                }
+                if (noFeed) f[ns] = 0.0;
+                type.GetMethod("Solve").Invoke(solver, new object[] {
+                    column, input.NumberOfCompounds, ns, input.MaximumIterations, input.Tolerances.ToArray(), f,
+                    input.VaporFlows.ToArray(), input.StageHeats.ToArray(), input.LiquidFlows.ToArray(),
+                    input.VaporSideDraws.ToArray(), input.LiquidSideDraws.ToArray(), input.Kvalues.Select(v => v.ToArray()).ToArray(),
+                    input.LiquidCompositions.Select(v => v.ToArray()).ToArray(), input.VaporCompositions.Select(v => v.ToArray()).ToArray(),
+                    input.OverallCompositions.Select(v => v.ToArray()).ToArray(), fc, hf, t, pressures,
+                    input.CondenserType, input.StageEfficiencies.ToArray(), input.ColumnType, pp, column.Specs, input.CalculationMode, lle, null });
+                var result = (double[])field.GetValue(solver);
+                if (mixFeeds) Assert.That(result, Is.EqualTo(expectedMixed).Within(1e-6), "actual feed aggregation through public Solve uses mixed PH boundary");
+                if (lle) Assert.That(result, Is.EqualTo(fc[ns]).Within(1e-10), "legacy LLE boundary remains overall normalized composition");
+                return result;
+            }
+            Assert.That(Run(false, false, false), Is.Not.Null);
+            Assert.That(Run(true, false, false), Is.Null, "pure-liquid PH feed must not retain earlier vapour");
+            Assert.That(Run(false, false, false), Is.Not.Null);
+            Assert.That(Run(false, true, false), Is.Null, "no feed must clear previous boundary");
+            Assert.That(Run(false, false, true), Is.Not.Null);
+            Assert.That(Run(false, false, false, true), Is.Not.Null);
+        }
     }
 }
