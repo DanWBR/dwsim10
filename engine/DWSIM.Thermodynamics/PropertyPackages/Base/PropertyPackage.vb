@@ -7036,6 +7036,19 @@ redirect2:                  IObj?.SetCurrent()
 
 #Region "   Commmon Functions"
 
+        ''' <summary>One IronPython engine for the property override scripts of every property package, created on first use.</summary>
+        Private Shared ReadOnly OverrideScriptEngine As New Lazy(Of ScriptEngine)(
+            Function()
+                Dim eng = IronPython.Hosting.Python.CreateEngine()
+                SharedClasses.Scripting.IronPythonHost.Prepare(eng)
+                eng.Runtime.LoadAssembly(GetType(System.String).Assembly)
+                eng.Runtime.LoadAssembly(GetType(BaseClasses.ConstantProperties).Assembly)
+                Return eng
+            End Function)
+
+        ''' <summary>The property override scripts compiled once, by their text.</summary>
+        Private Shared ReadOnly OverrideScriptCode As New System.Collections.Concurrent.ConcurrentDictionary(Of String, CompiledCode)
+
         Public Sub ProcessOverridenProperties(ptype As PhaseType)
 
             If PropertyOverrides.Count > 0 Then
@@ -7043,10 +7056,8 @@ redirect2:                  IObj?.SetCurrent()
                 Dim engine As ScriptEngine
                 Dim scope As ScriptScope
 
-                engine = IronPython.Hosting.Python.CreateEngine()
-                SharedClasses.Scripting.IronPythonHost.Prepare(engine)
-                engine.Runtime.LoadAssembly(GetType(System.String).Assembly)
-                engine.Runtime.LoadAssembly(GetType(BaseClasses.ConstantProperties).Assembly)
+                ' creating the engine and compiling the scripts took more than 99 % of the time of the overrides
+                engine = OverrideScriptEngine.Value
                 scope = engine.CreateScope()
                 scope.SetVariable("flowsheet", CurrentMaterialStream.Flowsheet)
                 scope.SetVariable("this", Me)
@@ -7056,14 +7067,15 @@ redirect2:                  IObj?.SetCurrent()
 
                 For Each item In PropertyOverrides
 
-                    Dim source As Microsoft.Scripting.Hosting.ScriptSource = engine.CreateScriptSourceFromString(item.Value, Microsoft.Scripting.SourceCodeKind.Statements)
                     Try
+                        Dim code = OverrideScriptCode.GetOrAdd(item.Value,
+                            Function(text) engine.CreateScriptSourceFromString(text, Microsoft.Scripting.SourceCodeKind.Statements).Compile())
                         Dim phasename As String = item.Key.Split("/")(0)
                         Dim propname As String = item.Key.Split("/")(1)
                         Dim phase = CurrentMaterialStream.GetPhase(phasename)
                         scope.SetVariable("currval", phase.Properties.GetType.GetProperty(propname).GetValue(phase.Properties))
                         scope.SetVariable("phase", phase)
-                        source.Execute(scope)
+                        code.Execute(scope)
                         Dim value = scope.GetVariable("propval")
                         phase.Properties.GetType.GetProperty(propname).SetValue(phase.Properties, New Nullable(Of Double)(Convert.ToDouble(value)))
                     Catch ex As Exception
@@ -7074,8 +7086,6 @@ redirect2:                  IObj?.SetCurrent()
                         Else
                             Throw New Exception("[" & Tag & "] Error calculating overriden property '" & item.Key & "': " & ops.FormatException(ex).ToString)
                         End If
-                    Finally
-                        source = Nothing
                     End Try
 
                 Next
