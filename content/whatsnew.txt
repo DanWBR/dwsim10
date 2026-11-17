@@ -80,3 +80,5 @@
 - [FIX] Biomass compounds: the heat capacity was 114 to 2500 times too small
 - [FIX] Scripts and Fluent API: a property package set on a material stream through the generic object didn't reach the stream
 - [FIX] Biodiesel Production sample: stream M2 came out as vapor and liquid where it is two liquids; the sample uses the vapor-liquid-liquid flash
+- [FIX] Advanced Heat Exchanger with a gas or vapor stream: an all-vapor side took the properties of an absent liquid (shell pressure drop near 46 MPa, tube coefficient near 1e27), steam condensing in the tubes was treated as vapor, and Simulation mode put the pressure drops on the wrong sides with the cold fluid in the shell
+- [FIX] AI Assistant settings: the General and Ollama tabs list every model installed in Ollama, mark the models without tool calling, show why Ollama can't be reached, and the GPU shown is the one of this computer
