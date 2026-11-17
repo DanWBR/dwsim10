@@ -113,6 +113,14 @@ Version 10.2.17
 - [FIX] Valve with a large pressure drop: the first estimate of the outlet temperature could reach thousands of kelvin and the flash failed
 - [FIX] Flowsheet solver: a large flowsheet without loops could stop with a message about an infinite loop
 - [FIX] Falling Film Evaporator: the concentrated liquid lost the crystals formed in the evaporator, and each profile point cost a full PH flash (an evaporator effect took 7.5 s, now 1.5 s)
+- [FIX] Solid-liquid-vapor flash in concentrated solutions of nonvolatile solutes oscillated or failed and fell back to the ideal flash, which loses the crystals (a sugar syrup at Bx 65 and 0.2 bar between 64 and 72 °C)
+- [FIX] UNIFAC-LL: the liquid-liquid parameters landed on the wrong group pairs, so water came out miscible with toluene, 1-butanol, ethyl acetate, methyl ethyl ketone and aniline
+- [FIX] Sour Water: the PS and PH flashes of pure water returned saturated vapor where the answer is wet steam
+- [FIX] Heat Exchanger: with both inlets at the same temperature (an evaporator effect heated by vapor) it transferred no heat; an outlet vapor fraction that needs heat from the cold side stops with a message
+- [FIX] Conversion, Equilibrium and Gibbs reactors: with two liquid phases in the product, the liquid outlet lost the compounds of the second liquid
+- [FIX] Biomass compounds: the heat capacity was 114 to 2500 times too small
+- [FIX] Scripts and Fluent API: a property package set on a material stream through the generic object didn't reach the stream
+- [FIX] Biodiesel Production sample: stream M2 came out as vapor and liquid where it is two liquids; the sample uses the vapor-liquid-liquid flash
 
 Version 10.2.16
 
