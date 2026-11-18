@@ -67,6 +67,12 @@ Version 10.2.17
 - [NEW] Alcoholic Fermenter unit operation (Patreon, Premium+): cane must fermentation by yields, with sucrose inversion, ART consumption and shares to ethanol, glycerol, yeast, acetic acid, higher alcohols and lactic acid; wine, gas and heat removed outlets, fermentation yield and a chart of the sugar destination
 - [NEW] Isoamyl alcohol (3-methyl-1-butanol) in the additional compounds folder
 - [NEW] ChemSep column profiles: Column Profiles button in the CAPE-OPEN editor (Classic and Cross-Platform) with the temperature, pressure, flows, compositions and K-values of each stage of a ChemSep column; GetChemSepProfiles, ToCsv and GetChemSepFile for scripts
+- [NEW] Operator Training: quasi-steady column, a rigorous column solved again in the background while the plant runs, with the reboiler on a heating valve, a condenser limited by its coolant temperature and a sump level
+- [NEW] Operator Training: flow-through exchanger (effectiveness-NTU, two process streams or a utility) and refrigeration package whose evaporating temperature rises when the load passes the capacity of the compressors running
+- [NEW] Operator Training: vapor pressure analyzer on a product stream, with one result per analyzer cycle
+- [NEW] Operator Training: leaner feed gas, reboiler heating medium loss and refrigeration compressor trip malfunctions
+- [NEW] Operator Training: field bypass of a failed or stuck control valve, opened from the valve faceplate
+- [NEW] Operator Training: exercise objectives watched from a set time
 - [CHG] Flowsheet Check: warns when the streams of one fluid around a unit use different property packages
 - [CHG] Fail-safe flash with solids: a warning in the log names the stream, the specification and the original error
 - [CHG] Windows installers of final releases are signed with a code signing certificate
@@ -76,6 +82,7 @@ Version 10.2.17
 - [CHG] PH flash, fast mode: near a boiling point it takes about half the PT flashes, with the same result (a cane juice heater: 21 against 41)
 - [CHG] ADM1 Full Parameters window (cross-platform interface): every parameter group with the on/off options and the solver settings, a description of each parameter, and load and save of JSON parameter sets (the BSM2, swine manure and thermophilic sets open from the Samples folder)
 - [CHG] Naphtali-Sandholm column solver: each Newton step is solved by stage blocks; an ethanol column of about 70 stages with 16 compounds solves in 73 s, where it took more than 5 minutes
+- [CHG] Operator Training: a valve's flow is carried back through recycle blocks and flow-through exchangers to the holdup it draws from
 - [FIX] Pipe Segment and Pipe Network with Beggs and Brill: the two-phase friction factor used the wrong branch of the correlation in part of its range, with friction about 3.4 times too high in one band and jumps near another
 - [FIX] Pipe Network: the nodal solver could not raise its damping factor again once it fell below 0.3 and ran to the iteration limit
 - [FIX] Excess enthalpy of NRTL, UNIQUAC, UNIFAC, Modified UNIFAC, NIST-MFAC and Wilson (Excess and Experimental Liquid + Excess modes) was too large where the activity coefficients are far from one
@@ -137,6 +144,8 @@ Version 10.2.17
 - [FIX] Scripts and MCP server: compound names are matched ignoring case when the exact name isn't found (n-butane adds N-butane); the MCP server lists each compound once and returns the stored names
 - [FIX] Anaerobic Digester (ADM1 Full and ADM1-S): the ammonia and the ammonium of the feed stream were ignored and only Sin_IN counted, so a high-ammonia slurry didn't show inhibition; the new Inorganic N from Feed option adds them (the ammonium with its bicarbonate) and the digestate leaves with the ammonia nitrogen of the reactor; Feed Alkalinity is shown in both editors
 - [FIX] Anaerobic Digester: ADM1 parameters changed after the first calculation (cross-platform parameter window, scripts, MCP server) were replaced by the saved copy and didn't change the results
+- [FIX] Dynamic valve: an inlet that didn't pass any flow on one step left the valve shut on every following step
+- [FIX] Dynamic pump: an inlet left without flow gave the outlet an undefined pressure and stopped the run
 
 Version 10.2.16
 
