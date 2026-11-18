@@ -25,6 +25,7 @@
 - [NEW] Three-phase column stages: Three-phase stages (VLLE) field in the column editors (all, or ranges such as 18-26, 30); the solvers test the stage liquid for a split and use the K-values of the total liquid, and in dynamic mode the holdup of those stages is flashed with two liquids
 - [NEW] Alcoholic Fermenter unit operation (Patreon, Premium+): cane must fermentation by yields, with sucrose inversion, ART consumption and shares to ethanol, glycerol, yeast, acetic acid, higher alcohols and lactic acid; wine, gas and heat removed outlets, fermentation yield and a chart of the sugar destination
 - [NEW] Isoamyl alcohol (3-methyl-1-butanol) in the additional compounds folder
+- [NEW] ChemSep column profiles: Column Profiles button in the CAPE-OPEN editor (Classic and Cross-Platform) with the temperature, pressure, flows, compositions and K-values of each stage of a ChemSep column; GetChemSepProfiles, ToCsv and GetChemSepFile for scripts
 - [CHG] Flowsheet Check: warns when the streams of one fluid around a unit use different property packages
 - [CHG] Fail-safe flash with solids: a warning in the log names the stream, the specification and the original error
 - [CHG] Windows installers of final releases are signed with a code signing certificate
