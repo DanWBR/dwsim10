@@ -192,6 +192,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
         Private _jacCacheActive As Boolean = False   ' perturbation pass: reuse cache except _jacCacheStage
         Private _jacCacheFill As Boolean = False      ' base pass: compute all stages and store
         Private _jacCacheStage As Integer = -1
+        Private _jacBubYcache As Double() = Nothing   ' condenser equilibrium vapour of the base state (total condenser)
         Private _jacKcache()() As Double
         Private _jacHvCache() As Double
         Private _jacHlCache() As Double
@@ -386,7 +387,14 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                 LSSj(0) = 0.0#
             ElseIf HasCondenser() And _condtype = condtype.Total_Condenser Then
                 LSSj(0) = vc(0).Sum
-                yc(0) = _pp.DW_CalcBubT(xc(0), P(0), Tj(0), Nothing, False)(3)
+                ' the bubble point of the condenser liquid depends only on stage 0: a Jacobian column that perturbs
+                ' another stage reuses the one of the base state
+                If _jacCacheActive AndAlso _jacCacheStage <> 0 AndAlso _jacBubYcache IsNot Nothing Then
+                    yc(0) = DirectCast(_jacBubYcache.Clone(), Double())
+                Else
+                    yc(0) = _pp.DW_CalcBubT(xc(0), P(0), Tj(0), Nothing, False)(3)
+                    If _jacCacheFill Then _jacBubYcache = DirectCast(yc(0).Clone(), Double())
+                End If
             ElseIf HasCondenser() AndAlso _condtype = condtype.Partial_Condenser AndAlso Not llextr AndAlso PartialCondenserDistillate.HasValue Then
                 'the liquid distillate of a partial condenser, as a caller that solves for it hands it over
                 LSSj(0) = PartialCondenserDistillate.Value
@@ -1170,6 +1178,18 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                         Next
                     End If
                 Next
+                ' each column below perturbs a variable of one stage: as in FunctionGradientCPU, only that stage's
+                ' properties are recomputed and the others come from the base state (the same numbers, without
+                ' re-evaluating every stage of the column for each of these columns)
+                Dim useCache As Boolean = (Not _gpuColumnEnabled) AndAlso (Not _useGpuPropertyCache)
+                If useCache Then
+                    AllocJacCache()
+                    _jacCacheActive = False
+                    _jacCacheStage = -1
+                    _jacCacheFill = True
+                    FunctionValue(x)
+                    _jacCacheFill = False
+                End If
                 Dim seen As New HashSet(Of Integer)()
                 For Each s As Integer In New Integer() {0, Math.Min(1, ns), Math.Max(0, ns - 1), ns}
                     If s < 0 OrElse s > ns Then Continue For
@@ -1184,6 +1204,10 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                         Else
                             x1(c) = x(c) * (1 - epsilon) : x2(c) = x(c) * (1 + epsilon)
                         End If
+                        If useCache Then
+                            _jacCacheActive = True
+                            _jacCacheStage = s
+                        End If
                         Dim f1 = FunctionValue(x1)
                         Dim f2 = FunctionValue(x2)
                         Dim denom As Double = x2(c) - x1(c)
@@ -1193,6 +1217,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                         Next
                     Next
                 Next
+                _jacCacheActive = False
                 If nv > (ns + 1) * block Then
                     Dim c As Integer = nv - 1
                     Dim x1 As Double() = DirectCast(x.Clone(), Double())
@@ -1955,6 +1980,9 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                         ' distillate of a partial condenser) outweighs everything the step gains, and the line
                         ' search accepts only minute steps
                         nsolv.ScaleLineSearchRows = True
+                        ' the MESH equations of a stage only involve that stage and its two neighbours: each Newton
+                        ' step is solved stage block by stage block (DWSIM_NS_DENSE=1 forces the dense solve)
+                        If Environment.GetEnvironmentVariable("DWSIM_NS_DENSE") <> "1" Then nsolv.BlockSize = 2 * _nc + 1
                         nsolv.MaxIterations = maxits
                         nsolv.Tolerance = tol.MinY_NonZero()
                         ' With an exact, cheap analytical Jacobian there is no reason to use the Broyden

@@ -51,6 +51,14 @@ Namespace MathEx.Optimization
 
         Public Property Epsilon As Double = Double.NaN
 
+        ''' <summary>
+        ''' Size of the diagonal blocks when the Jacobian is block-tridiagonal (the MESH equations of a column, one block
+        ''' per stage). Above zero, each Newton step is solved block by block (block Thomas algorithm) whenever the matrix
+        ''' really has that structure, at a cost that grows with the number of blocks instead of with the cube of the
+        ''' size of the system; otherwise, or if that solve doesn't satisfy the system, the dense LU solve is used.
+        ''' </summary>
+        Public Property BlockSize As Integer = 0
+
         Private _Iterations As Integer = 0
 
         Private fxb As Func(Of Double(), Double())
@@ -259,6 +267,101 @@ Namespace MathEx.Optimization
         ''' </summary>
         Private Const ArmijoMinStep As Double = 0.000001
 
+        ''' <summary>
+        ''' Solves a x = b for a block-tridiagonal a with square blocks of size m by the block Thomas algorithm (LU with
+        ''' partial pivoting on each block). Returns Nothing when a isn't block-tridiagonal, when a block is singular, or
+        ''' when the solution leaves a residual above 1e-9 of b, so that the caller falls back to the dense solve.
+        ''' </summary>
+        Public Shared Function SolveBlockTridiagonal(a As Double(,), b As Double(), m As Integer) As Double()
+
+            Dim n As Integer = b.Length
+            If m <= 0 OrElse n Mod m <> 0 Then Return Nothing
+            Dim nb As Integer = n \ m
+            If nb < 3 Then Return Nothing
+
+            ' the structure: nothing outside the three diagonal blocks
+            For r As Integer = 0 To n - 1
+                Dim br As Integer = r \ m
+                Dim c0 As Integer = Math.Max(0, br - 1) * m, c1 As Integer = Math.Min(nb - 1, br + 1) * m + m - 1
+                For c As Integer = 0 To c0 - 1
+                    If a(r, c) <> 0.0 Then Return Nothing
+                Next
+                For c As Integer = c1 + 1 To n - 1
+                    If a(r, c) <> 0.0 Then Return Nothing
+                Next
+            Next
+
+            Dim MB = MathNet.Numerics.LinearAlgebra.Matrix(Of Double).Build
+            Dim VB = MathNet.Numerics.LinearAlgebra.Vector(Of Double).Build
+            Dim Blk = Function(bi As Integer, bj As Integer) As MathNet.Numerics.LinearAlgebra.Matrix(Of Double)
+                          Dim mat = MB.Dense(m, m)
+                          For i As Integer = 0 To m - 1
+                              For j As Integer = 0 To m - 1
+                                  mat(i, j) = a(bi * m + i, bj * m + j)
+                              Next
+                          Next
+                          Return mat
+                      End Function
+            Dim Seg = Function(bi As Integer) As MathNet.Numerics.LinearAlgebra.Vector(Of Double)
+                          Dim vec = VB.Dense(m)
+                          For i As Integer = 0 To m - 1
+                              vec(i) = b(bi * m + i)
+                          Next
+                          Return vec
+                      End Function
+
+            Dim Cp(nb - 1) As MathNet.Numerics.LinearAlgebra.Matrix(Of Double)
+            Dim dp(nb - 1) As MathNet.Numerics.LinearAlgebra.Vector(Of Double)
+            Try
+                For i As Integer = 0 To nb - 1
+                    Dim Mi = Blk(i, i)
+                    Dim di = Seg(i)
+                    If i > 0 Then
+                        Dim Ai = Blk(i, i - 1)
+                        Mi = Mi - Ai * Cp(i - 1)
+                        di = di - Ai * dp(i - 1)
+                    End If
+                    Dim lu = Mi.LU()
+                    Dim det = lu.Determinant
+                    If det = 0.0 OrElse Double.IsNaN(det) OrElse Double.IsInfinity(det) Then Return Nothing
+                    If i < nb - 1 Then Cp(i) = lu.Solve(Blk(i, i + 1))
+                    dp(i) = lu.Solve(di)
+                Next
+            Catch ex As Exception
+                Return Nothing
+            End Try
+
+            Dim x(n - 1) As Double
+            Dim xi = dp(nb - 1)
+            For k As Integer = 0 To m - 1
+                x((nb - 1) * m + k) = xi(k)
+            Next
+            For i As Integer = nb - 2 To 0 Step -1
+                xi = dp(i) - Cp(i) * xi
+                For k As Integer = 0 To m - 1
+                    x(i * m + k) = xi(k)
+                Next
+            Next
+
+            ' the solution has to satisfy the system as the dense solve would
+            Dim rmax As Double = 0.0, bmax As Double = 0.0
+            For r As Integer = 0 To n - 1
+                Dim br As Integer = r \ m
+                Dim c0 As Integer = Math.Max(0, br - 1) * m, c1 As Integer = Math.Min(nb - 1, br + 1) * m + m - 1
+                Dim sr As Double = -b(r)
+                For c As Integer = c0 To c1
+                    sr += a(r, c) * x(c)
+                Next
+                If Double.IsNaN(sr) OrElse Double.IsInfinity(sr) Then Return Nothing
+                rmax = Math.Max(rmax, Math.Abs(sr))
+                bmax = Math.Max(bmax, Math.Abs(b(r)))
+            Next
+            If rmax > 0.000000001 * Math.Max(bmax, 1.0E-300) Then Return Nothing
+
+            Return x
+
+        End Function
+
         Private Function solve_internal(mindamp As Double, epsilon As Double, functionbody As Func(Of Double(), Double()), vars As Double()) As Double()
 
             fxb = functionbody
@@ -326,11 +429,14 @@ Namespace MathEx.Optimization
                     Next
                 Next
 
-                Dim A = MathNet.Numerics.LinearAlgebra.Matrix(Of Double).Build.DenseOfArray(ase)
-                Dim B = MathNet.Numerics.LinearAlgebra.Vector(Of Double).Build.DenseOfArray(bse)
-
                 ' solve the equilibrated system for z, then recover dx = C·z
-                Dim zsol = A.Solve(B).ToArray()
+                Dim zsol As Double() = Nothing
+                If BlockSize > 0 Then zsol = SolveBlockTridiagonal(ase, bse, BlockSize)
+                If zsol Is Nothing Then
+                    Dim A = MathNet.Numerics.LinearAlgebra.Matrix(Of Double).Build.DenseOfArray(ase)
+                    Dim B = MathNet.Numerics.LinearAlgebra.Vector(Of Double).Build.DenseOfArray(bse)
+                    zsol = A.Solve(B).ToArray()
+                End If
                 For c As Integer = 0 To nrc - 1
                     dx(c) = cscale(c) * zsol(c)
                 Next
