@@ -1145,6 +1145,16 @@ Namespace UnitOperations
 
             MyBase.LoadData(data)
 
+            ' kept for the ChemSep profiles, which can be read without the COM object
+            Dim persisted As XElement = (From el As XElement In data Select el Where el.Name = "PersistedData").SingleOrDefault
+            If persisted IsNot Nothing Then
+                Try
+                    _loadedPersistedData = Convert.FromBase64String(persisted.Value)
+                Catch ex As Exception
+                    _loadedPersistedData = Nothing
+                End Try
+            End If
+
             Dim info As XElement = (From el As XElement In data Select el Where el.Name = "CAPEOPEN_Object_Info").SingleOrDefault
             _seluo = New Auxiliary.CapeOpen.CapeOpenUnitOpInfo
             _seluo.LoadData(info.Elements.ToList)
