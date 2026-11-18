@@ -823,9 +823,9 @@ Namespace UnitOperations
             Dim Wi = ims.GetMassFlow()
             Dim Pi = ims.GetPressure()
             Dim rho = ims.Phases(0).Properties.density.GetValueOrDefault
-            'on the steps between two equilibrium calculations the inlet may carry no density: keep the last one,
-            'or the head comes out NaN and so does the outlet enthalpy
-            If rho > 0.0 AndAlso Not Double.IsNaN(rho) Then
+            'on the steps between two equilibrium calculations the inlet may carry no density, and a stream left without
+            'flow reports an infinite one: keep the last one, or the head comes out NaN and so does the outlet pressure
+            If rho > 0.0 AndAlso Not Double.IsNaN(rho) AndAlso Not Double.IsInfinity(rho) Then
                 LastInletDensity = rho
             ElseIf LastInletDensity > 0.0 Then
                 rho = LastInletDensity

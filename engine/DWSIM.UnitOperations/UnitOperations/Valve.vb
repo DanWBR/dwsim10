@@ -937,6 +937,32 @@ Namespace UnitOperations
         End Function
 
         ''' <summary>
+        ''' Inlet density (kg/m3) when the stream carries no phase properties (it passed nothing on the last
+        ''' step): ideal gas on the overall molar mass for a gas, the package's liquid density for a liquid.
+        ''' </summary>
+        Private Function FallbackDensity(ims As MaterialStream, P As Double, T As Double, gas As Boolean) As Double
+            Dim mw As Double = ims.Phases(0).Properties.molecularWeight.GetValueOrDefault
+            If Double.IsNaN(mw) Or mw <= 0.0 Then
+                mw = 0.0
+                For Each c In ims.Phases(0).Compounds.Values
+                    mw += c.MoleFraction.GetValueOrDefault * c.ConstantProperties.Molar_Weight
+                Next
+            End If
+            If gas Then
+                If mw <= 0.0 Or T <= 0.0 Then Return 1.0
+                Return P * mw / 1000.0 / (8.314 * T)
+            Else
+                Dim rho As Double = 0.0
+                Try
+                    rho = ims.PropertyPackage.AUX_LIQDENS(T, P)
+                Catch ex As Exception
+                End Try
+                If Double.IsNaN(rho) Or rho <= 0.0 Then rho = 600.0
+                Return rho
+            End If
+        End Function
+
+        ''' <summary>
         ''' Mass flow through the valve in dynamic mode (kg/s) for the given inlet and outlet pressures
         ''' (Pa), from the inlet stream's current state and the current opening. Nothing on the
         ''' streams changes, so a pressure-flow network solver can call it repeatedly.
@@ -956,9 +982,13 @@ Namespace UnitOperations
                 'the same ISA/IEC 60534 forms as the steady-state sizing, so a wide-open valve,
                 'a blowdown valve or a restriction orifice (Kv from KvFromOrifice) chokes where it
                 'should: gas at x = Fk.xT, liquid at dP = FL^2 (P1 - FF.Pv). All forms return kg/h.
+                'a stream that passed nothing on the last step carries no phase properties: take the densities
+                'from its temperature and pressure, or the valve would compute zero and never open again
+                Dim zeroflow As Boolean = Not (ims.Phases(0).Properties.massflow.GetValueOrDefault > 0.0)
                 If ims.Phases(1).Properties.molarfraction > 0.99 Or CalcMode = CalculationMode.Kv_Liquid Then
                     ims.PropertyPackage.CurrentMaterialStream = ims
                     rhol = ims.Phases(0).Properties.density.GetValueOrDefault
+                    If zeroflow Or Double.IsNaN(rhol) Or rhol <= 0.0 Then rhol = FallbackDensity(ims, P1, Ti, False)
                     Pc = ims.PropertyPackage.AUX_PCM(PropertyPackages.Phase.Liquid)
                     Pv = ims.PropertyPackage.AUX_PVAPM(PropertyPackages.Phase.Liquid, Ti)
                     If Double.IsNaN(Pv) Or Pv <= 0.0 Then Pv = 0.0
@@ -967,6 +997,7 @@ Namespace UnitOperations
                 ElseIf ims.Phases(2).Properties.molarfraction > 0.99 Or CalcMode = CalculationMode.Kv_Gas Then
                     ims.PropertyPackage.CurrentMaterialStream = ims
                     rhog = ims.Phases(0).Properties.density.GetValueOrDefault
+                    If zeroflow Or Double.IsNaN(rhog) Or rhog <= 0.0 Then rhog = FallbackDensity(ims, P1, Ti, True)
                     Cp_ig = ims.PropertyPackage.AUX_CPm(PropertyPackages.Phase.Vapor, Ti) * ims.Phases(0).Properties.molecularWeight.GetValueOrDefault
                     k = Cp_ig / (Cp_ig - 8.314)
                     If Double.IsNaN(k) Or k <= 1.0 Then k = 1.3
@@ -984,7 +1015,18 @@ Namespace UnitOperations
                     massfrac_liq = ims.Phases(1).Properties.massflow.GetValueOrDefault / ims.Phases(0).Properties.massflow.GetValueOrDefault
 
                     If Double.IsNaN(massfrac_gas) Or Double.IsNaN(massfrac_liq) Then
-                        Wi = 0.0
+                        'no flow on the last step: the phase split isn't known, so treat the inlet as the phase it
+                        'mostly is, with densities from its temperature and pressure
+                        If ims.Phases(2).Properties.molarfraction.GetValueOrDefault >= 0.5 Then
+                            rhog = FallbackDensity(ims, P1, Ti, True)
+                            If Double.IsNaN(k) Or k <= 1.0 Then k = 1.3
+                            Wi = WGas(Kvc, P1 / 100000.0, P2 / 100000.0, k, rhog) / 3600
+                        Else
+                            rhol = FallbackDensity(ims, P1, Ti, False)
+                            If Double.IsNaN(Pv) Or Pv <= 0.0 Then Pv = 0.0
+                            If Double.IsNaN(Pc) Or Pc <= 0.0 Then Pc = P1
+                            Wi = WLiquid(Kvc, P1 / 100000.0, P2 / 100000.0, rhol, Pv / 100000.0, Pc / 100000.0) / 3600
+                        End If
                     Else
                         'WTwoPhase returns kg/h, like the liquid and gas forms above
                         Wi = WTwoPhase(Kvc, P1 / 100000.0, P2 / 100000.0, rhog, rhol, k, Pv / 100000.0, Pc / 100000.0, massfrac_gas, massfrac_liq) / 3600
