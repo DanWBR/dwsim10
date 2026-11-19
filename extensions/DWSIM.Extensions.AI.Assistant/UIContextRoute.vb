@@ -27,13 +27,15 @@ Imports Newtonsoft.Json.Linq
 
 ''' <summary>
 ''' GET /api/ui-context: what the user is working on in DWSIM (the selected objects, the object
-''' editor and its tab, the tool window), with every object it names described by tag, type and state.
+''' editor and its tab, the tool window), with every object it names described by tag, type and state,
+''' and the objects of the whole flowsheet that ended the last calculation with an error.
 ''' The "sig" field changes only when the answer does, so the assistant can poll it cheaply.
 ''' </summary>
 ''' <remarks>The same file is in the private and in the open copy of the bridge; keep them equal.</remarks>
 Public Module UIContextRoute
 
     Private Const MaxErrorLength As Integer = 300
+    Private Const MaxListedErrors As Integer = 5
 
     Public Function Handle(fs As IFlowsheet) As String
 
@@ -89,6 +91,14 @@ Public Module UIContextRoute
             flowsheet("name") = fs.FlowsheetOptions.SimulationName
         Catch
         End Try
+        Dim solving As Boolean = False
+        Try
+            solving = GlobalSettings.Settings.CalculatorBusy
+        Catch
+        End Try
+        flowsheet("solving") = solving
+        ' while the solver runs the messages come and go, so the list waits for the end of the run
+        If Not solving Then AddErrors(fs, flowsheet)
         result("flowsheet") = flowsheet
 
         Return Finish(result)
@@ -104,6 +114,34 @@ Public Module UIContextRoute
         End Using
         Return result.ToString(Formatting.None)
     End Function
+
+    ''' <summary>
+    ''' Lists the objects of the whole flowsheet that ended the last calculation with an error, so the
+    ''' assistant can offer to explain them even when the user hasn't selected them.
+    ''' </summary>
+    Private Sub AddErrors(fs As IFlowsheet, flowsheet As JObject)
+        Dim errors As New JArray
+        Dim count As Integer = 0
+        Try
+            For Each obj In fs.SimulationObjects.Values.ToList()
+                Dim message As String = Nothing
+                Try
+                    message = obj?.ErrorMessage
+                Catch
+                End Try
+                If String.IsNullOrWhiteSpace(message) Then Continue For
+                count += 1
+                If errors.Count < MaxListedErrors Then
+                    Dim described = DescribeObject(fs, obj.Name)
+                    If described IsNot Nothing Then errors.Add(described)
+                End If
+            Next
+        Catch
+            ' the collection changed under us: the next poll gets a clean answer
+        End Try
+        flowsheet("error_count") = count
+        flowsheet("errors") = errors
+    End Sub
 
     Private Function DescribeObject(fs As IFlowsheet, name As String) As JObject
 
