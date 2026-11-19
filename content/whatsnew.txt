@@ -32,6 +32,9 @@
 - [NEW] Operator Training: leaner feed gas, reboiler heating medium loss and refrigeration compressor trip malfunctions
 - [NEW] Operator Training: field bypass of a failed or stuck control valve, opened from the valve faceplate
 - [NEW] Operator Training: exercise objectives watched from a set time
+- [NEW] AI Assistant: each question carries what DWSIM shows (the selected objects, the open editor and its tab, the tool window and the objects that failed in the last run)
+- [NEW] AI Assistant: suggestion badges above the text box that follow the task in DWSIM, with red badges for failed objects, favorites per context, the most used first and next-step buttons at the end of the answers
+- [NEW] Ask the DWSIM Assistant from the right-click menu of the log and of an object that failed
 - [CHG] Flowsheet Check: warns when the streams of one fluid around a unit use different property packages
 - [CHG] Fail-safe flash with solids: a warning in the log names the stream, the specification and the original error
 - [CHG] Windows installers of final releases are signed with a code signing certificate
