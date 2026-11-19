@@ -9,7 +9,7 @@ namespace DWSIM.UI.Desktop.Avalonia;
 /// Extends FlowsheetBase with UI callbacks wired to Avalonia Dispatcher
 /// and canvas invalidation, without any Eto.Forms dependency.
 /// </summary>
-internal sealed class AvaloniaFlowsheet : DWSIM.FlowsheetBase.FlowsheetBase
+internal sealed class AvaloniaFlowsheet : DWSIM.FlowsheetBase.FlowsheetBase, IUIContextProvider
 {
     private Action<string, IFlowsheet.MessageType>? _listener;
 
@@ -55,6 +55,11 @@ internal sealed class AvaloniaFlowsheet : DWSIM.FlowsheetBase.FlowsheetBase
 
     /// <summary>Where the host shows a page from a local address. Set by the flowsheet window.</summary>
     public Action<string, string>? OnWebPanelRequested { get; set; }
+
+    /// <summary>Answers what the user is looking at; set by the view that shows this flowsheet.</summary>
+    public Func<System.Collections.Generic.Dictionary<string, object>?>? OnGetUIContext { get; set; }
+
+    public System.Collections.Generic.Dictionary<string, object>? GetUIContext() => OnGetUIContext?.Invoke();
 
     public override void DisplayWebPanel(string title, string url)
     {

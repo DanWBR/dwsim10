@@ -160,6 +160,12 @@ public class EditorHolder : Grid
     /// <summary>Raised when the user clicks the close button.</summary>
     public event EventHandler? CloseRequested;
 
+    /// <summary>Name of the object whose editor is shown, or null when none is.</summary>
+    public string? CurrentObjectName => _currentName;
+
+    /// <summary>The editor shown, or null when none is.</summary>
+    public ObjectEditorContainer? CurrentEditor => _currentEditor;
+
     public EditorHolder()
     {
         RowDefinitions = new RowDefinitions("Auto,*");

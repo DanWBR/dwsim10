@@ -2155,6 +2155,12 @@ Public Class Server
                 Dim b64 = Convert.ToBase64String(pngBytes)
                 body = String.Format("{{""success"":true,""format"":""png"",""base64"":""{0}""}}", b64)
 
+                ' ── GET /api/ui-context ─────────────────────────────────────────────
+            ElseIf req.HttpMethod = "GET" AndAlso path = "/api/ui-context" Then
+
+                ' what the user is working on: selection, object editor and tab, tool window
+                body = UIContextRoute.Handle(Flowsheet)
+
                 ' ── /api/dynamics/* ─────────────────────────────────────────────────
                 ' Every dynamic-simulation route lives in DynamicsRoutes; this chain is long
                 ' enough already, and the whole surface shares one shape.

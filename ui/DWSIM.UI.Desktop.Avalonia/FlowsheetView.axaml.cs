@@ -300,6 +300,7 @@ public partial class FlowsheetView : UserControl
         WireToolbarGroups();
         PopulatePalette();
         SetupBackupTimer();
+        WireUIContextTracking();
         // closing is confirmed by the host through ConfirmCloseAsync()
 
         // the menu bar belongs to the main window, which shows the one of the active
@@ -823,6 +824,8 @@ public partial class FlowsheetView : UserControl
         fs.OnCloseOpenEditForms = CloseAllEditors;
         // an extension asking for a page from a local server gets a docked panel here
         fs.OnWebPanelRequested = ShowWebPanel;
+        // the assistant asks what the user is working on, to fit its suggestions to it
+        fs.OnGetUIContext = GetUIContext;
 
         // Wire spreadsheet BEFORE file load: LoadSpreadsheetData callback
         // is invoked during LoadFromXML/LoadZippedXML on the background thread.
@@ -982,6 +985,8 @@ public partial class FlowsheetView : UserControl
         fs.OnCloseOpenEditForms = CloseAllEditors;
         // an extension asking for a page from a local server gets a docked panel here
         fs.OnWebPanelRequested = ShowWebPanel;
+        // the assistant asks what the user is working on, to fit its suggestions to it
+        fs.OnGetUIContext = GetUIContext;
 
         var dlg = new LoadingDialog("New Simulation", "Loading databases...");
         dlg.Show(HostWindow);
