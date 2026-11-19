@@ -268,6 +268,10 @@ public partial class FlowsheetView : UserControl
         ResultsPanel = new ResultsViewerPanel();
         MaterialStreamsPanel = new MaterialStreamListPanel();
         LogList = new LogPanel();
+        LogList.AskAssistant = message =>
+        {
+            if (_flowsheet != null) DWSIM.GlobalSettings.Settings.AskAssistant?.Invoke(_flowsheet, "", message);
+        };
         SpreadsheetGrid = new ReoGridControl();
         DynManagerPanel = new DynamicsManagerPanel();
         IntegratorPanel = new DynamicsIntegratorPanel();
@@ -2839,6 +2843,19 @@ public partial class FlowsheetView : UserControl
                 catch (Exception ex) { AppendLog($"Debug error: {ex.Message}"); }
             };
             ctx.Items.Add(debug);
+
+            // only when the DWSIM Assistant is loaded and the object ended its calculation with an error
+            if (simObj != null && DWSIM.GlobalSettings.Settings.AskAssistant != null &&
+                !string.IsNullOrWhiteSpace(simObj.ErrorMessage))
+            {
+                var ask = new MenuItem { Header = "Ask the DWSIM Assistant Why It Failed", Icon = IconHelper.MIcon("\U0001F4AC") }; // speech balloon
+                ask.Click += (_, _) =>
+                {
+                    // the assistant reads the object's own error
+                    if (_flowsheet != null) DWSIM.GlobalSettings.Settings.AskAssistant?.Invoke(_flowsheet, simObj.Name, "");
+                };
+                ctx.Items.Add(ask);
+            }
 
             // Why this result: the balances and the diagram of the solved object
             if (simObj != null && DWSIM.Automation.DynamicRunner.Insight.UnitInsightStudy.Supports(simObj))

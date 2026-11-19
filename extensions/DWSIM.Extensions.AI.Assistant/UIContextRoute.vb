@@ -28,7 +28,8 @@ Imports Newtonsoft.Json.Linq
 ''' <summary>
 ''' GET /api/ui-context: what the user is working on in DWSIM (the selected objects, the object
 ''' editor and its tab, the tool window), with every object it names described by tag, type and state,
-''' and the objects of the whole flowsheet that ended the last calculation with an error.
+''' and the objects of the whole flowsheet that ended the last calculation with an error. It also carries
+''' a question the user asked from DWSIM itself ("ask") until the assistant's page picks it up.
 ''' The "sig" field changes only when the answer does, so the assistant can poll it cheaply.
 ''' </summary>
 ''' <remarks>The same file is in the private and in the open copy of the bridge; keep them equal.</remarks>
@@ -37,9 +38,55 @@ Public Module UIContextRoute
     Private Const MaxErrorLength As Integer = 300
     Private Const MaxListedErrors As Integer = 5
 
+    ''' <summary>How long a question asked from DWSIM waits for the assistant's page to pick it up.</summary>
+    Private Const AskLifetimeSeconds As Integer = 120
+
+    Private ReadOnly AskLock As New Object
+    Private PendingAsk As JObject
+    Private PendingAskTime As DateTime
+
+    ''' <summary>
+    ''' Keeps a question the user asked from DWSIM (a log message, an object's error) until the
+    ''' assistant's page reads it with the UI context. The page asks it once, by its id.
+    ''' </summary>
+    ''' <param name="objectName">The object the message is about, or "".</param>
+    ''' <param name="message">The message, or "" to use the object's own error.</param>
+    Public Sub Ask(fs As IFlowsheet, objectName As String, message As String)
+
+        Dim ask As New JObject From {{"id", DateTime.UtcNow.Ticks.ToString()}}
+        If fs IsNot Nothing AndAlso Not String.IsNullOrEmpty(objectName) Then
+            Dim described = DescribeObject(fs, objectName)
+            If described IsNot Nothing Then ask("object") = described
+        End If
+        If String.IsNullOrWhiteSpace(message) AndAlso ask("object") IsNot Nothing Then
+            message = ask("object").Value(Of String)("error")
+        End If
+        message = If(message, "").Trim()
+        If message.Length > MaxErrorLength * 2 Then message = message.Substring(0, MaxErrorLength * 2) & "..."
+        ask("message") = message
+
+        SyncLock AskLock
+            PendingAsk = ask
+            PendingAskTime = DateTime.UtcNow
+        End SyncLock
+
+    End Sub
+
+    Private Sub AddAsk(result As JObject)
+        SyncLock AskLock
+            If PendingAsk Is Nothing Then Return
+            If (DateTime.UtcNow - PendingAskTime).TotalSeconds > AskLifetimeSeconds Then
+                PendingAsk = Nothing
+                Return
+            End If
+            result("ask") = PendingAsk.DeepClone()
+        End SyncLock
+    End Sub
+
     Public Function Handle(fs As IFlowsheet) As String
 
         Dim result As New JObject
+        AddAsk(result)
 
         Dim provider = TryCast(fs, IUIContextProvider)
         Dim ctx As Dictionary(Of String, Object) = Nothing

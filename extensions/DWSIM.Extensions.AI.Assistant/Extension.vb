@@ -82,6 +82,29 @@ Public Class AIAssistantExtender
 
     Private Flowsheet As IFlowsheet
 
+    Sub New()
+
+        ' the log and the flowsheet's object menu offer "Ask the DWSIM Assistant" through this
+        GlobalSettings.Settings.AskAssistant = AddressOf AskFromDWSIM
+
+    End Sub
+
+    ''' <summary>
+    ''' Opens the assistant for the flowsheet and hands it a question about a message the user sees in
+    ''' DWSIM. The page picks the question up with the UI context and sends it.
+    ''' </summary>
+    Private Sub AskFromDWSIM(flowsheetObject As Object, objectName As String, message As String)
+
+        Dim fs = TryCast(flowsheetObject, IFlowsheet)
+        If fs Is Nothing Then Return
+
+        UIContextRoute.Ask(fs, objectName, message)
+
+        Flowsheet = fs
+        Run()
+
+    End Sub
+
     Public ReadOnly Property ID As String Implements IExtender.ID
         Get
             Return "4e5a8d1e-49a7-4017-9625-2ed5e79784b3"

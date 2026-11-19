@@ -104,6 +104,14 @@ Public Class Settings
     Public Shared Property ServerPort As Integer = 0
     Public Shared Property CurrentCulture As String = "en"
 
+    ''' <summary>
+    ''' Set by the DWSIM Assistant extension when it loads: opens the assistant for a flowsheet and asks
+    ''' it about a message the user sees. The arguments are the flowsheet, the name of the object the
+    ''' message is about ("" when it isn't about one object) and the message ("" to use the object's
+    ''' own error). The interfaces offer "Ask the DWSIM Assistant" only while it is set.
+    ''' </summary>
+    Public Shared Property AskAssistant As Action(Of Object, String, String)
+
     Public Shared DefaultEditFormLocation As Integer = 8
 
     Public Shared SolverBreakOnException As Boolean = False

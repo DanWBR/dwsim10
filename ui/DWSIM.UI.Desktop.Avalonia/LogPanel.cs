@@ -49,6 +49,17 @@ public sealed class LogPanel : DockPanel
 
     private int _count;
 
+    /// <summary>
+    /// Hands a message to the DWSIM Assistant; set by the flowsheet window. The action shows only while
+    /// the assistant's extension is loaded.
+    /// </summary>
+    public Action<string>? AskAssistant { get; set; }
+
+    private readonly Button _askBtn;
+    private readonly MenuItem _askItem;
+
+    private static bool AssistantLoaded => DWSIM.GlobalSettings.Settings.AskAssistant != null;
+
     public LogPanel()
     {
         // A slim vertical column of actions down the right side, beside the table, so they never take
@@ -65,8 +76,12 @@ public sealed class LogPanel : DockPanel
         var copyBtn = ToolButton("Copy Information", async (_, _) => await CopySelectedAsync());
         clearBtn.HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Stretch;
         copyBtn.HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Stretch;
+        _askBtn = ToolButton("Ask the Assistant", (_, _) => AskSelected());
+        _askBtn.HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Stretch;
+        ToolTip.SetTip(_askBtn, "Ask the DWSIM Assistant about the selected message");
         toolbar.Children.Add(clearBtn);
         toolbar.Children.Add(copyBtn);
+        toolbar.Children.Add(_askBtn);
 
         SetDock(toolbar, global::Avalonia.Controls.Dock.Right);
         Children.Add(toolbar);
@@ -154,9 +169,17 @@ public sealed class LogPanel : DockPanel
         var copy = new MenuItem { Header = "Copy Information" };
         copy.Click += async (_, _) => await CopySelectedAsync();
 
+        _askItem = new MenuItem { Header = "Ask the DWSIM Assistant" };
+        _askItem.Click += (_, _) => AskSelected();
+
         menu.Items.Add(clear);
         menu.Items.Add(copy);
+        menu.Items.Add(_askItem);
+        menu.Opening += (_, _) => UpdateAskState();
         _grid.ContextMenu = menu;
+        _grid.SelectionChanged += (_, _) => UpdateAskState();
+        AttachedToVisualTree += (_, _) => UpdateAskState();
+        UpdateAskState();
 
         Children.Add(_grid);
     }
@@ -275,6 +298,22 @@ public sealed class LogPanel : DockPanel
         var owner = TopLevel.GetTopLevel(this) as Window;
         if (owner != null) window.Show(owner);
         else window.Show();
+    }
+
+    // the assistant's extension may load after the panel is built, so the state is read each time
+    private void UpdateAskState()
+    {
+        var shown = AssistantLoaded && AskAssistant != null;
+        _askBtn.IsVisible = shown;
+        _askItem.IsVisible = shown;
+        _askBtn.IsEnabled = _grid.SelectedItem is LogRow;
+        _askItem.IsEnabled = _grid.SelectedItem is LogRow;
+    }
+
+    private void AskSelected()
+    {
+        if (_grid.SelectedItem is not LogRow row || string.IsNullOrWhiteSpace(row.Message)) return;
+        AskAssistant?.Invoke(row.Message.Trim());
     }
 
     private async System.Threading.Tasks.Task CopySelectedAsync()
