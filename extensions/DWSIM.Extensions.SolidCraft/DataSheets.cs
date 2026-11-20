@@ -49,7 +49,7 @@ namespace DWSIM.Extensions.SolidCraft
         static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
         /// <summary>A table of the sheet: label and value rows, or a grid with a header row.</summary>
-        class Section
+        public class Section
         {
             public string Title;
             public string[] Header;
@@ -66,7 +66,8 @@ namespace DWSIM.Extensions.SolidCraft
             public void Add(string label, string value) { if (!string.IsNullOrEmpty(value)) Rows.Add(new[] { label, value }); }
         }
 
-        class Sheet
+        /// <summary>One data sheet: its tag, kind and subtitle for the title block, its number and its tables.</summary>
+        public class Sheet
         {
             public string Tag, Kind, Subtitle, Number;
 
@@ -88,6 +89,17 @@ namespace DWSIM.Extensions.SolidCraft
             var sheets = Sheets(fs, model, name, result.Failed);
             if (sheets.Count == 0) { result.Error = "the flowsheet has no equipment or instruments"; return result; }
             if (only != null) sheets = sheets.Where(s => only.Contains(s.Tag)).ToList();
+            var drawn = Export(sheets, cadcraftFolder, outputFolder, name, style, titleFor);
+            drawn.Failed.InsertRange(0, result.Failed);
+            return drawn;
+        }
+
+        /// <summary>Draws data sheets built elsewhere (the equipment of a pipe network, say).</summary>
+        public static Result Export(IEnumerable<Sheet> sheetList, string cadcraftFolder, string outputFolder, string name, DrawingStyle style, Func<string, string, string, TitleData> titleFor)
+        {
+            var result = new Result();
+            var sheets = sheetList.ToList();
+            if (sheets.Count == 0) { result.Error = "there are no data sheets to draw"; return result; }
 
             var temp = Path.Combine(Path.GetTempPath(), "dwsim-ds-" + Guid.NewGuid().ToString("N").Substring(0, 8));
             Directory.CreateDirectory(temp);
