@@ -80,6 +80,7 @@ Version 10.3.0
 - [NEW] Pipe Network: EPANET import and export, and import of trench tables from CSV and XLSX spreadsheets
 - [NEW] User Guide: Fire Water Networks section in the Pipe Network part, with the plant geometry, the hose reach, the drawings and water hammer
 - [NEW] Sample: Pipe Network - Fire Water Network (ring main with hydrants, jockey, main and standby fire pumps and a tank park with cooling rings and foam, placed on the plant for the drawings, with four water hammer cases)
+- [NEW] Tutorials: six pipe network tutorials in English and Portuguese (water distribution, gas gathering with a compressor, flare and relief network, fire water network, the fire water network on the plant with its documents, water hammer), each with a Python script and a saved flowsheet
 - [CHG] Flowsheet Check: warns when the streams of one fluid around a unit use different property packages
 - [CHG] Fail-safe flash with solids: a warning in the log names the stream, the specification and the original error
 - [CHG] Windows installers of final releases are signed with a code signing certificate
@@ -91,6 +92,7 @@ Version 10.3.0
 - [CHG] Naphtali-Sandholm column solver: each Newton step is solved by stage blocks; an ethanol column of about 70 stages with 16 compounds solves in 73 s, where it took more than 5 minutes
 - [CHG] Operator Training: a valve's flow is carried back through recycle blocks and flow-through exchangers to the holdup it draws from
 - [CHG] Operator Training: the numbers in the panels, faceplates, HMI views, alarm summary, interlocks, instructor station and server logs use JetBrains Mono, a monospaced font that comes with the extension
+- [CHG] Pipe Network designer: the flow arrows follow the direction of the solved flow
 - [FIX] Pipe Segment and Pipe Network with Beggs and Brill: the two-phase friction factor used the wrong branch of the correlation in part of its range, with friction about 3.4 times too high in one band and jumps near another
 - [FIX] Pipe Network: the nodal solver could not raise its damping factor again once it fell below 0.3 and ran to the iteration limit
 - [FIX] Excess enthalpy of NRTL, UNIQUAC, UNIFAC, Modified UNIFAC, NIST-MFAC and Wilson (Excess and Experimental Liquid + Excess modes) was too large where the activity coefficients are far from one
@@ -156,6 +158,8 @@ Version 10.3.0
 - [FIX] Dynamic pump: an inlet left without flow gave the outlet an undefined pressure and stopped the run
 - [FIX] Pipe Network without any outlet stream on the flowsheet (every outlet to the atmosphere): the flowsheet solver did not calculate it, in steady state or in dynamics
 - [FIX] Pipe Network with every outlet shut: numerical noise at zero flow stopped the solve with a reversed flow error at the reservoir
+- [FIX] Pipe Network: the gas left a compressor block at its inlet temperature; the compressor now adds the heat of compression with its efficiency, like the Compressor unit operation
+- [FIX] Flare networks: a knockout drum sized by the tool could fail its own velocity check by a rounding difference
 
 Version 10.2.16
 

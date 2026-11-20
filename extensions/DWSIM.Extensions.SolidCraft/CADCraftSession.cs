@@ -111,6 +111,11 @@ namespace DWSIM.Extensions.SolidCraft
             CadJob.Watch(process);
             process.ErrorDataReceived += (s, e) => { };
             process.BeginErrorReadLine();
+            // With the console on code page 65001 the stdin writer opens with a UTF-8 byte order mark, which
+            // would spoil the first message. An empty line takes it; the parse error it may raise has no id.
+            var blank = Encoding.ASCII.GetBytes("\n");
+            process.StandardInput.BaseStream.Write(blank, 0, blank.Length);
+            process.StandardInput.BaseStream.Flush();
             Call("initialize", new JObject
             {
                 ["protocolVersion"] = "2024-11-05",
@@ -142,8 +147,11 @@ namespace DWSIM.Extensions.SolidCraft
                     CadJob.Check();
                     throw new TimeoutException("CADCraft did not answer");
                 }
-                var answer = JObject.Parse(read.Result);
-                if (answer["id"]?.Value<int>() == id) return answer;
+                JObject answer;
+                try { answer = JObject.Parse(read.Result); } catch (Newtonsoft.Json.JsonReaderException) { continue; }
+                // notifications and errors about unreadable lines carry no numeric id
+                var tok = answer["id"];
+                if (tok != null && tok.Type == JTokenType.Integer && tok.Value<int>() == id) return answer;
             }
         }
 

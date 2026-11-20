@@ -22,7 +22,7 @@ public partial class SplashWindow : Window
     private void PopulateLabels()
     {
         // Version
-        var ver = Assembly.GetExecutingAssembly().GetName().Version?.ToString();
+        var ver = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3);
         var versionText = $"Version {ver}";
         versionText += Environment.Is64BitProcess
             ? " (Avalonia Cross-Platform UI, 64-bit)"
