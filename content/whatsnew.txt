@@ -35,6 +35,10 @@
 - [NEW] AI Assistant: each question carries what DWSIM shows (the selected objects, the open editor and its tab, the tool window and the objects that failed in the last run)
 - [NEW] AI Assistant: suggestion badges above the text box that follow the task in DWSIM, with red badges for failed objects, favorites per context, the most used first and next-step buttons at the end of the answers
 - [NEW] Ask the DWSIM Assistant from the right-click menu of the log and of an object that failed
+- [NEW] Fire water networks in the Pipe Network (Patreon, Premium+; Tools > Fire Protection in the network designer): fire outlets (hydrants, hose reels, monitors, spray nozzles, sprinklers, foam chambers) and foam proportioners; requirement profiles of the Brazilian state fire codes (São Paulo 2011, 2019 and 2025 and the other states), NBR 13714 and NFPA, chosen for each zone and compared with a second profile; protected tanks, spheres and vessels; fire scenarios with the most unfavourable hydrant search and the valve, pump and low reserve contingencies; verification against the profiles with a calculation report in Portuguese or English; hydrant flow tests with the Hazen-Williams C calibration, pump tests and an upgrade study; fire pump pressure switches and reserve draining in dynamic runs
+- [NEW] Pipe Network: EPANET import and export, and import of trench tables from CSV and XLSX spreadsheets
+- [NEW] User Guide: Fire Water Networks section in the Pipe Network part
+- [NEW] Sample: Pipe Network - Fire Water Network (ring main with hydrants, jockey, main and standby fire pumps and a tank park with cooling rings and foam)
 - [CHG] Flowsheet Check: warns when the streams of one fluid around a unit use different property packages
 - [CHG] Fail-safe flash with solids: a warning in the log names the stream, the specification and the original error
 - [CHG] Windows installers of final releases are signed with a code signing certificate
@@ -109,3 +113,5 @@
 - [FIX] Anaerobic Digester: ADM1 parameters changed after the first calculation (cross-platform parameter window, scripts, MCP server) were replaced by the saved copy and didn't change the results
 - [FIX] Dynamic valve: an inlet that didn't pass any flow on one step left the valve shut on every following step
 - [FIX] Dynamic pump: an inlet left without flow gave the outlet an undefined pressure and stopped the run
+- [FIX] Pipe Network without any outlet stream on the flowsheet (every outlet to the atmosphere): the flowsheet solver did not calculate it, in steady state or in dynamics
+- [FIX] Pipe Network with every outlet shut: numerical noise at zero flow stopped the solve with a reversed flow error at the reservoir
