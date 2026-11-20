@@ -380,16 +380,16 @@ Namespace GraphicObjects
                 Dim center As New Point(Me.X + Me.Width / 2, Me.Y + Me.Height / 2)
                 Dim x As Double = StartPos.X - center.X
                 Dim y As Double = StartPos.Y - center.Y
-                StartPos.X = center.X + (x * Math.Cos(angle_rad) + y * Math.Sin(angle_rad))
-                StartPos.Y = center.Y - (x * -Math.Sin(angle_rad) + y * Math.Cos(angle_rad))
+                StartPos.X = center.X + (x * Math.Cos(angle_rad) - y * Math.Sin(angle_rad))
+                StartPos.Y = center.Y + (x * Math.Sin(angle_rad) + y * Math.Cos(angle_rad))
             End If
             If SimObject.GraphicObject.Rotation <> 0 Then
                 Dim angle_rad As Double = SimObject.GraphicObject.Rotation * Math.PI / 180
                 Dim center As New Point(SimObject.GraphicObject.X + SimObject.GraphicObject.Width / 2, SimObject.GraphicObject.Y + SimObject.GraphicObject.Height / 2)
                 Dim x As Double = EndPos.X - center.X
                 Dim y As Double = EndPos.Y - center.Y
-                EndPos.X = center.X + (x * Math.Cos(angle_rad) + y * Math.Sin(angle_rad))
-                EndPos.Y = center.Y - (x * -Math.Sin(angle_rad) + y * Math.Cos(angle_rad))
+                EndPos.X = center.X + (x * Math.Cos(angle_rad) - y * Math.Sin(angle_rad))
+                EndPos.Y = center.Y + (x * Math.Sin(angle_rad) + y * Math.Cos(angle_rad))
             End If
 
             'Check Flipping
@@ -398,29 +398,41 @@ Namespace GraphicObjects
                 Dim center As New Point(Me.X + Me.Width / 2, Me.Y + Me.Height / 2)
                 Dim y As Double = StartPos.Y - center.Y
                 StartPos.Y = center.Y - y
-                If StartDir = ConDir.Down Then StartDir = ConDir.Up
-                If StartDir = ConDir.Up Then StartDir = ConDir.Down
+                If StartDir = ConDir.Down Then
+                    StartDir = ConDir.Up
+                ElseIf StartDir = ConDir.Up Then
+                    StartDir = ConDir.Down
+                End If
             End If
             If Me.FlippedH Then
                 Dim center As New Point(Me.X + Me.Width / 2, Me.Y + Me.Height / 2)
                 Dim x As Double = StartPos.X - center.X
                 StartPos.X = center.X - x
-                If StartDir = ConDir.Left Then StartDir = ConDir.Right
-                If StartDir = ConDir.Right Then StartDir = ConDir.Left
+                If StartDir = ConDir.Left Then
+                    StartDir = ConDir.Right
+                ElseIf StartDir = ConDir.Right Then
+                    StartDir = ConDir.Left
+                End If
             End If
             If SimObject.GraphicObject.FlippedV Then
                 Dim center As New Point(SimObject.GraphicObject.X + SimObject.GraphicObject.Width / 2, SimObject.GraphicObject.Y + SimObject.GraphicObject.Height / 2)
                 Dim y As Double = EndPos.Y - center.Y
                 EndPos.Y = center.Y - y
-                If EndDir = ConDir.Down Then EndDir = ConDir.Up
-                If EndDir = ConDir.Up Then EndDir = ConDir.Down
+                If EndDir = ConDir.Down Then
+                    EndDir = ConDir.Up
+                ElseIf EndDir = ConDir.Up Then
+                    EndDir = ConDir.Down
+                End If
             End If
             If SimObject.GraphicObject.FlippedH Then
                 Dim center As New Point(SimObject.GraphicObject.X + SimObject.GraphicObject.Width / 2, SimObject.GraphicObject.Y + SimObject.GraphicObject.Height / 2)
                 Dim x As Double = EndPos.X - center.X
                 EndPos.X = center.X - x
-                If EndDir = ConDir.Left Then EndDir = ConDir.Right
-                If EndDir = ConDir.Right Then EndDir = ConDir.Left
+                If EndDir = ConDir.Left Then
+                    EndDir = ConDir.Right
+                ElseIf EndDir = ConDir.Right Then
+                    EndDir = ConDir.Left
+                End If
             End If
 
             'Construct path of stream
