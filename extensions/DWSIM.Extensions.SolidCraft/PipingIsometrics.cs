@@ -79,7 +79,19 @@ namespace DWSIM.Extensions.SolidCraft
             Dictionary<string, (string Number, string Id)> numbers;
             try { numbers = ProcessFlowDiagram.LineNumbers(fs, model.Pipes.GroupBy(r => r.Tag).ToDictionary(g => g.Key, g => g.First())); }
             catch (Exception) { numbers = new Dictionary<string, (string, string)>(); }
+            return Export(model, cadcraftFolder, outputFolder, name, style, titleFor, numbers, only);
+        }
 
+        /// <summary>
+        /// Draws every line of a plant model built elsewhere (a pipe network's lines, say); <paramref name="numbers"/> gives
+        /// each line its number and short id by tag, and a line without one is numbered from its size.
+        /// </summary>
+        public static Result Export(PlantModel model, string cadcraftFolder, string outputFolder, string name, DrawingStyle style, Func<PipeRun, string, string, TitleData> titleFor,
+            IDictionary<string, (string Number, string Id)> numbers, ICollection<string> only = null)
+        {
+            var result = new Result();
+            if (model.Pipes.Count == 0) { result.Error = "the 3D model has no lines"; return result; }
+            numbers = numbers ?? new Dictionary<string, (string, string)>();
             var temp = Path.Combine(Path.GetTempPath(), "dwsim-iso-" + Guid.NewGuid().ToString("N").Substring(0, 8));
             Directory.CreateDirectory(temp);
             var next = numbers.Values.Select(v => int.TryParse(v.Id, out var i) ? i : 0).DefaultIfEmpty(0).Max();
@@ -351,7 +363,7 @@ namespace DWSIM.Extensions.SolidCraft
                 var mark = e.Item == null ? null : EquipmentDrawings.NozzleMark(model, e.Item, run, e.Outlet);
                 var lines = new[]
                 {
-                    (j == 0 ? "FROM " : "TO ") + (e.Item == null ? "BATTERY LIMIT" : e.Item.Tag + (mark != null ? " NOZZLE " + mark : "")),
+                    (j == 0 ? "FROM " : "TO ") + (e.Item == null ? EndName(j == 0 ? run.From : run.To).ToUpperInvariant() : e.Item.Tag + (mark != null ? " NOZZLE " + mark : "")),
                     "E " + F(p3.X / 1000, "0.000") + "  N " + F(p3.Y / 1000, "0.000"),
                     Elevation(p3.Z)
                 };
@@ -462,8 +474,8 @@ namespace DWSIM.Extensions.SolidCraft
             var tx = sheet.Width - mo - DrawingSheets.TitleWidth;
             var top = sheet.Height - mo - 5;
             var design = DesignBasis.For(run);
-            var fromText = fromItem == null ? "Battery limit" : fromItem.Tag + Nz(EquipmentDrawings.NozzleMark(model, fromItem, run, true));
-            var toText = toItem == null ? "Battery limit" : toItem.Tag + Nz(EquipmentDrawings.NozzleMark(model, toItem, run, false));
+            var fromText = fromItem == null ? EndName(run.From) : fromItem.Tag + Nz(EquipmentDrawings.NozzleMark(model, fromItem, run, true));
+            var toText = toItem == null ? EndName(run.To) : toItem.Tag + Nz(EquipmentDrawings.NozzleMark(model, toItem, run, false));
             var data = LineData(run, fromText, toText, design);
             data.Add(new KeyValuePair<string, string>("Spools (12 m max.)", spoolStarts.Count.ToString(CultureInfo.InvariantCulture)));
             C("table", new JObject
@@ -472,7 +484,7 @@ namespace DWSIM.Extensions.SolidCraft
                 ["header"] = new JArray("LINE", number), ["cells"] = new JArray(data.Select(kv => new JArray(kv.Key, kv.Value)))
             });
             top -= (data.Count + 1) * 5.5 + 5;
-            var bom = Materials(run, lengths, n - 1, fromItem == null || toItem == null ? 1 : 0, design);
+            var bom = Materials(run, lengths, n - 1, (fromItem == null && EndName(run.From) == "Battery limit") || (toItem == null && EndName(run.To) == "Battery limit") ? 1 : 0, design);
             var fields = fieldWeld.Count(f => f);
             bom.Add(new KeyValuePair<string, string>("Butt welds, shop " + run.Size, (welds.Count - fields).ToString(CultureInfo.InvariantCulture)));
             if (fields > 0) bom.Add(new KeyValuePair<string, string>("Butt welds, field " + run.Size, fields.ToString(CultureInfo.InvariantCulture)));
@@ -501,6 +513,9 @@ namespace DWSIM.Extensions.SolidCraft
 
             return DrawingSheets.Save(session, outputBase, "ISO", "line " + run.Tag);
         }
+
+        /// <summary>A line end that is not an item: the battery limit, or the point the line was given (a node of a pipe network).</summary>
+        static string EndName(string end) => string.IsNullOrWhiteSpace(end) || end == "battery limit" ? "Battery limit" : end;
 
         static string Nz(string mark) => mark == null ? "" : " (" + mark + ")";
 
