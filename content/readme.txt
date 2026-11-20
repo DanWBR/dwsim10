@@ -1,6 +1,6 @@
 ==================================================
 DWSIM - Open Source Process Simulator
-Version 10.2.16
+Version 10.3.0
 Copyright (c) 2017-2026 Daniel Wagner and contributors
 Copyright (c) 2008-2016 Daniel Wagner, Gregor Reichert, Gustavo Leon
 ==================================================
@@ -39,7 +39,7 @@ VERSION HISTORY / CHANGELOG
 
 The full changelog including souce code changes can be viewed at https://github.com/DanWBR/dwsim10/commits/windows
 
-Version 10.2.17
+Version 10.3.0
 
 - [NEW] Reservoir Coupling (Patreon, Premium+; Tools > Reservoir Coupling (OPM Flow)): runs a reservoir simulation model with OPM Flow together with the Pipe Network and the plant of the flowsheet; each report step the reservoir gives the well rates and the network the wellhead pressures, and streams of the flowsheet can set injection rates, group production limits and lift gas; the window installs OPM Flow (through WSL on Windows) and generates the black-oil PVT and the lift tables of the reservoir model from the fluid of the flowsheet
 - [NEW] PVT Analysis (Patreon, Premium and Premium+; Tools > PVT Analysis): characterizes a reservoir fluid from its laboratory PVT report with a cubic equation of state; splits and lumps the C7+ fraction, simulates the saturation pressure, constant composition expansion, differential liberation, constant volume depletion, separator and swelling tests next to the measured data, fits the heavy fractions by regression, calculates oil and gas viscosities (Lohrenz-Bray-Clark or corresponding states) and the minimum miscibility pressure with an injection gas, sends the fluid to the flowsheet (compounds, property package, stream) and exports a compositional model or black-oil tables for reservoir simulators

@@ -10,7 +10,7 @@ Registry by the `release` workflow on a tag.
 ## Run it
 
 ```sh
-docker run -d --name dwsim-mcp -p 5901:5901 ghcr.io/danwbr/dwsim-mcp:10.2
+docker run -d --name dwsim-mcp -p 5901:5901 ghcr.io/danwbr/dwsim-mcp:10.3
 curl http://<host>:5901/health
 ```
 
@@ -20,7 +20,7 @@ curl http://<host>:5901/health
 Require a token on an untrusted network by appending it:
 
 ```sh
-docker run -d --name dwsim-mcp -p 5901:5901 ghcr.io/danwbr/dwsim-mcp:10.2 --token change-me
+docker run -d --name dwsim-mcp -p 5901:5901 ghcr.io/danwbr/dwsim-mcp:10.3 --token change-me
 ```
 
 Or use the [docker-compose.yml](docker-compose.yml): `docker compose up -d`.
