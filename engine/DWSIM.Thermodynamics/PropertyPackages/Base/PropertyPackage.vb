@@ -10438,6 +10438,24 @@ Final3:
             Return New SolidReferenceSplit With {.ReferenceMassFraction = wref / wtot, .Reference = ref.NormalizeY(), .Rest = If(wref < wtot, rest.NormalizeY(), rest)}
         End Function
 
+        ''' <summary>
+        ''' True when the formation values of the compound refer to the solid at 25 C: the compound is marked as a solid, or
+        ''' the package lists it as a forced solid. Its solid enthalpy and entropy then start at zero at 298.15 K, without the
+        ''' enthalpy of fusion that the other compounds lose on freezing.
+        ''' </summary>
+        Private Function IsSolidAtReference(cprop As Interfaces.ICompoundConstantProperties) As Boolean
+            Return cprop.IsSolid OrElse (ForcedSolids IsNot Nothing AndAlso ForcedSolids.Contains(cprop.Name))
+        End Function
+
+        ''' <summary>
+        ''' Constant solid heat capacity [kJ/(kg.K)] of a compound of the electrolyte database (its Cp at 25 C), or zero when the
+        ''' database doesn't carry a positive value.
+        ''' </summary>
+        Private Shared Function ElectrolyteSolidCp(cprop As Interfaces.ICompoundConstantProperties) As Double
+            If cprop.OriginalDB <> "Electrolytes" OrElse cprop.Electrolyte_Cp0 <= 0.0 OrElse cprop.Molar_Weight <= 0.0 Then Return 0.0
+            Return cprop.Electrolyte_Cp0 * 1000 / cprop.Molar_Weight
+        End Function
+
         Public Function CalcSolidEnthalpyFromCp(ByVal T As Double, ByVal Vx As Double(), cprops As List(Of Interfaces.ICompoundConstantProperties)) As Double
 
             Dim n As Integer = Vx.Length - 1
@@ -10449,6 +10467,7 @@ Final3:
 
             For i = 0 To n
                 If Vx(i) > 0 Then
+                    Dim atReference = IsSolidAtReference(cprops(i))
                     If cprops(i).OriginalDB = "ChemSep" Or cprops(i).OriginalDB = "User" Then
                         Dim A, B, C, D, E As Double
                         Dim eqno As String = cprops(i).SolidHeatCapacityEquation
@@ -10466,7 +10485,7 @@ Final3:
                             HS -= VMF(i) * cprops(i).EnthalpyOfFusionAtTf * 1000 / mw
                             HS -= VMF(i) * SolidCpIntegral(cpAt, T, cprops(i).TemperatureOfFusion)
                         Else
-                            HS -= VMF(i) * cprops(i).EnthalpyOfFusionAtTf * 1000 / mw
+                            If Not atReference Then HS -= VMF(i) * cprops(i).EnthalpyOfFusionAtTf * 1000 / mw
                             HS -= VMF(i) * SolidCpIntegral(cpAt, T, 298.15)
                         End If
                     ElseIf cprops(i).OriginalDB = "ChEDL Thermo" Then
@@ -10484,12 +10503,16 @@ Final3:
                             HS -= VMF(i) * cprops(i).EnthalpyOfFusionAtTf * 1000 / mw
                             HS -= VMF(i) * SolidCpIntegral(cpAt, T, cprops(i).TemperatureOfFusion)
                         Else
-                            HS -= VMF(i) * cprops(i).EnthalpyOfFusionAtTf * 1000 / mw
+                            If Not atReference Then HS -= VMF(i) * cprops(i).EnthalpyOfFusionAtTf * 1000 / mw
                             HS -= VMF(i) * SolidCpIntegral(cpAt, T, 298.15)
                         End If
 
-                    ElseIf cprops(i).TemperatureOfFusion <> 0.0# Then
-                        HS += -VMF(i) * cprops(i).EnthalpyOfFusionAtTf * 1000 / cprops(i).Molar_Weight
+                    Else
+                        If cprops(i).TemperatureOfFusion <> 0.0# AndAlso Not atReference Then
+                            HS += -VMF(i) * cprops(i).EnthalpyOfFusionAtTf * 1000 / cprops(i).Molar_Weight
+                        End If
+                        'the electrolyte database carries the solid heat capacity at 25 C only
+                        HS += VMF(i) * ElectrolyteSolidCp(cprops(i)) * (T - 298.15)
                     End If
                 End If
             Next
@@ -10505,7 +10528,8 @@ Final3:
         ''' <summary>
         ''' Solid entropy [kJ/(kg.K)] along the path of <see cref="CalcSolidEnthalpyFromCp"/>: the liquid at 298.15 K (heated or
         ''' cooled to the melting point first when it melts below 298.15 K) freezes, taking Hfus/Tf, and the solid then follows
-        ''' its heat capacity to T. Same data and the same branches as the enthalpy, so that H and S describe one path.
+        ''' its heat capacity to T. A compound solid at the reference state starts from its solid at 298.15 K, without Hfus/Tf.
+        ''' Same data and the same branches as the enthalpy, so that H and S describe one path.
         ''' </summary>
         Public Function CalcSolidEntropyFromCp(ByVal T As Double, ByVal Vx As Double(), cprops As List(Of Interfaces.ICompoundConstantProperties)) As Double
 
@@ -10528,17 +10552,20 @@ Final3:
                         cpAt = Function(tt) CalcCSTDepProp(eqno, A, B, C, D, E, tt, 0)
                     End If
                     Dim sfus = If(tf > 0.0, cprops(i).EnthalpyOfFusionAtTf * 1000 / mw / tf, 0.0)
+                    Dim atReference = IsSolidAtReference(cprops(i))
                     If cpAt IsNot Nothing Then
                         If tf < 298.15 Then
                             SS += VMF(i) * AUX_INT_CPDT_Ti_L(298.15, tf, i)
                             SS -= VMF(i) * sfus
                             SS -= VMF(i) * SolidCpIntegral(Function(tt) cpAt(tt) / tt, T, tf)
                         Else
-                            SS -= VMF(i) * sfus
+                            If Not atReference Then SS -= VMF(i) * sfus
                             SS -= VMF(i) * SolidCpIntegral(Function(tt) cpAt(tt) / tt, T, 298.15)
                         End If
-                    ElseIf tf <> 0.0# Then
-                        SS -= VMF(i) * sfus
+                    Else
+                        If tf <> 0.0# AndAlso Not atReference Then SS -= VMF(i) * sfus
+                        Dim cpe = ElectrolyteSolidCp(cprops(i))
+                        If cpe > 0.0 AndAlso T > 0.0 Then SS += VMF(i) * cpe * Math.Log(T / 298.15)
                     End If
                 End If
             Next
