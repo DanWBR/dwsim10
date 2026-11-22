@@ -37,6 +37,9 @@ Namespace Reactors
 
         Inherits Reactor
 
+        ''' <summary>The industries under which the object palette lists this unit operation.</summary>
+        Public ReadOnly Property PaletteIndustries As String() = {Global.DWSIM.SharedClasses.PaletteIndustry.ChemicalsPolymers}
+
         ''' <summary>The classic (WinForms) editor window open for this unit operation, if any. Not saved with the flowsheet.</summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 

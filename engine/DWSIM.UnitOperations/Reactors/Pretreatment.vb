@@ -61,7 +61,11 @@ Namespace Reactors
         Inherits Reactor
 
         Implements IExternalUnitOperation
-        ''' <summary>Gets a value indicating that this reactor belongs to the Bio group of the object palette. Always <c>True</c>.</summary>
+
+        ''' <summary>The industries under which the object palette lists this unit operation.</summary>
+        Public ReadOnly Property PaletteIndustries As String() = {Global.DWSIM.SharedClasses.PaletteIndustry.Bioprocess}
+
+        ''' <summary>Gets a value indicating that this reactor is a bioprocess unit. When it doesn't declare its industries, the object palettes list it under the Bioprocess industry. Always <c>True</c>.</summary>
         Public ReadOnly Property IsBio As Boolean = True
 
         Public Overrides Property ObjectClass As SimulationObjectClass

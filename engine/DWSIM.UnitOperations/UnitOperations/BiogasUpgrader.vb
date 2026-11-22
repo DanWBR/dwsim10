@@ -56,7 +56,10 @@ Namespace UnitOperations
 
         Implements IExternalUnitOperation
 
-        ''' <summary>Gets a value indicating that this unit operation belongs to the Bio group of the object palette. Always <c>True</c>.</summary>
+        ''' <summary>The industries under which the object palette lists this unit operation.</summary>
+        Public ReadOnly Property PaletteIndustries As String() = {Global.DWSIM.SharedClasses.PaletteIndustry.Bioprocess}
+
+        ''' <summary>Gets a value indicating that this unit operation is a bioprocess unit. When it doesn't declare its industries, the object palettes list it under the Bioprocess industry. Always <c>True</c>.</summary>
         Public ReadOnly Property IsBio As Boolean = True
 
         ''' <summary>Gets or sets the simulation object class category (Separators). The getter always returns <c>Separators</c>.</summary>

@@ -327,7 +327,16 @@ public partial class FlowsheetView : UserControl
     {
         // Build palette content: header + scrollable items
         var paletteContent = new DockPanel();
-        // The tool tab already labels this "Objects"; no in-panel header is needed.
+        // The tool tab already labels this "Objects"; no in-panel header is needed. The search box
+        // and the industry buttons stay above the scrolling list.
+        var searchArea = new StackPanel { Margin = new Thickness(4, 4, 4, 2) };
+        global::Avalonia.Automation.AutomationProperties.SetAutomationId(_paletteSearch, "PaletteSearch");
+        _paletteIndustryBar.Margin = new Thickness(0, 4, 0, 2);
+        searchArea.Children.Add(_paletteSearch);
+        searchArea.Children.Add(_paletteIndustryBar);
+        DockPanel.SetDock(searchArea, global::Avalonia.Controls.Dock.Top);
+        paletteContent.Children.Add(searchArea);
+        WirePaletteSearch();
         paletteContent.Children.Add(new ScrollViewer
         {
             HorizontalScrollBarVisibility = global::Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
@@ -3141,8 +3150,30 @@ public partial class FlowsheetView : UserControl
     // Object palette population (ComboBox category selector + ListBox with icons)
     // -------------------------------------------------------------------------
 
-    /// <summary>Category name -> list of (displayName, iconBytes) pairs.</summary>
-    private readonly Dictionary<string, List<(string name, byte[]? icon, string? tip)>> _paletteCategories = new();
+    /// <summary>One object of the palette: its name, icon and description, the Patreon access level
+    /// it needs (0 for one that anyone can use) and the industries it belongs to (none for a general one).</summary>
+    private sealed record PaletteItem(string name, byte[]? icon, string? tip, int level = 0, string[]? industries = null);
+
+    /// <summary>A collapsible section of the palette, with its cells, for the search and the industry filter.</summary>
+    private sealed class PaletteSection
+    {
+        public string Category = "";
+        public Control Header = null!;
+        public WrapPanel Items = null!;
+        public TextBlock Arrow = null!;
+        public bool UserExpanded = true;
+        public readonly List<(Control cell, PaletteItem item)> Cells = new();
+    }
+
+    /// <summary>Category name -> the objects in it.</summary>
+    private readonly Dictionary<string, List<PaletteItem>> _paletteCategories = new();
+    private readonly List<PaletteSection> _paletteSections = new();
+    private readonly List<(Border badge, int level)> _paletteBadges = new();
+    private readonly TextBox _paletteSearch = new() { Watermark = "Search objects (name, function or industry)" };
+    private readonly WrapPanel _paletteIndustryBar = new();
+    private string? _paletteIndustry;
+    private bool _paletteFiltering;
+    private DispatcherTimer? _paletteFilterTimer;
 
     /// <summary>Static fallback categories used when ObjectList is empty (before Initialize).</summary>
     private static readonly (string category, string[] items)[] FallbackCategories =
@@ -3213,6 +3244,8 @@ public partial class FlowsheetView : UserControl
     private void PopulatePalette()
     {
         _paletteCategories.Clear();
+        _paletteSections.Clear();
+        _paletteBadges.Clear();
         PaletteStack.Children.Clear();
 
         // Build categories from ObjectList if available (after Initialize)
@@ -3239,30 +3272,20 @@ public partial class FlowsheetView : UserControl
                 {
                     category = string.IsNullOrEmpty(thirdParty.GroupName) ? "Third-Party" : thirdParty.GroupName;
                 }
-                else
-                {
-                    // External unit operations (bio, refining, premium) reuse generic ObjectClass
-                    // values (Reactors, Exchangers, Logical...). The classic palette
-                    // (SimulationObjectsPanel) reroutes them to their own sections via the
-                    // IsPremium/IsRefining/IsBio reflection flags; mirror that here so the
-                    // Premium, Refining and Biochemical tabs appear.
-                    try
-                    {
-                        var t = obj.GetType();
-                        if (t.GetProperty("IsPremium")?.GetValue(obj) is bool p && p) category = "Premium";
-                        if (t.GetProperty("IsRefining")?.GetValue(obj) is bool r && r) category = "Refining";
-                        if (t.GetProperty("IsBio")?.GetValue(obj) is bool b && b) category = "Biochemical";
-                    }
-                    catch { }
-                }
+                // Patreon, refining and bioprocess unit operations stay in the section of their
+                // function (Reactors, Exchangers...); the industry buttons above the palette narrow
+                // the list down to one industry, as in the classic palette (SimulationObjectsPanel).
                 byte[]? iconBytes = null;
                 try { iconBytes = obj.GetIconBitmapBytes(); } catch { }
                 string? tip = null;
                 try { tip = obj.GetDisplayDescription(); } catch { }
 
+                int level = DWSIM.SharedClasses.Utility.GetRequiredAccessLevel(obj);
+                var industries = DWSIM.SharedClasses.Utility.GetPaletteIndustries(obj);
+
                 if (!_paletteCategories.ContainsKey(category))
-                    _paletteCategories[category] = new List<(string, byte[]?, string?)>();
-                _paletteCategories[category].Add((displayName, iconBytes, tip));
+                    _paletteCategories[category] = new List<PaletteItem>();
+                _paletteCategories[category].Add(new PaletteItem(displayName, iconBytes, tip, level, industries));
             }
         }
 
@@ -3271,7 +3294,7 @@ public partial class FlowsheetView : UserControl
         {
             foreach (var (cat, items) in FallbackCategories)
             {
-                _paletteCategories[cat] = items.Select(n => (name: n, icon: (byte[]?)null, tip: (string?)null)).ToList();
+                _paletteCategories[cat] = items.Select(n => new PaletteItem(n, null, null)).ToList();
             }
         }
 
@@ -3281,8 +3304,8 @@ public partial class FlowsheetView : UserControl
         if (OperatingSystem.IsWindows() && _paletteCategories.TryGetValue("Columns", out var columnItems)
             && columnItems.All(it => it.name != "ChemSep Column"))
         {
-            var icon = columnItems.FirstOrDefault(it => it.name == "Distillation Column").icon;
-            columnItems.Add(("ChemSep Column", icon, "ChemSep Rigorous Separation Column (CAPE-OPEN)"));
+            var icon = columnItems.FirstOrDefault(it => it.name == "Distillation Column")?.icon;
+            columnItems.Add(new PaletteItem("ChemSep Column", icon, "ChemSep Rigorous Separation Column (CAPE-OPEN)"));
         }
 
         // Build collapsible sections for each category, in the classic palette order, with any
@@ -3333,9 +3356,13 @@ public partial class FlowsheetView : UserControl
                 Orientation = global::Avalonia.Layout.Orientation.Horizontal,
                 Margin = new Thickness(4, 2, 4, 6)
             };
+            var section = new PaletteSection { Category = cat, Header = headerPanel, Items = itemsPanel, Arrow = arrowText };
 
-            foreach (var (name, iconBytes, tip) in items)
+            foreach (var pit in items)
             {
+                var name = pit.name;
+                var iconBytes = pit.icon;
+                var tip = pit.tip;
                 var cell = new StackPanel
                 {
                     Orientation = global::Avalonia.Layout.Orientation.Vertical,
@@ -3385,7 +3412,7 @@ public partial class FlowsheetView : UserControl
                         HorizontalAlignment = HorizontalAlignment.Center
                     };
                 }
-                cell.Children.Add(iconCtrl);
+                cell.Children.Add(WithLevelBadge(iconCtrl, pit.level));
 
                 // Label
                 cell.Children.Add(new TextBlock
@@ -3411,6 +3438,7 @@ public partial class FlowsheetView : UserControl
                 WirePaletteCellDrag(cell, name);
 
                 itemsPanel.Children.Add(cell);
+                section.Cells.Add((cell, pit));
             }
 
             // Toggle expand/collapse on header click
@@ -3419,11 +3447,202 @@ public partial class FlowsheetView : UserControl
                 bool wasVisible = itemsPanel.IsVisible;
                 itemsPanel.IsVisible = !wasVisible;
                 arrowText.Text = wasVisible ? "→" : "↓";  // right arrow = collapsed, down = expanded
+                // while a search or an industry is on, the sections open by themselves, and the
+                // state the user chose comes back when the filter is cleared
+                if (!_paletteFiltering) section.UserExpanded = itemsPanel.IsVisible;
             };
 
             PaletteStack.Children.Add(headerPanel);
             PaletteStack.Children.Add(itemsPanel);
+            _paletteSections.Add(section);
         }
+
+        BuildPaletteIndustryBar();
+        ApplyPaletteFilter();
+    }
+
+    // -------------------------------------------------------------------------
+    // Palette search, industry filter and level badges
+    // -------------------------------------------------------------------------
+
+    private void WirePaletteSearch()
+    {
+        _paletteFilterTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
+        _paletteFilterTimer.Tick += (_, _) => { _paletteFilterTimer.Stop(); ApplyPaletteFilter(); };
+        _paletteSearch.TextChanged += (_, _) => { _paletteFilterTimer.Stop(); _paletteFilterTimer.Start(); };
+        _paletteSearch.KeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Escape) { _paletteSearch.Text = ""; e.Handled = true; }
+        };
+
+        // the licence check finishes in the background, after the palette is built
+        EventHandler onLevel = (_, _) => Dispatcher.UIThread.Post(RefreshPaletteBadges);
+        AttachedToVisualTree += (_, _) => DWSIM.SharedClasses.Utility.UserAccessLevelChanged += onLevel;
+        DetachedFromVisualTree += (_, _) => DWSIM.SharedClasses.Utility.UserAccessLevelChanged -= onLevel;
+    }
+
+    /// <summary>One button per industry that the loaded unit operations belong to, plus "All".</summary>
+    private void BuildPaletteIndustryBar()
+    {
+        _paletteIndustryBar.Children.Clear();
+        var industries = DWSIM.SharedClasses.PaletteIndustry.Sort(
+            _paletteSections.SelectMany(s => s.Cells).SelectMany(c => c.item.industries ?? Array.Empty<string>()));
+        if (_paletteIndustry != null && !industries.Contains(_paletteIndustry)) _paletteIndustry = null;
+        _paletteIndustryBar.IsVisible = industries.Count > 0;
+        if (industries.Count == 0) return;
+
+        var buttons = new List<global::Avalonia.Controls.Primitives.ToggleButton>();
+        bool updating = false;
+        foreach (var ind in new string?[] { null }.Concat(industries))
+        {
+            var b = new global::Avalonia.Controls.Primitives.ToggleButton
+            {
+                Content = ind ?? "All",
+                Tag = ind,
+                IsChecked = ind == _paletteIndustry,
+                FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(10),
+                Padding = new Thickness(8, 2),
+                Margin = new Thickness(0, 0, 4, 4),
+                MinHeight = 0,
+                Cursor = new Cursor(StandardCursorType.Hand)
+            };
+            // one button is always on: pressing the selected one again leaves it on
+            b.IsCheckedChanged += (_, _) =>
+            {
+                if (updating) return;
+                updating = true;
+                if (b.IsChecked == true)
+                {
+                    _paletteIndustry = b.Tag as string;
+                    foreach (var other in buttons) if (other != b) other.IsChecked = false;
+                    updating = false;
+                    ApplyPaletteFilter();
+                }
+                else
+                {
+                    if ((b.Tag as string) == _paletteIndustry) b.IsChecked = true;
+                    updating = false;
+                }
+            };
+            buttons.Add(b);
+            _paletteIndustryBar.Children.Add(b);
+        }
+    }
+
+    /// <summary>
+    /// Shows the objects that match the search text and the selected industry. A general unit
+    /// operation (one that doesn't belong to any industry) shows under every industry, after the
+    /// ones of that industry. While a filter is on, every section with a match is open; when the
+    /// filter is cleared, the sections go back to the state the user left them in.
+    /// </summary>
+    private void ApplyPaletteFilter()
+    {
+        var query = _paletteSearch.Text?.Trim() ?? "";
+        bool filtering = query.Length > 0 || _paletteIndustry != null;
+        var cmp = StringComparer.OrdinalIgnoreCase;
+
+        foreach (var s in _paletteSections)
+        {
+            int visible = 0;
+            foreach (var (cell, it) in s.Cells)
+            {
+                var inds = it.industries ?? Array.Empty<string>();
+                bool show = (_paletteIndustry == null || inds.Length == 0 || inds.Contains(_paletteIndustry, cmp))
+                            && DWSIM.SharedClasses.Utility.PaletteSearchMatches(query, it.name, it.tip ?? "", s.Category, string.Join(" ", inds));
+                cell.IsVisible = show;
+                if (show) visible++;
+            }
+
+            // the objects of the selected industry come first in their section
+            var ordered = s.Cells
+                .Select((c, i) => (c.cell, first: _paletteIndustry != null && (c.item.industries ?? Array.Empty<string>()).Contains(_paletteIndustry, cmp), i))
+                .OrderBy(x => x.first ? 0 : 1).ThenBy(x => x.i).Select(x => x.cell).ToList();
+            if (!ordered.SequenceEqual(s.Items.Children))
+            {
+                s.Items.Children.Clear();
+                s.Items.Children.AddRange(ordered);
+            }
+
+            s.Header.IsVisible = visible > 0;
+            bool expanded = filtering ? visible > 0 : s.UserExpanded;
+            s.Items.IsVisible = s.Header.IsVisible && expanded;
+            s.Arrow.Text = expanded ? "↓" : "→";
+        }
+
+        _paletteFiltering = filtering;
+    }
+
+    /// <summary>Puts the level badge on the bottom right corner of an icon (L1, L2 or L3, with a lock
+    /// when the user's level is below it). An object that anyone can use keeps its plain icon.</summary>
+    private Control WithLevelBadge(Control icon, int level)
+    {
+        if (level <= 0) return icon;
+        var badge = new Border
+        {
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(3),
+            Padding = new Thickness(3, 0, 3, 0),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Margin = new Thickness(0, 0, -DWSIM.UI.Shared.Avalonia.UiScale.Size(10), -DWSIM.UI.Shared.Avalonia.UiScale.Size(3)),
+        };
+        _paletteBadges.Add((badge, level));
+        FillLevelBadge(badge, level, DWSIM.SharedClasses.Utility.GetUserAccessLevel());
+        var grid = new Grid { HorizontalAlignment = HorizontalAlignment.Center };
+        grid.Children.Add(icon);
+        grid.Children.Add(badge);
+        return grid;
+    }
+
+    private static void FillLevelBadge(Border badge, int level, int userLevel)
+    {
+        bool locked = userLevel < level;
+        var (back, fore, border) = level switch
+        {
+            1 => (Color.FromRgb(225, 245, 238), Color.FromRgb(8, 80, 65), Color.FromRgb(15, 110, 86)),
+            2 => (Color.FromRgb(238, 237, 254), Color.FromRgb(60, 52, 137), Color.FromRgb(83, 74, 183)),
+            _ => (Color.FromRgb(250, 238, 218), Color.FromRgb(99, 56, 6), Color.FromRgb(133, 79, 11)),
+        };
+        var foreBrush = new SolidColorBrush(fore);
+        badge.Background = new SolidColorBrush(back);
+        badge.BorderBrush = new SolidColorBrush(border);
+        var row = new StackPanel { Orientation = global::Avalonia.Layout.Orientation.Horizontal, Spacing = 2 };
+        if (locked)
+        {
+            double s = DWSIM.UI.Shared.Avalonia.UiScale.Size(1);
+            var lockIcon = new global::Avalonia.Controls.Canvas { Width = 7 * s, Height = 9 * s, VerticalAlignment = VerticalAlignment.Center };
+            lockIcon.Children.Add(new global::Avalonia.Controls.Shapes.Path
+            {
+                Data = Geometry.Parse("M1.5,4.5 V3 A2,2 0 0 1 5.5,3 V4.5"),
+                Stroke = foreBrush,
+                StrokeThickness = 1.2,
+                RenderTransform = new ScaleTransform(s, s),
+                RenderTransformOrigin = new RelativePoint(0, 0, RelativeUnit.Absolute)
+            });
+            var body = new global::Avalonia.Controls.Shapes.Rectangle { Width = 6 * s, Height = 4.5 * s, Fill = foreBrush };
+            global::Avalonia.Controls.Canvas.SetLeft(body, 0.5 * s);
+            global::Avalonia.Controls.Canvas.SetTop(body, 4.5 * s);
+            lockIcon.Children.Add(body);
+            row.Children.Add(lockIcon);
+        }
+        row.Children.Add(new TextBlock
+        {
+            Text = "L" + level,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(9),
+            FontWeight = FontWeight.Bold,
+            Foreground = foreBrush,
+            VerticalAlignment = VerticalAlignment.Center
+        });
+        badge.Child = row;
+        global::Avalonia.Controls.ToolTip.SetTip(badge, locked
+            ? $"Needs a Patreon membership of Level {level} or higher"
+            : $"Patreon Level {level} unit operation, included in your membership");
+    }
+
+    private void RefreshPaletteBadges()
+    {
+        int userLevel = DWSIM.SharedClasses.Utility.GetUserAccessLevel();
+        foreach (var (badge, level) in _paletteBadges) FillLevelBadge(badge, level, userLevel);
     }
 
     /// <summary>Wires drag-drop from a single palette cell.</summary>

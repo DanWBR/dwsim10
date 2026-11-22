@@ -52,7 +52,7 @@ Namespace UnitOperations
         Inherits UnitOperations.UnitOpBaseClass
 
         Implements IExternalUnitOperation
-        ''' <summary>Gets a value that marks this unit operation as a bioprocess unit. The object palettes read this flag by reflection to list it in the Biochemical group.</summary>
+        ''' <summary>Gets a value that marks this unit operation as a bioprocess unit. When the unit operation doesn't declare its industries, the object palettes read this flag and list it under the Bioprocess industry.</summary>
         Public ReadOnly Property IsBio As Boolean = True
 
         ''' <summary>Gets or sets the simulation object class category (always <c>Separators</c>).</summary>

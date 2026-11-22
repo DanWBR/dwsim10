@@ -105,6 +105,7 @@ Version 10.3.0
 - [NEW] User Guide: Alumina part (Bayer Liquors package, Bayer Stream Analysis and the alumina unit operations)
 - [NEW] Case Library: gibbsitic bauxite alumina refinery (about 0.95 Mt/y, digestion to calcined alumina with the liquor loop closed)
 - [NEW] Tutorial: Bayer alumina, in English and Portuguese, with a Python script and a saved flowsheet
+- [NEW] Object palette: a search box, buttons that filter it by industry, and a badge with the Patreon level (L1, L2, L3) on the icons of Patreon unit operations
 - [CHG] Flowsheet Check: warns when the streams of one fluid around a unit use different property packages
 - [CHG] Fail-safe flash with solids: a warning in the log names the stream, the specification and the original error
 - [CHG] Windows installers of final releases are signed with a code signing certificate
@@ -118,6 +119,7 @@ Version 10.3.0
 - [CHG] Operator Training: a valve's flow is carried back through recycle blocks and flow-through exchangers to the holdup it draws from
 - [CHG] Operator Training: the numbers in the panels, faceplates, HMI views, alarm summary, interlocks, instructor station and server logs use JetBrains Mono, a monospaced font that comes with the extension
 - [CHG] Pipe Network designer: the flow arrows follow the direction of the solved flow
+- [CHG] Object palette: Patreon, refining and bioprocess unit operations moved from the Premium, Refining and Biochemical groups to the groups of their function
 - [FIX] Pipe Segment and Pipe Network with Beggs and Brill: the two-phase friction factor used the wrong branch of the correlation in part of its range, with friction about 3.4 times too high in one band and jumps near another
 - [FIX] Pipe Network: the nodal solver could not raise its damping factor again once it fell below 0.3 and ran to the iteration limit
 - [FIX] Excess enthalpy of NRTL, UNIQUAC, UNIFAC, Modified UNIFAC, NIST-MFAC and Wilson (Excess and Experimental Liquid + Excess modes) was too large where the activity coefficients are far from one

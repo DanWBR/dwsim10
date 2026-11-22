@@ -87,7 +87,10 @@ Namespace Reactors
 
         Implements IExternalUnitOperation
 
-        ''' <summary>Gets a value that marks this reactor as a bioprocess unit. The object palettes read this flag by reflection to list it in the Biochemical group.</summary>
+        ''' <summary>The industries under which the object palette lists this unit operation.</summary>
+        Public ReadOnly Property PaletteIndustries As String() = {Global.DWSIM.SharedClasses.PaletteIndustry.Bioprocess, Global.DWSIM.SharedClasses.PaletteIndustry.PharmaFood}
+
+        ''' <summary>Gets a value that marks this reactor as a bioprocess unit. When the unit operation doesn't declare its industries, the object palettes read this flag and list it under the Bioprocess industry.</summary>
         Public ReadOnly Property IsBio As Boolean = True
 
         Public Overrides Property ObjectClass As SimulationObjectClass = SimulationObjectClass.Reactors
