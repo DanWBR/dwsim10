@@ -93,6 +93,18 @@ Version 10.3.0
 - [NEW] User Guide: Pulp and Paper part (Kraft Liquors package, Pulp Stream Analysis and the kraft mill unit operations)
 - [NEW] Case Library: bleached eucalyptus kraft mill (about 1460 ADt/d, digester to dried pulp, oxygen and chlorine dioxide bleaching, evaporators, recovery boiler, causticizing and lime kiln with the white liquor and lime loops closed)
 - [NEW] Tutorial: kraft pulping and chemical recovery, in English and Portuguese, with a Python script and a saved flowsheet
+- [NEW] Bayer Liquors property package (Patreon, Premium): caustic aluminate liquors with their impurities, bauxite minerals, red mud, hydrate and alumina; density, heat capacity, heats of solution, boiling point elevation (Dewey) and gibbsite (Rosenberg-Healy) and oxalate solubilities
+- [NEW] Additional compounds with the tag Bayer: boehmite, gamma alumina, corundum, hematite, goethite, kaolinite, quartz, anatase, desilication product, sodium aluminate, sodium oxalate and tricalcium aluminate
+- [NEW] Bayer Stream Analysis (Patreon, Premium; Utilities): C, A, S, A/C, C/S, equilibrium alumina, supersaturation, solids and oxide analysis of a stream; sets liquors, bauxites and slurries from the quantities of a refinery
+- [NEW] Bauxite Digester unit operation (Patreon, Premium): low-temperature digestion of gibbsitic bauxite, desilication product with its soda and alumina losses, extraction and heat duty
+- [NEW] Mud Settler and Mud Washer Train unit operations (Patreon, Premium): red mud settling and counter-current washing with underflow solids and mixing efficiency, soda and alumina losses
+- [NEW] Precipitator Train unit operation (Patreon, Premium): gibbsite precipitation on seed with the White-Bateman growth rate, agglomeration, cooling profile and liquor productivity
+- [NEW] Hydrate Calciner unit operation (Patreon, Premium): calcination to smelter-grade alumina with LOI and alpha fraction, fuel flow from the heat balance and product cooler duty
+- [NEW] Liquor Evaporator unit operation (Patreon, Premium): multiple-effect evaporation of Bayer spent liquor with the boiling point elevation and heats of dilution of the package, steam for a target caustic
+- [NEW] Bayer Causticizer and Oxalate Removal unit operations (Patreon, Premium): causticization with lime efficiency and tricalcium aluminate, lime for a target C/S; sodium oxalate crystallization to the apparent solubility
+- [NEW] User Guide: Alumina part (Bayer Liquors package, Bayer Stream Analysis and the alumina unit operations)
+- [NEW] Case Library: gibbsitic bauxite alumina refinery (about 0.95 Mt/y, digestion to calcined alumina with the liquor loop closed)
+- [NEW] Tutorial: Bayer alumina, in English and Portuguese, with a Python script and a saved flowsheet
 - [CHG] Flowsheet Check: warns when the streams of one fluid around a unit use different property packages
 - [CHG] Fail-safe flash with solids: a warning in the log names the stream, the specification and the original error
 - [CHG] Windows installers of final releases are signed with a code signing certificate
