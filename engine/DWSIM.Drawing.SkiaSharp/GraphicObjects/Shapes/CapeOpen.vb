@@ -15,6 +15,7 @@ Namespace GraphicObjects.Shapes
             Me.ObjectType = DWSIM.Interfaces.Enums.GraphicObjects.ObjectType.CapeOpenUO
             Me.Description = "CAPE-OPEN Unit Operation Block"
             EmbeddedResourceIconName = "distcol_new.png"
+            EmbeddedResourcePhotoName = "capeopen_photo.png"
         End Sub
 
         Public Sub New(ByVal graphicPosition As SKPoint)
@@ -480,6 +481,10 @@ Namespace GraphicObjects.Shapes
                         If ChemSep Then
 
                             DrawIcon(canvas)
+
+                        ElseIf EmbeddedResourcePhotoName <> "" Then
+
+                            DrawPhoto(canvas)
 
                         Else
 
