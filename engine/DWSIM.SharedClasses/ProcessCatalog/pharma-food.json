@@ -1,0 +1,192 @@
+{
+  "industry": "Pharma and Food",
+  "processes": [
+    {
+      "id": "cooling-crystallization",
+      "name": "Cooling crystallization",
+      "description": "A concentrated solution cooled in a crystallizer, where the solute above its solubility at the operating temperature comes out as crystals and the rest leaves with the mother liquor. The example solute is glucose in water.",
+      "processType": "PhysicalSeparation",
+      "compounds": [
+        "Water",
+        "Glucose"
+      ],
+      "keyCompounds": [
+        "Glucose"
+      ],
+      "products": [
+        "Glucose"
+      ],
+      "propertyPackage": {
+        "name": "NRTL"
+      },
+      "unitSystem": "SI",
+      "skeleton": {
+        "objects": [
+          {
+            "tag": "FEED",
+            "type": "MaterialStream",
+            "temperature": 333.15,
+            "pressure": 101325,
+            "massFlow": 1,
+            "composition": {
+              "Water": 0.6,
+              "Glucose": 0.4
+            },
+            "compositionBasis": "mass"
+          },
+          {
+            "tag": "CR-100",
+            "external": "Crystallizer",
+            "properties": {
+              "Mode": "Cooling",
+              "SoluteCompound": "Glucose",
+              "SolventCompound": "Water",
+              "OperatingT_K": 278.15,
+              "Sol_A": 0.4,
+              "Sol_B": 0.005,
+              "Sol_C": 0.0,
+              "EvaporationFraction": 0.0
+            }
+          },
+          {
+            "tag": "CRYSTALS",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "MOTHER LIQUOR",
+            "type": "MaterialStream"
+          }
+        ],
+        "connections": [
+          {
+            "from": "FEED",
+            "to": "CR-100",
+            "toPort": 0
+          },
+          {
+            "from": "CR-100",
+            "to": "CRYSTALS",
+            "fromPort": 0
+          },
+          {
+            "from": "CR-100",
+            "to": "MOTHER LIQUOR",
+            "fromPort": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "solvent-recovery",
+      "name": "Solvent recovery by distillation",
+      "description": "A spent aqueous solvent stream distilled to recover the solvent at the top for reuse, with the water at the bottom. The example solvent is methanol.",
+      "processType": "PhysicalSeparation",
+      "compounds": [
+        "Methanol",
+        "Water"
+      ],
+      "keyCompounds": [
+        "Methanol"
+      ],
+      "products": [
+        "Methanol"
+      ],
+      "propertyPackage": {
+        "name": "NRTL"
+      },
+      "unitSystem": "SI",
+      "skeleton": {
+        "objects": [
+          {
+            "tag": "SPENT SOLVENT",
+            "type": "MaterialStream",
+            "temperature": 343.15,
+            "pressure": 101325,
+            "massFlow": 5,
+            "composition": {
+              "Methanol": 0.4,
+              "Water": 0.6
+            },
+            "compositionBasis": "mass"
+          },
+          {
+            "tag": "T-100",
+            "type": "DistillationColumn",
+            "calls": [
+              {
+                "method": "SetNumberOfStages",
+                "args": [
+                  20
+                ]
+              },
+              {
+                "method": "ConnectFeed",
+                "args": [
+                  "@SPENT SOLVENT",
+                  10
+                ]
+              },
+              {
+                "method": "ConnectDistillate",
+                "args": [
+                  "@METHANOL"
+                ]
+              },
+              {
+                "method": "ConnectBottoms",
+                "args": [
+                  "@WATER"
+                ]
+              },
+              {
+                "method": "ConnectCondenserDuty",
+                "args": [
+                  "@QC"
+                ]
+              },
+              {
+                "method": "ConnectReboilerDuty",
+                "args": [
+                  "@QR"
+                ]
+              },
+              {
+                "method": "SetCondenserSpec",
+                "args": [
+                  "Reflux_Ratio",
+                  2,
+                  ""
+                ]
+              },
+              {
+                "method": "SetReboilerSpec",
+                "args": [
+                  "Product_Mass_Flow_Rate",
+                  3.1,
+                  "kg/s"
+                ]
+              }
+            ]
+          },
+          {
+            "tag": "METHANOL",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "WATER",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "QC",
+            "type": "EnergyStream"
+          },
+          {
+            "tag": "QR",
+            "type": "EnergyStream"
+          }
+        ],
+        "connections": []
+      }
+    }
+  ]
+}

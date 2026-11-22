@@ -1,0 +1,165 @@
+{
+  "industry": "Power and Utilities",
+  "processes": [
+    {
+      "id": "rankine-cycle",
+      "name": "Steam power cycle (Rankine)",
+      "description": "Condensate pumped to the boiler pressure, raised to superheated steam in the boiler, expanded in a turbine and condensed again, with the cycle closed by a recycle block.",
+      "processType": "Unspecified",
+      "compounds": [
+        "Water"
+      ],
+      "keyCompounds": [
+        "Water"
+      ],
+      "propertyPackage": {
+        "name": "Steam Tables (IAPWS-IF97)"
+      },
+      "unitSystem": "SI",
+      "skeleton": {
+        "objects": [
+          {
+            "tag": "S-1",
+            "type": "MaterialStream",
+            "temperature": 318.15,
+            "pressure": 10000,
+            "massFlow": 10,
+            "composition": {
+              "Water": 1
+            }
+          },
+          {
+            "tag": "P-100",
+            "type": "Pump",
+            "properties": {
+              "CalcMode": "OutletPressure",
+              "Pout": 10000000,
+              "Eficiencia": 75
+            }
+          },
+          {
+            "tag": "W-100",
+            "type": "EnergyStream"
+          },
+          {
+            "tag": "S-2",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "B-100",
+            "type": "Heater",
+            "properties": {
+              "CalcMode": "OutletTemperature",
+              "OutletTemperature": 813.15,
+              "DeltaP": 0
+            }
+          },
+          {
+            "tag": "Q-100",
+            "type": "EnergyStream"
+          },
+          {
+            "tag": "S-3",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "K-100",
+            "type": "Expander",
+            "properties": {
+              "CalcMode": "OutletPressure",
+              "POut": 10000,
+              "AdiabaticEfficiency": 85
+            }
+          },
+          {
+            "tag": "W-101",
+            "type": "EnergyStream"
+          },
+          {
+            "tag": "S-4",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "E-100",
+            "type": "Cooler",
+            "properties": {
+              "CalcMode": "OutletTemperature",
+              "OutletTemperature": 318.15,
+              "DeltaP": 0
+            }
+          },
+          {
+            "tag": "Q-101",
+            "type": "EnergyStream"
+          },
+          {
+            "tag": "S-5",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "REC-100",
+            "type": "OT_Recycle"
+          }
+        ],
+        "connections": [
+          {
+            "from": "S-1",
+            "to": "P-100"
+          },
+          {
+            "from": "W-100",
+            "to": "P-100"
+          },
+          {
+            "from": "P-100",
+            "to": "S-2"
+          },
+          {
+            "from": "S-2",
+            "to": "B-100"
+          },
+          {
+            "from": "Q-100",
+            "to": "B-100"
+          },
+          {
+            "from": "B-100",
+            "to": "S-3"
+          },
+          {
+            "from": "S-3",
+            "to": "K-100"
+          },
+          {
+            "from": "K-100",
+            "to": "S-4"
+          },
+          {
+            "from": "K-100",
+            "to": "W-101"
+          },
+          {
+            "from": "S-4",
+            "to": "E-100"
+          },
+          {
+            "from": "E-100",
+            "to": "S-5"
+          },
+          {
+            "from": "E-100",
+            "to": "Q-101"
+          },
+          {
+            "from": "S-5",
+            "to": "REC-100"
+          },
+          {
+            "from": "REC-100",
+            "to": "S-1"
+          }
+        ]
+      }
+    }
+  ]
+}

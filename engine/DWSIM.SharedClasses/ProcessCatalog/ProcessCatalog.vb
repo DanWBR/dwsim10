@@ -367,6 +367,12 @@ Namespace ProcessCatalog
                             report.Add("This host can't add external unit operations: " & o.External)
                         Else
                             so = addExternal(t, x, y, o.Tag)
+                            'an external unit operation lays out its ports itself
+                            Dim ext = TryCast(so, IExternalUnitOperation)
+                            If ext IsNot Nothing AndAlso so.GraphicObject IsNot Nothing AndAlso
+                               so.GraphicObject.InputConnectors.Count = 0 AndAlso so.GraphicObject.OutputConnectors.Count = 0 Then
+                                ext.CreateConnectors()
+                            End If
                         End If
                     Else
                         so = fs.AddObject(CType([Enum].Parse(GetType(ObjectType), o.Type, True), ObjectType), x, y, o.Tag)
@@ -531,6 +537,25 @@ Namespace ProcessCatalog
         Private Shared Sub SetMember(target As Object, name As String, value As JToken, report As List(Of String), owner As String)
             Try
                 Dim t = target.GetType()
+                ' "Ratios[0]" sets an item of a list property (the split ratios of a splitter)
+                Dim m = Text.RegularExpressions.Regex.Match(name, "^(\w+)\[(\d+)\]$")
+                If m.Success Then
+                    Dim lp = t.GetProperty(m.Groups(1).Value, BindingFlags.Public Or BindingFlags.Instance Or BindingFlags.IgnoreCase)
+                    Dim list = TryCast(lp?.GetValue(target), IList)
+                    If list Is Nothing Then
+                        report.Add(owner & ": list property not found: " & m.Groups(1).Value)
+                        Return
+                    End If
+                    Dim k = Integer.Parse(m.Groups(2).Value, CultureInfo.InvariantCulture)
+                    Dim et = If(list.GetType().IsGenericType, list.GetType().GetGenericArguments()(0), GetType(Object))
+                    Dim v = If(et Is GetType(Object), value.ToObject(Of Object)(), ConvertToken(value, et, Nothing))
+                    If TypeOf v Is Long Then v = CDbl(CLng(v))
+                    While list.Count <= k
+                        list.Add(If(et.IsValueType, Activator.CreateInstance(et), If(et Is GetType(Object), CObj(0.0), Nothing)))
+                    End While
+                    list(k) = v
+                    Return
+                End If
                 Dim p = t.GetProperty(name, BindingFlags.Public Or BindingFlags.Instance Or BindingFlags.IgnoreCase)
                 If p IsNot Nothing AndAlso p.CanWrite Then
                     p.SetValue(target, ConvertToken(value, p.PropertyType, Nothing))

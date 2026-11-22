@@ -1,0 +1,286 @@
+{
+  "industry": "Bioprocess",
+  "processes": [
+    {
+      "id": "biogas-to-biomethane",
+      "name": "Biogas to biomethane",
+      "description": "An organic effluent digested to biogas in an anaerobic digester, the biogas cooled and upgraded to biomethane by amine scrubbing of the CO2 and H2S, then compressed for a local gas network.",
+      "processType": "Transformation",
+      "compounds": [
+        "Water",
+        "Glucose",
+        "Methane",
+        "Carbon dioxide",
+        "Hydrogen sulfide",
+        "Ammonia"
+      ],
+      "keyCompounds": [
+        "Methane",
+        "Carbon dioxide"
+      ],
+      "reactants": [
+        "Glucose"
+      ],
+      "products": [
+        "Methane"
+      ],
+      "propertyPackage": {
+        "name": "Peng-Robinson (PR)"
+      },
+      "unitSystem": "SI",
+      "skeleton": {
+        "objects": [
+          {
+            "tag": "EFFLUENT",
+            "type": "MaterialStream",
+            "temperature": 308.15,
+            "pressure": 101325,
+            "massFlow": 2,
+            "composition": {
+              "Water": 0.95,
+              "Glucose": 0.05
+            },
+            "compositionBasis": "mass"
+          },
+          {
+            "tag": "AD-100",
+            "external": "Anaerobic Digester",
+            "properties": {
+              "Volume": 1500,
+              "HRT_s": 1728000,
+              "CODRemovalEfficiency": 0.8,
+              "BiomassYield_gVSSpergCOD": 0.08,
+              "MethaneFractionOverride": 0.65,
+              "ThermalMode": "Isothermal",
+              "Model": "BlackBox",
+              "InfluentSulfateS_mgL": 600,
+              "SubstrateCompound": "Glucose",
+              "MethaneCompound": "Methane",
+              "CO2Compound": "Carbon dioxide",
+              "WaterCompound": "Water",
+              "NH3Compound": "Ammonia",
+              "H2SCompound": "Hydrogen sulfide"
+            }
+          },
+          {
+            "tag": "DIGESTATE",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "RAW BIOGAS",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "E-100",
+            "type": "Cooler",
+            "properties": {
+              "CalcMode": "OutletTemperature",
+              "OutletTemperature": 283.15,
+              "DeltaP": 0
+            }
+          },
+          {
+            "tag": "Q-100",
+            "type": "EnergyStream"
+          },
+          {
+            "tag": "S-1",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "U-100",
+            "external": "Biogas Upgrader",
+            "properties": {
+              "Technology": "Amine",
+              "CO2RemovalEfficiency": 0.99,
+              "H2SCompound": "Hydrogen sulfide",
+              "H2SRemovalEfficiency": 0.995,
+              "H2ORemovalEfficiency": 0.9,
+              "CH4LossFraction": 0.001,
+              "TargetCH4Purity": 0.97
+            }
+          },
+          {
+            "tag": "S-2",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "TAIL GAS",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "K-100",
+            "type": "Compressor",
+            "properties": {
+              "CalcMode": "OutletPressure",
+              "POut": 400000,
+              "AdiabaticEfficiency": 75
+            }
+          },
+          {
+            "tag": "W-100",
+            "type": "EnergyStream"
+          },
+          {
+            "tag": "BIOMETHANE",
+            "type": "MaterialStream"
+          }
+        ],
+        "connections": [
+          {
+            "from": "EFFLUENT",
+            "to": "AD-100",
+            "toPort": 0
+          },
+          {
+            "from": "AD-100",
+            "to": "DIGESTATE",
+            "fromPort": 0
+          },
+          {
+            "from": "AD-100",
+            "to": "RAW BIOGAS",
+            "fromPort": 1
+          },
+          {
+            "from": "RAW BIOGAS",
+            "to": "E-100"
+          },
+          {
+            "from": "E-100",
+            "to": "S-1"
+          },
+          {
+            "from": "E-100",
+            "to": "Q-100"
+          },
+          {
+            "from": "S-1",
+            "to": "U-100",
+            "toPort": 0
+          },
+          {
+            "from": "U-100",
+            "to": "S-2",
+            "fromPort": 0
+          },
+          {
+            "from": "U-100",
+            "to": "TAIL GAS",
+            "fromPort": 1
+          },
+          {
+            "from": "S-2",
+            "to": "K-100"
+          },
+          {
+            "from": "W-100",
+            "to": "K-100"
+          },
+          {
+            "from": "K-100",
+            "to": "BIOMETHANE"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ethanol-fermentation",
+      "name": "Ethanol fermentation",
+      "description": "A glucose must fermented to ethanol and carbon dioxide (a conversion reactor with 90 % conversion of the glucose), with the CO2 released at the top and the wine drawn at the bottom.",
+      "processType": "Transformation",
+      "compounds": [
+        "Water",
+        "Glucose",
+        "Ethanol",
+        "Carbon dioxide"
+      ],
+      "keyCompounds": [
+        "Ethanol",
+        "Glucose"
+      ],
+      "reactants": [
+        "Glucose"
+      ],
+      "products": [
+        "Ethanol",
+        "Carbon dioxide"
+      ],
+      "propertyPackage": {
+        "name": "NRTL"
+      },
+      "unitSystem": "SI",
+      "reactions": [
+        {
+          "type": "Conversion",
+          "name": "Alcoholic fermentation",
+          "stoichiometry": {
+            "Glucose": -1,
+            "Ethanol": 2,
+            "Carbon dioxide": 2
+          },
+          "baseCompound": "Glucose",
+          "phase": "Liquid",
+          "conversion": "90"
+        }
+      ],
+      "skeleton": {
+        "objects": [
+          {
+            "tag": "MUST",
+            "type": "MaterialStream",
+            "temperature": 305.15,
+            "pressure": 101325,
+            "massFlow": 10,
+            "composition": {
+              "Water": 0.82,
+              "Glucose": 0.18
+            },
+            "compositionBasis": "mass"
+          },
+          {
+            "tag": "R-100",
+            "type": "RCT_Conversion",
+            "properties": {
+              "ReactorOperationMode": "Isothermic",
+              "DeltaP": 0
+            }
+          },
+          {
+            "tag": "Q-100",
+            "type": "EnergyStream"
+          },
+          {
+            "tag": "CO2",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "WINE",
+            "type": "MaterialStream"
+          }
+        ],
+        "connections": [
+          {
+            "from": "MUST",
+            "to": "R-100"
+          },
+          {
+            "from": "Q-100",
+            "to": "R-100",
+            "toPort": 1
+          },
+          {
+            "from": "R-100",
+            "to": "CO2",
+            "fromPort": 0
+          },
+          {
+            "from": "R-100",
+            "to": "WINE",
+            "fromPort": 1
+          }
+        ]
+      }
+    }
+  ]
+}

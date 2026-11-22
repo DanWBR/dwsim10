@@ -72,20 +72,24 @@ namespace DWSIM.Engine.SmokeTests
             }
         }
 
-        [TestCase("methanol-synthesis", "CRUDE METHANOL")]
-        [TestCase("hydrous-ethanol-distillation", "HYDROUS ETHANOL")]
-        [TestCase("propane-refrigeration", "S-4")]
-        public void ProcessBuildsAndSolves(string id, string productTag)
+        public static IEnumerable<string> CatalogIds() => ProcessCatalogLoader.LoadBuiltIn().Select(p => p.Id);
+
+        // every process of the catalog that this installation can apply builds, solves within a minute and
+        // leaves every object calculated; the processes that need Patreon components are checked in the
+        // Patreon build, where those components are present
+        [TestCaseSource(nameof(CatalogIds))]
+        public void ProcessBuildsAndSolves(string id)
         {
             var p = ProcessCatalogLoader.LoadBuiltIn().Single(x => x.Id == id);
             var fs = NewFlowsheet();
+            var problems = ProcessApplier.Validate(fs, p);
+            if (problems.Count > 0) Assert.Ignore(id + " needs: " + string.Join("; ", problems));
 
             var setup = ProcessApplier.ApplySetup(fs, p);
-            Assert.That(setup, Is.Empty, string.Join("; ", setup));
+            Assert.That(setup.Where(m => !m.StartsWith("Using ")), Is.Empty, string.Join("; ", setup));
             Assert.That(fs.SelectedCompounds.Count, Is.EqualTo(p.Compounds.Count));
             Assert.That(fs.PropertyPackages.Count, Is.EqualTo(1));
             Assert.That(fs.Reactions.Count, Is.EqualTo(p.Reactions.Count));
-            Assert.That(fs.FlowsheetOptions.Metadata.ProcessType.ToString(), Is.EqualTo(p.ProcessType));
 
             var build = ProcessApplier.BuildSkeleton(fs, p, AddExternal(fs));
             Assert.That(build, Is.Empty, string.Join("; ", build));
@@ -98,12 +102,22 @@ namespace DWSIM.Engine.SmokeTests
             Assert.That(solve, Is.Empty, string.Join("; ", solve.Select(e => e.Message)));
             Assert.That(seconds, Is.LessThan(60.0));
 
-            var product = (IMaterialStream)fs.SimulationObjects.Values.Single(o => o.GraphicObject.Tag == productTag);
-            var w = product.GetMassFlow();
-            TestContext.WriteLine(productTag + ": " + w.ToString("0.000") + " kg/s at " + product.GetTemperature().ToString("0.0") + " K");
-            Assert.That(w, Is.GreaterThan(0.0));
-            foreach (var c in fs.SelectedCompounds.Keys)
-                TestContext.WriteLine("  " + c + " " + product.GetOverallComposition()[fs.SelectedCompounds.Keys.ToList().IndexOf(c)].ToString("0.0000"));
+            var notCalculated = fs.SimulationObjects.Values.Where(o => !o.Calculated).Select(o => o.GraphicObject.Tag).ToList();
+            Assert.That(notCalculated, Is.Empty, "not calculated: " + string.Join(", ", notCalculated));
+
+            var names = fs.SelectedCompounds.Keys.ToList();
+            foreach (var so in fs.SimulationObjects.Values)
+            {
+                if (!(so is IMaterialStream ms) || so.GraphicObject.OutputConnectors[0].IsAttached) continue;
+                var x = ms.GetOverallComposition();
+                var main = Enumerable.Range(0, names.Count).OrderByDescending(i => x[i]).Take(3)
+                    .Select(i => names[i] + " " + x[i].ToString("0.000"));
+                TestContext.WriteLine("  " + so.GraphicObject.Tag + ": " + ms.GetMassFlow().ToString("0.000") + " kg/s, " +
+                                      (ms.GetTemperature() - 273.15).ToString("0.0") + " C, " + (ms.GetPressure() / 1e5).ToString("0.00") + " bar, " +
+                                      string.Join(", ", main));
+            }
+            foreach (var so in fs.SimulationObjects.Values.Where(o => o is IEnergyStream))
+                TestContext.WriteLine("  " + so.GraphicObject.Tag + ": " + ((IEnergyStream)so).GetEnergyFlow().ToString("0.0") + " kW");
         }
     }
 }

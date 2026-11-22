@@ -6,50 +6,645 @@
       "name": "Methanol synthesis",
       "description": "Syngas heated to the reactor temperature, methanol formed in an isothermal equilibrium reactor (CO and CO2 hydrogenation with the water-gas shift), then cooled and flashed into recycle gas and crude methanol.",
       "processType": "Transformation",
-      "compounds": [ "Hydrogen", "Carbon monoxide", "Carbon dioxide", "Methane", "Methanol", "Water" ],
-      "keyCompounds": [ "Methanol" ],
-      "reactants": [ "Hydrogen", "Carbon monoxide", "Carbon dioxide" ],
-      "products": [ "Methanol", "Water" ],
-      "propertyPackage": { "name": "Peng-Robinson (PR)" },
+      "compounds": [
+        "Hydrogen",
+        "Carbon monoxide",
+        "Carbon dioxide",
+        "Methane",
+        "Methanol",
+        "Water"
+      ],
+      "keyCompounds": [
+        "Methanol"
+      ],
+      "reactants": [
+        "Hydrogen",
+        "Carbon monoxide",
+        "Carbon dioxide"
+      ],
+      "products": [
+        "Methanol",
+        "Water"
+      ],
+      "propertyPackage": {
+        "name": "Peng-Robinson (PR)"
+      },
       "unitSystem": "SI",
       "reactions": [
-        { "type": "Equilibrium", "name": "CO hydrogenation", "stoichiometry": { "Carbon monoxide": -1, "Hydrogen": -2, "Methanol": 1 },
-          "baseCompound": "Carbon monoxide", "phase": "Vapor", "basis": "Fugacity", "units": "Pa" },
-        { "type": "Equilibrium", "name": "Reverse water-gas shift", "stoichiometry": { "Carbon dioxide": -1, "Hydrogen": -1, "Carbon monoxide": 1, "Water": 1 },
-          "baseCompound": "Carbon dioxide", "phase": "Vapor", "basis": "Fugacity", "units": "Pa" }
+        {
+          "type": "Equilibrium",
+          "name": "CO hydrogenation",
+          "stoichiometry": {
+            "Carbon monoxide": -1,
+            "Hydrogen": -2,
+            "Methanol": 1
+          },
+          "baseCompound": "Carbon monoxide",
+          "phase": "Vapor",
+          "basis": "Fugacity",
+          "units": "Pa"
+        },
+        {
+          "type": "Equilibrium",
+          "name": "Reverse water-gas shift",
+          "stoichiometry": {
+            "Carbon dioxide": -1,
+            "Hydrogen": -1,
+            "Carbon monoxide": 1,
+            "Water": 1
+          },
+          "baseCompound": "Carbon dioxide",
+          "phase": "Vapor",
+          "basis": "Fugacity",
+          "units": "Pa"
+        }
       ],
       "skeleton": {
         "objects": [
-          { "tag": "SYNGAS", "type": "MaterialStream", "temperature": 313.15, "pressure": 5000000, "molarFlow": 1000,
-            "composition": { "Hydrogen": 0.67, "Carbon monoxide": 0.23, "Carbon dioxide": 0.07, "Methane": 0.03 } },
-          { "tag": "E-101", "type": "Heater", "properties": { "CalcMode": "OutletTemperature", "OutletTemperature": 523.15, "DeltaP": 0 } },
-          { "tag": "Q-101", "type": "EnergyStream" },
-          { "tag": "S-2", "type": "MaterialStream" },
-          { "tag": "R-101", "type": "RCT_Equilibrium", "properties": { "ReactorOperationMode": "Isothermic", "DeltaP": 0 } },
-          { "tag": "Q-102", "type": "EnergyStream" },
-          { "tag": "S-3", "type": "MaterialStream" },
-          { "tag": "S-3L", "type": "MaterialStream" },
-          { "tag": "E-102", "type": "Cooler", "properties": { "CalcMode": "OutletTemperature", "OutletTemperature": 313.15, "DeltaP": 0 } },
-          { "tag": "Q-103", "type": "EnergyStream" },
-          { "tag": "S-4", "type": "MaterialStream" },
-          { "tag": "V-101", "type": "Vessel" },
-          { "tag": "RECYCLE GAS", "type": "MaterialStream" },
-          { "tag": "CRUDE METHANOL", "type": "MaterialStream" }
+          {
+            "tag": "SYNGAS",
+            "type": "MaterialStream",
+            "temperature": 313.15,
+            "pressure": 5000000,
+            "molarFlow": 1000,
+            "composition": {
+              "Hydrogen": 0.67,
+              "Carbon monoxide": 0.23,
+              "Carbon dioxide": 0.07,
+              "Methane": 0.03
+            }
+          },
+          {
+            "tag": "E-101",
+            "type": "Heater",
+            "properties": {
+              "CalcMode": "OutletTemperature",
+              "OutletTemperature": 523.15,
+              "DeltaP": 0
+            }
+          },
+          {
+            "tag": "Q-101",
+            "type": "EnergyStream"
+          },
+          {
+            "tag": "S-2",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "R-101",
+            "type": "RCT_Equilibrium",
+            "properties": {
+              "ReactorOperationMode": "Isothermic",
+              "DeltaP": 0
+            }
+          },
+          {
+            "tag": "Q-102",
+            "type": "EnergyStream"
+          },
+          {
+            "tag": "S-3",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "S-3L",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "E-102",
+            "type": "Cooler",
+            "properties": {
+              "CalcMode": "OutletTemperature",
+              "OutletTemperature": 313.15,
+              "DeltaP": 0
+            }
+          },
+          {
+            "tag": "Q-103",
+            "type": "EnergyStream"
+          },
+          {
+            "tag": "S-4",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "V-101",
+            "type": "Vessel"
+          },
+          {
+            "tag": "RECYCLE GAS",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "CRUDE METHANOL",
+            "type": "MaterialStream"
+          }
         ],
         "connections": [
-          { "from": "SYNGAS", "to": "E-101" },
-          { "from": "Q-101", "to": "E-101" },
-          { "from": "E-101", "to": "S-2" },
-          { "from": "S-2", "to": "R-101" },
-          { "from": "R-101", "to": "S-3", "fromPort": 0 },
-          { "from": "R-101", "to": "S-3L", "fromPort": 1 },
-          { "from": "Q-102", "to": "R-101", "toPort": 1 },
-          { "from": "S-3", "to": "E-102" },
-          { "from": "E-102", "to": "S-4" },
-          { "from": "E-102", "to": "Q-103" },
-          { "from": "S-4", "to": "V-101" },
-          { "from": "V-101", "to": "RECYCLE GAS", "fromPort": 0 },
-          { "from": "V-101", "to": "CRUDE METHANOL", "fromPort": 1 }
+          {
+            "from": "SYNGAS",
+            "to": "E-101"
+          },
+          {
+            "from": "Q-101",
+            "to": "E-101"
+          },
+          {
+            "from": "E-101",
+            "to": "S-2"
+          },
+          {
+            "from": "S-2",
+            "to": "R-101"
+          },
+          {
+            "from": "R-101",
+            "to": "S-3",
+            "fromPort": 0
+          },
+          {
+            "from": "R-101",
+            "to": "S-3L",
+            "fromPort": 1
+          },
+          {
+            "from": "Q-102",
+            "to": "R-101",
+            "toPort": 1
+          },
+          {
+            "from": "S-3",
+            "to": "E-102"
+          },
+          {
+            "from": "E-102",
+            "to": "S-4"
+          },
+          {
+            "from": "E-102",
+            "to": "Q-103"
+          },
+          {
+            "from": "S-4",
+            "to": "V-101"
+          },
+          {
+            "from": "V-101",
+            "to": "RECYCLE GAS",
+            "fromPort": 0
+          },
+          {
+            "from": "V-101",
+            "to": "CRUDE METHANOL",
+            "fromPort": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "ammonia-synthesis",
+      "name": "Ammonia synthesis loop",
+      "description": "Make-up gas mixed with the recycle, heated and converted to ammonia at equilibrium, then chilled and flashed. The liquid is the ammonia product, and the gas returns to the reactor with a small purge that keeps the argon down.",
+      "processType": "Transformation",
+      "compounds": [
+        "Nitrogen",
+        "Hydrogen",
+        "Ammonia",
+        "Argon"
+      ],
+      "keyCompounds": [
+        "Ammonia"
+      ],
+      "reactants": [
+        "Nitrogen",
+        "Hydrogen"
+      ],
+      "products": [
+        "Ammonia"
+      ],
+      "propertyPackage": {
+        "name": "Peng-Robinson (PR)"
+      },
+      "unitSystem": "SI",
+      "reactions": [
+        {
+          "type": "Equilibrium",
+          "name": "Ammonia synthesis",
+          "stoichiometry": {
+            "Nitrogen": -1,
+            "Hydrogen": -3,
+            "Ammonia": 2
+          },
+          "baseCompound": "Nitrogen",
+          "phase": "Vapor",
+          "basis": "Fugacity",
+          "units": "Pa"
+        }
+      ],
+      "skeleton": {
+        "objects": [
+          {
+            "tag": "MAKE-UP",
+            "type": "MaterialStream",
+            "temperature": 313.15,
+            "pressure": 15000000,
+            "molarFlow": 100,
+            "composition": {
+              "Nitrogen": 0.2475,
+              "Hydrogen": 0.7425,
+              "Argon": 0.01
+            }
+          },
+          {
+            "tag": "MIX-100",
+            "type": "NodeIn"
+          },
+          {
+            "tag": "S-1",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "E-100",
+            "type": "Heater",
+            "properties": {
+              "CalcMode": "OutletTemperature",
+              "OutletTemperature": 723.15,
+              "DeltaP": 0
+            }
+          },
+          {
+            "tag": "Q-100",
+            "type": "EnergyStream"
+          },
+          {
+            "tag": "S-2",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "R-100",
+            "type": "RCT_Equilibrium",
+            "properties": {
+              "ReactorOperationMode": "Isothermic",
+              "DeltaP": 0
+            }
+          },
+          {
+            "tag": "Q-101",
+            "type": "EnergyStream"
+          },
+          {
+            "tag": "S-3",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "S-3L",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "E-101",
+            "type": "Cooler",
+            "properties": {
+              "CalcMode": "OutletTemperature",
+              "OutletTemperature": 253.15,
+              "DeltaP": 0
+            }
+          },
+          {
+            "tag": "Q-102",
+            "type": "EnergyStream"
+          },
+          {
+            "tag": "S-4",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "V-100",
+            "type": "Vessel"
+          },
+          {
+            "tag": "S-5",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "AMMONIA",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "SPL-100",
+            "type": "NodeOut",
+            "properties": {
+              "Ratios[0]": 0.97,
+              "Ratios[1]": 0.03
+            }
+          },
+          {
+            "tag": "S-6",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "PURGE",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "REC-100",
+            "type": "OT_Recycle"
+          },
+          {
+            "tag": "RECYCLE",
+            "type": "MaterialStream",
+            "temperature": 253.15,
+            "pressure": 15000000,
+            "molarFlow": 300,
+            "composition": {
+              "Nitrogen": 0.22,
+              "Hydrogen": 0.66,
+              "Argon": 0.08,
+              "Ammonia": 0.04
+            }
+          }
+        ],
+        "connections": [
+          {
+            "from": "MAKE-UP",
+            "to": "MIX-100"
+          },
+          {
+            "from": "RECYCLE",
+            "to": "MIX-100"
+          },
+          {
+            "from": "MIX-100",
+            "to": "S-1"
+          },
+          {
+            "from": "S-1",
+            "to": "E-100"
+          },
+          {
+            "from": "Q-100",
+            "to": "E-100"
+          },
+          {
+            "from": "E-100",
+            "to": "S-2"
+          },
+          {
+            "from": "S-2",
+            "to": "R-100"
+          },
+          {
+            "from": "Q-101",
+            "to": "R-100",
+            "toPort": 1
+          },
+          {
+            "from": "R-100",
+            "to": "S-3",
+            "fromPort": 0
+          },
+          {
+            "from": "R-100",
+            "to": "S-3L",
+            "fromPort": 1
+          },
+          {
+            "from": "S-3",
+            "to": "E-101"
+          },
+          {
+            "from": "E-101",
+            "to": "S-4"
+          },
+          {
+            "from": "E-101",
+            "to": "Q-102"
+          },
+          {
+            "from": "S-4",
+            "to": "V-100"
+          },
+          {
+            "from": "V-100",
+            "to": "S-5",
+            "fromPort": 0
+          },
+          {
+            "from": "V-100",
+            "to": "AMMONIA",
+            "fromPort": 1
+          },
+          {
+            "from": "S-5",
+            "to": "SPL-100"
+          },
+          {
+            "from": "SPL-100",
+            "to": "S-6",
+            "fromPort": 0
+          },
+          {
+            "from": "SPL-100",
+            "to": "PURGE",
+            "fromPort": 1
+          },
+          {
+            "from": "S-6",
+            "to": "REC-100"
+          },
+          {
+            "from": "REC-100",
+            "to": "RECYCLE"
+          }
+        ]
+      }
+    },
+    {
+      "id": "styrene-from-ethylbenzene",
+      "name": "Styrene by ethylbenzene dehydrogenation",
+      "description": "Ethylbenzene and steam heated and passed over the dehydrogenation catalyst (a conversion reactor with 60 % conversion), then cooled and separated into the hydrogen off-gas, the crude styrene and the condensed water.",
+      "processType": "Transformation",
+      "compounds": [
+        "Ethylbenzene",
+        "Styrene",
+        "Hydrogen",
+        "Water"
+      ],
+      "keyCompounds": [
+        "Styrene"
+      ],
+      "reactants": [
+        "Ethylbenzene"
+      ],
+      "products": [
+        "Styrene",
+        "Hydrogen"
+      ],
+      "propertyPackage": {
+        "name": "Peng-Robinson (PR)"
+      },
+      "unitSystem": "SI",
+      "reactions": [
+        {
+          "type": "Conversion",
+          "name": "Ethylbenzene dehydrogenation",
+          "stoichiometry": {
+            "Ethylbenzene": -1,
+            "Styrene": 1,
+            "Hydrogen": 1
+          },
+          "baseCompound": "Ethylbenzene",
+          "phase": "Vapor",
+          "conversion": "60"
+        }
+      ],
+      "skeleton": {
+        "objects": [
+          {
+            "tag": "FEED",
+            "type": "MaterialStream",
+            "temperature": 423.15,
+            "pressure": 150000,
+            "molarFlow": 100,
+            "composition": {
+              "Ethylbenzene": 0.1,
+              "Water": 0.9
+            }
+          },
+          {
+            "tag": "E-100",
+            "type": "Heater",
+            "properties": {
+              "CalcMode": "OutletTemperature",
+              "OutletTemperature": 893.15,
+              "DeltaP": 0
+            }
+          },
+          {
+            "tag": "Q-100",
+            "type": "EnergyStream"
+          },
+          {
+            "tag": "S-1",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "R-100",
+            "type": "RCT_Conversion",
+            "properties": {
+              "ReactorOperationMode": "Isothermic",
+              "DeltaP": 0
+            }
+          },
+          {
+            "tag": "Q-101",
+            "type": "EnergyStream"
+          },
+          {
+            "tag": "S-2",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "S-2L",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "E-101",
+            "type": "Cooler",
+            "properties": {
+              "CalcMode": "OutletTemperature",
+              "OutletTemperature": 313.15,
+              "DeltaP": 0
+            }
+          },
+          {
+            "tag": "Q-102",
+            "type": "EnergyStream"
+          },
+          {
+            "tag": "S-3",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "V-100",
+            "type": "Vessel"
+          },
+          {
+            "tag": "OFF-GAS",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "CRUDE STYRENE",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "WATER",
+            "type": "MaterialStream"
+          }
+        ],
+        "connections": [
+          {
+            "from": "FEED",
+            "to": "E-100"
+          },
+          {
+            "from": "Q-100",
+            "to": "E-100"
+          },
+          {
+            "from": "E-100",
+            "to": "S-1"
+          },
+          {
+            "from": "S-1",
+            "to": "R-100"
+          },
+          {
+            "from": "Q-101",
+            "to": "R-100",
+            "toPort": 1
+          },
+          {
+            "from": "R-100",
+            "to": "S-2",
+            "fromPort": 0
+          },
+          {
+            "from": "R-100",
+            "to": "S-2L",
+            "fromPort": 1
+          },
+          {
+            "from": "S-2",
+            "to": "E-101"
+          },
+          {
+            "from": "E-101",
+            "to": "S-3"
+          },
+          {
+            "from": "E-101",
+            "to": "Q-102"
+          },
+          {
+            "from": "S-3",
+            "to": "V-100"
+          },
+          {
+            "from": "V-100",
+            "to": "OFF-GAS",
+            "fromPort": 0
+          },
+          {
+            "from": "V-100",
+            "to": "CRUDE STYRENE",
+            "fromPort": 1
+          },
+          {
+            "from": "V-100",
+            "to": "WATER",
+            "fromPort": 2
+          }
         ]
       }
     }
