@@ -45,6 +45,19 @@ Namespace ProcessCatalog
 
         Public Property Skeleton As SkeletonSpec
 
+        ''' <summary>Ready-made simulations of this process in the samples and in the Case Library, which the
+        ''' wizard offers to open in place of the new simulation.</summary>
+        Public Property Examples As New List(Of ExampleSpec)
+
+        ''' <summary>True when the process only points to ready-made simulations: it doesn't set up the
+        ''' compounds and the property package, and doesn't have a skeleton.</summary>
+        <JsonIgnore> Public ReadOnly Property IsExampleOnly As Boolean
+            Get
+                Return Compounds.Count = 0 AndAlso String.IsNullOrWhiteSpace(PropertyPackage?.Name) AndAlso
+                       (Skeleton Is Nothing OrElse Skeleton.Objects.Count = 0)
+            End Get
+        End Property
+
         ''' <summary>Where the definition came from (a resource name or a file path), for messages.</summary>
         <JsonIgnore> Public Property Source As String = ""
 
@@ -131,6 +144,84 @@ Namespace ProcessCatalog
     Public Class CallSpec
         Public Property Method As String = ""
         Public Property Args As New List(Of JToken)
+    End Class
+
+    ''' <summary>
+    ''' A ready-made simulation of a process: a file of the samples folder (Sample, the file name) or a case of
+    ''' the Case Library (Case, the folder of the case under 'cases', such as "other/raw-sugar-mill").
+    ''' </summary>
+    Public Class ExampleSpec
+        Public Property Title As String = ""
+        Public Property Sample As String = ""
+        Public Property [Case] As String = ""
+
+        <JsonIgnore> Public ReadOnly Property IsCase As Boolean
+            Get
+                Return Not String.IsNullOrWhiteSpace([Case])
+            End Get
+        End Property
+
+        Public Overrides Function ToString() As String
+            Return If(IsCase, "Case Library: ", "Sample: ") & Title
+        End Function
+    End Class
+
+    ''' <summary>Finds and fetches the ready-made simulations that the catalog points to.</summary>
+    Public NotInheritable Class ProcessExamples
+
+        Private Sub New()
+        End Sub
+
+        ''' <summary>
+        ''' The samples folder: next to the program, in the DWSIM install folder, or in the repository
+        ''' (PlatformFiles\Common\samples) when DWSIM runs from a build. Nothing when none is found.
+        ''' </summary>
+        Public Shared Function FindSamplesDirectory() As String
+            Dim baseDir = AppDomain.CurrentDomain.BaseDirectory
+            Dim candidates As New List(Of String) From {Path.Combine(baseDir, "samples")}
+            Dim local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)
+            If Not String.IsNullOrEmpty(local) Then candidates.Add(Path.Combine(local, "DWSIM", "samples"))
+            Dim dir = New DirectoryInfo(baseDir)
+            While dir IsNot Nothing
+                candidates.Add(Path.Combine(dir.FullName, "PlatformFiles", "Common", "samples"))
+                dir = dir.Parent
+            End While
+            Return candidates.FirstOrDefault(Function(d) Directory.Exists(d))
+        End Function
+
+        ''' <summary>The full path of a sample file, or Nothing when it isn't in the samples folder.</summary>
+        Public Shared Function SamplePath(sample As String) As String
+            Dim dir = FindSamplesDirectory()
+            If dir Is Nothing OrElse String.IsNullOrWhiteSpace(sample) Then Return Nothing
+            Dim p = Path.Combine(dir, sample)
+            Return If(File.Exists(p), p, Nothing)
+        End Function
+
+        ''' <summary>The examples of a process that this installation can open: samples that are present and
+        ''' every Case Library case (those are downloaded when opened).</summary>
+        Public Shared Function Available(p As ProcessDefinition) As List(Of ExampleSpec)
+            Return p.Examples.Where(Function(e) e.IsCase OrElse SamplePath(e.Sample) IsNot Nothing).ToList()
+        End Function
+
+        ''' <summary>
+        ''' Returns the local file of an example: the sample itself, or the Case Library case downloaded to a
+        ''' temporary file. Downloading needs the network; it throws with a message when the case isn't found.
+        ''' </summary>
+        Public Shared Function GetFile(e As ExampleSpec, Optional progress As Action(Of Integer) = Nothing) As String
+            If Not e.IsCase Then
+                Dim sp = SamplePath(e.Sample)
+                If sp Is Nothing Then Throw New FileNotFoundException("The sample isn't in the samples folder: " & e.Sample)
+                Return sp
+            End If
+            Dim note As String = Nothing
+            Dim cases = CaseLibraryFlowsheets.GetCaseLibraryFlowsheets(note)
+            Dim key = "/" & e.Case.Trim("/"c) & "/"
+            Dim found = cases?.FirstOrDefault(Function(c) ("/" & c.Path.Replace("\", "/")).IndexOf(key, StringComparison.OrdinalIgnoreCase) >= 0)
+            If found Is Nothing Then Throw New Exception("The case '" & e.Case & "' wasn't found in the Case Library" & If(String.IsNullOrEmpty(note), ".", " (" & note & ")."))
+            Return CaseLibraryFlowsheets.DownloadFlowsheet(found.DownloadUrl, If(progress, Sub(x)
+                                                                                               End Sub))
+        End Function
+
     End Class
 
     ''' <summary>Reads the process catalog: the files built into DWSIM and, optionally, a folder of the user's.</summary>
@@ -223,6 +314,8 @@ Namespace ProcessCatalog
         ''' external unit operations it needs. An empty list means the process can be applied as it is.</summary>
         Public Shared Function Validate(fs As IFlowsheet, p As ProcessDefinition) As List(Of String)
             Dim problems As New List(Of String)
+            'a process that only points to ready-made simulations doesn't set anything up
+            If p.IsExampleOnly Then Return problems
             For Each c In p.Compounds
                 If FindCompoundName(fs, c) Is Nothing Then problems.Add("Compound not found: " & c)
             Next
@@ -273,6 +366,7 @@ Namespace ProcessCatalog
         Public Shared Function ApplySetup(fs As IFlowsheet, p As ProcessDefinition) As List(Of String)
 
             Dim report As New List(Of String)
+            If p.IsExampleOnly Then Return report
 
             For Each c In p.Compounds
                 Dim name = FindCompoundName(fs, c)

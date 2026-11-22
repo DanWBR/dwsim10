@@ -150,7 +150,17 @@
             "to": "S-1"
           }
         ]
-      }
+      },
+      "examples": [
+        {
+          "title": "Refrigeration cycle (tutorial)",
+          "sample": "Tutorial 08 - Refrigeration Cycle.dwxmz"
+        },
+        {
+          "title": "Propane refrigeration cycle",
+          "case": "heat-integration-utilities/propane-refrigeration-cycle"
+        }
+      ]
     },
     {
       "id": "teg-dehydration",
@@ -267,7 +277,17 @@
           }
         ],
         "connections": []
-      }
+      },
+      "examples": [
+        {
+          "title": "Natural gas dew point control",
+          "case": "gas-processing/natural-gas-dew-point-control"
+        },
+        {
+          "title": "Natural gas water saturator",
+          "sample": "Natural Gas Water Saturator.dwxmz"
+        }
+      ]
     },
     {
       "id": "ngl-fractionation",
@@ -506,7 +526,17 @@
             "to": "S-1"
           }
         ]
-      }
+      },
+      "examples": [
+        {
+          "title": "Natural gas processing unit",
+          "sample": "Natural Gas Processing Unit.dwxmz"
+        },
+        {
+          "title": "Natural gas processing (tutorial)",
+          "sample": "Tutorial 11 - Natural Gas Processing.dwxmz"
+        }
+      ]
     },
     {
       "id": "steam-methane-reforming",
@@ -771,7 +801,17 @@
             "fromPort": 1
           }
         ]
-      }
+      },
+      "examples": [
+        {
+          "title": "Steam methane reforming to hydrogen",
+          "case": "reaction-systems/steam-methane-reforming-h2"
+        },
+        {
+          "title": "Hydrogen by catalytic steam reforming",
+          "sample": "Hydrogen production through Methane Catalytic Steam Reforming.dwxml"
+        }
+      ]
     },
     {
       "id": "gas-compression",
@@ -983,7 +1023,13 @@
             "to": "Q-300"
           }
         ]
-      }
+      },
+      "examples": [
+        {
+          "title": "Compressor performance map",
+          "case": "gas-processing/compressor-performance-map"
+        }
+      ]
     },
     {
       "id": "three-phase-separation",
@@ -1062,7 +1108,41 @@
             "fromPort": 2
           }
         ]
-      }
+      },
+      "examples": [
+        {
+          "title": "Three-phase separator",
+          "sample": "Three Phase Separator.dwxmz"
+        },
+        {
+          "title": "Reservoir oil two-stage separation",
+          "case": "separation-processes/reservoir-oil-pvt-two-stage-separation"
+        }
+      ]
+    },
+    {
+      "id": "crude-distillation",
+      "name": "Crude oil distillation",
+      "industry": "Oil, Gas and Refining",
+      "description": "Crude oil characterized from its assay and distilled in an atmospheric tower with side strippers into naphtha, kerosene, diesel and residue. Open one of the ready-made simulations to start from it.",
+      "processType": "PhysicalSeparation",
+      "propertyPackage": {
+        "name": ""
+      },
+      "examples": [
+        {
+          "title": "Atmospheric crude tower (inside-out solver)",
+          "case": "crude-distillation/atmospheric-crude-tower-inside-out"
+        },
+        {
+          "title": "Atmospheric crude tower with steam stripping",
+          "case": "crude-distillation/atmospheric-crude-tower-steam-stripping"
+        },
+        {
+          "title": "Petroleum distillation",
+          "sample": "Petroleum Distillation.dwxml"
+        }
+      ]
     }
   ]
 }

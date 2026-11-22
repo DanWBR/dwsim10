@@ -74,7 +74,17 @@
             "fromPort": 1
           }
         ]
-      }
+      },
+      "examples": [
+        {
+          "title": "Ibuprofen cooling crystallization with recycle",
+          "case": "separation-processes/ibuprofen-cooling-crystallization-with-recycle"
+        },
+        {
+          "title": "Aspirin synthesis with cooling crystallization",
+          "case": "reaction-systems/aspirin-acetylation-cooling-crystallization-acetic-acid-recovery"
+        }
+      ]
     },
     {
       "id": "solvent-recovery",
@@ -186,7 +196,13 @@
           }
         ],
         "connections": []
-      }
+      },
+      "examples": [
+        {
+          "title": "Ibuprofen solvent swap from ethanol to heptane",
+          "case": "separation-processes/ibuprofen-solvent-swap-ethanol-to-heptane"
+        }
+      ]
     },
     {
       "id": "freeze-drying",
@@ -261,7 +277,49 @@
             "fromPort": 1
           }
         ]
-      }
+      },
+      "examples": [
+        {
+          "title": "Freeze drying of a mannitol solution",
+          "case": "separation-processes/freeze-drying-mannitol-solution-vials"
+        },
+        {
+          "title": "Freeze drying of a sucrose solution",
+          "case": "separation-processes/freeze-drying-sucrose-solution-vials"
+        }
+      ]
+    },
+    {
+      "id": "ibuprofen-synthesis",
+      "name": "Ibuprofen synthesis",
+      "industry": "Pharma and Food",
+      "description": "The three-step BHC route to ibuprofen: acylation of isobutylbenzene, hydrogenation and carbonylation, with the product recovered. Open the ready-made simulation to start from it.",
+      "processType": "Transformation",
+      "propertyPackage": {
+        "name": ""
+      },
+      "examples": [
+        {
+          "title": "Ibuprofen BHC three-step synthesis",
+          "case": "reaction-systems/ibuprofen-bhc-three-step-synthesis"
+        }
+      ]
+    },
+    {
+      "id": "uht-milk",
+      "name": "UHT milk by direct steam injection",
+      "industry": "Pharma and Food",
+      "description": "Milk heated to the UHT temperature by direct steam injection, held, and flash-cooled to take the added water out again. Open the ready-made simulation to start from it.",
+      "processType": "Unspecified",
+      "propertyPackage": {
+        "name": ""
+      },
+      "examples": [
+        {
+          "title": "UHT milk by direct steam injection",
+          "case": "other/uht-milk-direct-steam-injection"
+        }
+      ]
     }
   ]
 }

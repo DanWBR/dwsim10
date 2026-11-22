@@ -76,8 +76,17 @@ namespace DWSIM.Engine.SmokeTests
             foreach (var p in all)
             {
                 Assert.That(p.Industry, Is.Not.Empty, p.Id);
-                var problems = ProcessApplier.Validate(fs, p);
+                // a Patreon unit operation or package that this build doesn't have isn't a fault of the catalog
+                var problems = ProcessApplier.Validate(fs, p)
+                    .Where(x => !x.StartsWith("Unit operation not available") && !x.StartsWith("Property package not available")).ToList();
                 Assert.That(problems, Is.Empty, p.Id + ": " + string.Join("; ", problems));
+                // a ready-made simulation has a title and points to a sample file or a Case Library case
+                foreach (var ex in p.Examples)
+                {
+                    Assert.That(ex.Title, Is.Not.Empty, p.Id);
+                    Assert.That(string.IsNullOrWhiteSpace(ex.Sample) != string.IsNullOrWhiteSpace(ex.Case), Is.True, p.Id + ": " + ex.Title);
+                }
+                if (p.IsExampleOnly) Assert.That(p.Examples, Is.Not.Empty, p.Id);
             }
         }
 
@@ -90,6 +99,7 @@ namespace DWSIM.Engine.SmokeTests
         public void ProcessBuildsAndSolves(string id)
         {
             var p = ProcessCatalogLoader.LoadBuiltIn().Single(x => x.Id == id);
+            if (p.IsExampleOnly) Assert.Ignore(id + " only points to ready-made simulations");
             var fs = NewFlowsheet();
             var problems = ProcessApplier.Validate(fs, p);
             if (problems.Count > 0) Assert.Ignore(id + " needs: " + string.Join("; ", problems));

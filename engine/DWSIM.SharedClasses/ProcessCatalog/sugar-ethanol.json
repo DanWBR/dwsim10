@@ -6,33 +6,148 @@
       "name": "Hydrous ethanol distillation",
       "description": "A dilute ethanol and water feed, such as a fermented wine, distilled in a column with a total condenser to hydrous ethanol at the top and a stillage at the bottom.",
       "processType": "PhysicalSeparation",
-      "compounds": [ "Ethanol", "Water" ],
-      "keyCompounds": [ "Ethanol", "Water" ],
-      "products": [ "Ethanol" ],
-      "propertyPackage": { "name": "NRTL" },
+      "compounds": [
+        "Ethanol",
+        "Water"
+      ],
+      "keyCompounds": [
+        "Ethanol",
+        "Water"
+      ],
+      "products": [
+        "Ethanol"
+      ],
+      "propertyPackage": {
+        "name": "NRTL"
+      },
       "unitSystem": "SI",
       "skeleton": {
         "objects": [
-          { "tag": "WINE", "type": "MaterialStream", "temperature": 363.15, "pressure": 101325, "massFlow": 10,
-            "composition": { "Ethanol": 0.10, "Water": 0.90 }, "compositionBasis": "mass" },
-          { "tag": "T-101", "type": "DistillationColumn",
+          {
+            "tag": "WINE",
+            "type": "MaterialStream",
+            "temperature": 363.15,
+            "pressure": 101325,
+            "massFlow": 10,
+            "composition": {
+              "Ethanol": 0.1,
+              "Water": 0.9
+            },
+            "compositionBasis": "mass"
+          },
+          {
+            "tag": "T-101",
+            "type": "DistillationColumn",
             "calls": [
-              { "method": "SetNumberOfStages", "args": [ 20 ] },
-              { "method": "ConnectFeed", "args": [ "@WINE", 10 ] },
-              { "method": "ConnectDistillate", "args": [ "@HYDROUS ETHANOL" ] },
-              { "method": "ConnectBottoms", "args": [ "@STILLAGE" ] },
-              { "method": "ConnectCondenserDuty", "args": [ "@QC" ] },
-              { "method": "ConnectReboilerDuty", "args": [ "@QR" ] },
-              { "method": "SetCondenserSpec", "args": [ "Reflux_Ratio", 3, "" ] },
-              { "method": "SetReboilerSpec", "args": [ "Product_Mass_Flow_Rate", 8.95, "kg/s" ] }
-            ] },
-          { "tag": "HYDROUS ETHANOL", "type": "MaterialStream" },
-          { "tag": "STILLAGE", "type": "MaterialStream" },
-          { "tag": "QC", "type": "EnergyStream" },
-          { "tag": "QR", "type": "EnergyStream" }
+              {
+                "method": "SetNumberOfStages",
+                "args": [
+                  20
+                ]
+              },
+              {
+                "method": "ConnectFeed",
+                "args": [
+                  "@WINE",
+                  10
+                ]
+              },
+              {
+                "method": "ConnectDistillate",
+                "args": [
+                  "@HYDROUS ETHANOL"
+                ]
+              },
+              {
+                "method": "ConnectBottoms",
+                "args": [
+                  "@STILLAGE"
+                ]
+              },
+              {
+                "method": "ConnectCondenserDuty",
+                "args": [
+                  "@QC"
+                ]
+              },
+              {
+                "method": "ConnectReboilerDuty",
+                "args": [
+                  "@QR"
+                ]
+              },
+              {
+                "method": "SetCondenserSpec",
+                "args": [
+                  "Reflux_Ratio",
+                  3,
+                  ""
+                ]
+              },
+              {
+                "method": "SetReboilerSpec",
+                "args": [
+                  "Product_Mass_Flow_Rate",
+                  8.95,
+                  "kg/s"
+                ]
+              }
+            ]
+          },
+          {
+            "tag": "HYDROUS ETHANOL",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "STILLAGE",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "QC",
+            "type": "EnergyStream"
+          },
+          {
+            "tag": "QR",
+            "type": "EnergyStream"
+          }
         ],
         "connections": []
-      }
+      },
+      "examples": [
+        {
+          "title": "Hydrated ethanol distillation with live steam",
+          "case": "separation-processes/hydrated-ethanol-distillation-live-steam"
+        },
+        {
+          "title": "Ethanol distillery",
+          "case": "separation-processes/ethanol-distillery"
+        },
+        {
+          "title": "Ethanol plant (tutorial)",
+          "sample": "Tutorial 12 - Ethanol Plant.dwxmz"
+        }
+      ]
+    },
+    {
+      "id": "raw-sugar-mill",
+      "name": "Raw sugar mill",
+      "industry": "Sugar and Ethanol",
+      "description": "Sugarcane juice extracted, clarified, concentrated in a multiple-effect evaporator and crystallized in three boilings to raw sugar and final molasses. Open one of the ready-made simulations to start from it.",
+      "processType": "PhysicalSeparation",
+      "propertyPackage": {
+        "name": ""
+      },
+      "examples": [
+        {
+          "title": "Raw sugar mill",
+          "case": "other/raw-sugar-mill"
+        },
+        {
+          "title": "Sugarcane mill with annexed distillery",
+          "case": "bioprocesses/sugarcane-mill-annexed-distillery"
+        }
+      ],
+      "requiredLevel": 3
     }
   ]
 }

@@ -200,7 +200,21 @@
             "fromPort": 1
           }
         ]
-      }
+      },
+      "examples": [
+        {
+          "title": "Methanol synthesis from syngas",
+          "case": "reaction-systems/methanol-synthesis-syngas"
+        },
+        {
+          "title": "Methanol synthesis (tutorial)",
+          "sample": "Tutorial 13 - Methanol Synthesis.dwxmz"
+        },
+        {
+          "title": "Methanol by CO2 hydrogenation",
+          "sample": "Methanol Synthesis by CO2 Hydrogenation.dwxmz"
+        }
+      ]
     },
     {
       "id": "ammonia-synthesis",
@@ -457,7 +471,17 @@
             "to": "RECYCLE"
           }
         ]
-      }
+      },
+      "examples": [
+        {
+          "title": "Ammonia synthesis (tutorial)",
+          "sample": "Tutorial 09 - Ammonia Synthesis.dwxmz"
+        },
+        {
+          "title": "Single-pass ammonia synthesis",
+          "case": "reaction-systems/ammonia-synthesis-single-pass"
+        }
+      ]
     },
     {
       "id": "styrene-from-ethylbenzene",
@@ -646,7 +670,13 @@
             "fromPort": 2
           }
         ]
-      }
+      },
+      "examples": [
+        {
+          "title": "Styrene polymerization",
+          "case": "reaction-systems/styrene-polymerization"
+        }
+      ]
     },
     {
       "id": "benzene-toluene-distillation",
@@ -759,7 +789,49 @@
           }
         ],
         "connections": []
-      }
+      },
+      "examples": [
+        {
+          "title": "Benzene and toluene distillation",
+          "case": "separation-processes/benzene-toluene-distillation"
+        },
+        {
+          "title": "Benzene and toluene separation (tutorial)",
+          "sample": "Tutorial 10 - Benzene Toluene Separation.dwxmz"
+        }
+      ]
+    },
+    {
+      "id": "cumene-production",
+      "name": "Cumene by benzene alkylation",
+      "industry": "Chemicals and Polymers",
+      "description": "Benzene alkylated with propylene to cumene, with the excess benzene recovered and recycled. Open the ready-made simulation to start from it.",
+      "processType": "Transformation",
+      "propertyPackage": {
+        "name": ""
+      },
+      "examples": [
+        {
+          "title": "Cumene by benzene alkylation",
+          "case": "reaction-systems/cumene-by-benzene-alkylation"
+        }
+      ]
+    },
+    {
+      "id": "biodiesel-production",
+      "name": "Biodiesel production",
+      "industry": "Chemicals and Polymers",
+      "description": "Vegetable oil transesterified with methanol to biodiesel, with the methanol recovered and the glycerol separated. Open the ready-made simulation to start from it.",
+      "processType": "Transformation",
+      "propertyPackage": {
+        "name": ""
+      },
+      "examples": [
+        {
+          "title": "Biodiesel production",
+          "sample": "Biodiesel Production.dwxmz"
+        }
+      ]
     }
   ]
 }

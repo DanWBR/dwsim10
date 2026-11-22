@@ -904,7 +904,22 @@ public partial class MainWindow : Window
     private async System.Threading.Tasks.Task TryCloseDocumentAsync(FlowsheetView view)
     {
         if (!await view.ConfirmCloseAsync()) return;
+        RemoveDocument(view);
+    }
 
+    /// <summary>
+    /// Opens a simulation in place of a new one, without asking to save the new one: the simulation
+    /// wizard does this when the user picks a ready-made simulation of the process.
+    /// </summary>
+    internal void ReplaceDocument(FlowsheetView view, string path)
+    {
+        OpenFlowsheetFile(path);
+        if (_openViews.Contains(view)) RemoveDocument(view);
+    }
+
+    /// <summary>Removes the tab and the content of a simulation and shows the next one.</summary>
+    private void RemoveDocument(FlowsheetView view)
+    {
         var index = _openViews.IndexOf(view);
         _openViews.Remove(view);
         DocContentHost.Children.Remove(view);

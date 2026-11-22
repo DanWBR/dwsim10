@@ -159,7 +159,13 @@
             "to": "S-1"
           }
         ]
-      }
+      },
+      "examples": [
+        {
+          "title": "Sugar mill back-pressure cogeneration",
+          "case": "heat-integration-utilities/sugar-mill-back-pressure-cogeneration"
+        }
+      ]
     },
     {
       "id": "gas-turbine-cycle",
@@ -347,7 +353,33 @@
             "to": "W-101"
           }
         ]
-      }
+      },
+      "examples": [
+        {
+          "title": "Supercritical CO2 recompression Brayton cycle",
+          "case": "heat-integration-utilities/sco2-recompression-brayton-cycle"
+        }
+      ]
+    },
+    {
+      "id": "green-hydrogen",
+      "name": "Green hydrogen by electrolysis",
+      "industry": "Power and Utilities",
+      "description": "Water split into hydrogen and oxygen in an electrolyzer powered by solar panels. Open one of the ready-made simulations to start from it.",
+      "processType": "Transformation",
+      "propertyPackage": {
+        "name": ""
+      },
+      "examples": [
+        {
+          "title": "Green hydrogen from solar electrolysis",
+          "case": "clean-energy/green-hydrogen-solar-electrolysis"
+        },
+        {
+          "title": "Water electrolyzer",
+          "sample": "Water Electrolyzer.dwxmz"
+        }
+      ]
     }
   ]
 }

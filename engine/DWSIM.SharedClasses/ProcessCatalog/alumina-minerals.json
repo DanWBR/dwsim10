@@ -1,0 +1,22 @@
+{
+  "industry": "Alumina and Minerals",
+  "processes": [
+    {
+      "id": "bayer-alumina-refinery",
+      "name": "Bayer alumina refinery",
+      "industry": "Alumina and Minerals",
+      "description": "Bauxite digested in caustic liquor, the red mud settled and washed, gibbsite precipitated on seed and calcined to alumina, with the liquor evaporated and returned to digestion. Open the ready-made simulation to start from it.",
+      "processType": "Transformation",
+      "propertyPackage": {
+        "name": ""
+      },
+      "examples": [
+        {
+          "title": "Gibbsitic bauxite alumina refinery",
+          "case": "other/gibbsitic-bauxite-alumina-refinery"
+        }
+      ],
+      "requiredLevel": 2
+    }
+  ]
+}

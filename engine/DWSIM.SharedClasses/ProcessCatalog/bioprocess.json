@@ -182,7 +182,13 @@
             "to": "BIOMETHANE"
           }
         ]
-      }
+      },
+      "examples": [
+        {
+          "title": "Biogas to grid",
+          "case": "bioprocesses/biogas-to-grid"
+        }
+      ]
     },
     {
       "id": "ethanol-fermentation",
@@ -280,7 +286,17 @@
             "fromPort": 1
           }
         ]
-      }
+      },
+      "examples": [
+        {
+          "title": "Cellulosic ethanol from corn stover",
+          "case": "bioprocesses/cellulosic-ethanol-from-corn-stover"
+        },
+        {
+          "title": "Citric acid fermentation and crystallization",
+          "case": "bioprocesses/citric-acid-fermentation-evaporative-crystallization"
+        }
+      ]
     }
   ]
 }

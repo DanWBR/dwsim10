@@ -320,6 +320,13 @@ public partial class SimulationSetupWizard : Window
     private TextBlock _processDetails = null!;
     private Border _processBadge = null!;
     private RadioButton _startNone = null!, _startSkeleton = null!, _startAssistant = null!;
+    private Border _examplesGroup = null!;
+    private ListBox _examplesList = null!;
+    private Button _openExample = null!;
+    private TextBlock _exampleStatus = null!;
+
+    /// <summary>Set by the flowsheet view: opens a ready-made simulation in place of the new one.</summary>
+    public Action<string>? OpenExample { get; set; }
     private bool _fillingProcesses;
     private const string AllIndustries = "All industries";
 
@@ -414,6 +421,29 @@ public partial class SimulationSetupWizard : Window
         DockPanel.SetDock(startGroup, global::Avalonia.Controls.Dock.Bottom);
         right.Children.Add(startGroup);
 
+        // the ready-made simulations of the process, in the samples and in the Case Library
+        _examplesList = new ListBox { MaxHeight = DWSIM.UI.Shared.Avalonia.UiScale.Size(110) };
+        global::Avalonia.Automation.AutomationProperties.SetAutomationId(_examplesList, "ProcessExamples");
+        _openExample = new Button { Content = "Open", MinWidth = 90, IsEnabled = false };
+        global::Avalonia.Automation.AutomationProperties.SetAutomationId(_openExample, "OpenProcessExample");
+        _exampleStatus = new TextBlock { Text = "Replaces the new simulation.", Opacity = 0.75, VerticalAlignment = VerticalAlignment.Center,
+                                         TextWrapping = TextWrapping.Wrap, FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11) };
+        _examplesList.SelectionChanged += (_, _) => _openExample.IsEnabled = _examplesList.SelectedItem != null;
+        _examplesList.DoubleTapped += (_, _) => OpenSelectedExample();
+        _openExample.Click += (_, _) => OpenSelectedExample();
+        var exampleButtons = new DockPanel { Margin = new Thickness(0, 6, 0, 0) };
+        DockPanel.SetDock(_openExample, global::Avalonia.Controls.Dock.Right);
+        exampleButtons.Children.Add(_openExample);
+        exampleButtons.Children.Add(_exampleStatus);
+        var exampleStack = new StackPanel { Spacing = 0 };
+        exampleStack.Children.Add(_examplesList);
+        exampleStack.Children.Add(exampleButtons);
+        _examplesGroup = Group("Or open a ready-made simulation", exampleStack);
+        _examplesGroup.Margin = new Thickness(0, 8, 0, 0);
+        _examplesGroup.IsVisible = false;
+        DockPanel.SetDock(_examplesGroup, global::Avalonia.Controls.Dock.Bottom);
+        right.Children.Add(_examplesGroup);
+
         _processDetails = new TextBlock { TextWrapping = TextWrapping.Wrap };
         right.Children.Add(new ScrollViewer { Content = _processDetails, HorizontalScrollBarVisibility = global::Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled });
         Grid.SetRow(right, 1);
@@ -478,6 +508,28 @@ public partial class SimulationSetupWizard : Window
 
     private void ShowProcessDetails(DWSIM.SharedClasses.ProcessCatalog.ProcessDefinition? p)
     {
+        _examplesList.Items.Clear();
+        if (p != null)
+            foreach (var ex in DWSIM.SharedClasses.ProcessCatalog.ProcessExamples.Available(p)) _examplesList.Items.Add(ex);
+        _examplesGroup.IsVisible = _examplesList.Items.Count > 0 && OpenExample != null;
+        if (_examplesList.Items.Count > 0) _examplesList.SelectedIndex = 0;
+        _openExample.IsEnabled = _examplesList.SelectedItem != null;
+        _exampleStatus.Text = "Replaces the new simulation.";
+
+        if (p != null && p.IsExampleOnly)
+        {
+            _processName.Text = p.Name;
+            _processDetails.Text = p.Description + Environment.NewLine + Environment.NewLine + "Industry: " + p.Industry +
+                                   Environment.NewLine + Environment.NewLine +
+                                   "The wizard doesn't set this process up: open one of the ready-made simulations below, or go on with the next steps to choose everything yourself.";
+            int lvl = DWSIM.SharedClasses.ProcessCatalog.ProcessApplier.GetRequiredLevel(_flowsheet, p);
+            _processBadge.IsVisible = lvl > 0;
+            if (lvl > 0) FlowsheetView.FillLevelBadge(_processBadge, lvl, DWSIM.SharedClasses.Utility.GetUserAccessLevel());
+            _startSkeleton.IsEnabled = false;
+            _startAssistant.IsEnabled = true;
+            return;
+        }
+
         if (p == null)
         {
             _processName.Text = "Blank Simulation";
@@ -516,6 +568,26 @@ public partial class SimulationSetupWizard : Window
 
         _startSkeleton.IsEnabled = HasSkeleton(p);
         _startAssistant.IsEnabled = true;
+    }
+
+    // a sample opens at once; a Case Library case is downloaded first
+    private async void OpenSelectedExample()
+    {
+        if (_examplesList.SelectedItem is not DWSIM.SharedClasses.ProcessCatalog.ExampleSpec ex || OpenExample == null) return;
+        _openExample.IsEnabled = false;
+        _exampleStatus.Text = ex.IsCase ? "Downloading the case..." : "Opening the sample...";
+        try
+        {
+            var file = await System.Threading.Tasks.Task.Run(() => DWSIM.SharedClasses.ProcessCatalog.ProcessExamples.GetFile(ex,
+                px => global::Avalonia.Threading.Dispatcher.UIThread.Post(() => _exampleStatus.Text = "Downloading the case (" + px + " %)...")));
+            Close();
+            OpenExample(file);
+        }
+        catch (Exception exc)
+        {
+            _exampleStatus.Text = "Couldn't open it: " + exc.Message;
+            _openExample.IsEnabled = true;
+        }
     }
 
     /// <summary>Applies the chosen process when the user leaves the step, after taking out what a

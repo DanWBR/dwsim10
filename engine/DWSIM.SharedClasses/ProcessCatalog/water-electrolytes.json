@@ -1,0 +1,21 @@
+{
+  "industry": "Water and Electrolytes",
+  "processes": [
+    {
+      "id": "seawater-desalination",
+      "name": "Seawater desalination",
+      "industry": "Water and Electrolytes",
+      "description": "Seawater desalinated by multi-effect distillation, which makes fresh water from the vapor of each effect and leaves a concentrated brine. Open the ready-made simulation to start from it.",
+      "processType": "PhysicalSeparation",
+      "propertyPackage": {
+        "name": ""
+      },
+      "examples": [
+        {
+          "title": "Multi-effect distillation of seawater",
+          "case": "electrolytes-and-aqueous/multi-effect-distillation-seawater-desalination"
+        }
+      ]
+    }
+  ]
+}

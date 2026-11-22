@@ -1,0 +1,22 @@
+{
+  "industry": "Pulp and Paper",
+  "processes": [
+    {
+      "id": "kraft-pulp-mill",
+      "name": "Kraft pulp mill",
+      "industry": "Pulp and Paper",
+      "description": "Wood chips cooked in a kraft digester, the pulp washed and bleached, and the black liquor evaporated and burned in the recovery boiler, with the white liquor made again in the causticizing plant. Open the ready-made simulation to start from it.",
+      "processType": "Transformation",
+      "propertyPackage": {
+        "name": ""
+      },
+      "examples": [
+        {
+          "title": "Bleached eucalyptus kraft mill",
+          "case": "other/bleached-eucalyptus-kraft-mill"
+        }
+      ],
+      "requiredLevel": 2
+    }
+  ]
+}

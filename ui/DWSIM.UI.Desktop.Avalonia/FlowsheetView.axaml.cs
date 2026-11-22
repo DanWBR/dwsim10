@@ -70,7 +70,11 @@ public partial class FlowsheetView : UserControl
     public void ShowSetupWizard()
     {
         if (_flowsheet == null) return;
-        new SimulationSetupWizard(_flowsheet) { ZoomToFit = () => { Canvas.Refresh(); ZoomFit(); } }.Show(HostWindow);
+        new SimulationSetupWizard(_flowsheet)
+        {
+            ZoomToFit = () => { Canvas.Refresh(); ZoomFit(); },
+            OpenExample = HostWindow is MainWindow mw ? path => mw.ReplaceDocument(this, path) : null
+        }.Show(HostWindow);
     }
 
     /// <summary>Opens the data regression tool over this simulation, for the welcome screen.</summary>
@@ -1044,7 +1048,11 @@ public partial class FlowsheetView : UserControl
 
         if (showWizard)
         {
-            var wizard = new SimulationSetupWizard(fs) { ZoomToFit = () => { Canvas.Refresh(); ZoomFit(); } };
+            var wizard = new SimulationSetupWizard(fs)
+            {
+                ZoomToFit = () => { Canvas.Refresh(); ZoomFit(); },
+                OpenExample = HostWindow is MainWindow mw ? path => mw.ReplaceDocument(this, path) : null
+            };
             wizard.Show();
         }
     }
