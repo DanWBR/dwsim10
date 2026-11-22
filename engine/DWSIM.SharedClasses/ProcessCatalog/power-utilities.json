@@ -160,6 +160,194 @@
           }
         ]
       }
+    },
+    {
+      "id": "gas-turbine-cycle",
+      "name": "Gas turbine cycle (Brayton)",
+      "description": "Air compressed to 15 bar, natural gas burned in it (a conversion reactor with complete combustion of the methane) and the hot gas expanded in the turbine down to the exhaust pressure.",
+      "processType": "Transformation",
+      "compounds": [
+        "Nitrogen",
+        "Oxygen",
+        "Methane",
+        "Carbon dioxide",
+        "Water"
+      ],
+      "keyCompounds": [
+        "Methane",
+        "Oxygen"
+      ],
+      "reactants": [
+        "Methane",
+        "Oxygen"
+      ],
+      "products": [
+        "Carbon dioxide",
+        "Water"
+      ],
+      "propertyPackage": {
+        "name": "Peng-Robinson (PR)"
+      },
+      "unitSystem": "SI",
+      "reactions": [
+        {
+          "type": "Conversion",
+          "name": "Methane combustion",
+          "stoichiometry": {
+            "Methane": -1,
+            "Oxygen": -2,
+            "Carbon dioxide": 1,
+            "Water": 2
+          },
+          "baseCompound": "Methane",
+          "phase": "Vapor",
+          "conversion": "100"
+        }
+      ],
+      "skeleton": {
+        "objects": [
+          {
+            "tag": "AIR",
+            "type": "MaterialStream",
+            "temperature": 288.15,
+            "pressure": 101325,
+            "massFlow": 20,
+            "composition": {
+              "Nitrogen": 0.79,
+              "Oxygen": 0.21
+            }
+          },
+          {
+            "tag": "K-100",
+            "type": "Compressor",
+            "properties": {
+              "CalcMode": "OutletPressure",
+              "POut": 1500000,
+              "AdiabaticEfficiency": 85
+            }
+          },
+          {
+            "tag": "W-100",
+            "type": "EnergyStream"
+          },
+          {
+            "tag": "S-1",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "FUEL GAS",
+            "type": "MaterialStream",
+            "temperature": 298.15,
+            "pressure": 1500000,
+            "massFlow": 0.4,
+            "composition": {
+              "Methane": 1
+            }
+          },
+          {
+            "tag": "MIX-100",
+            "type": "NodeIn"
+          },
+          {
+            "tag": "S-2",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "R-100",
+            "type": "RCT_Conversion",
+            "properties": {
+              "ReactorOperationMode": "Adiabatic",
+              "DeltaP": 0
+            }
+          },
+          {
+            "tag": "Q-100",
+            "type": "EnergyStream"
+          },
+          {
+            "tag": "S-3",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "S-3L",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "X-100",
+            "type": "Expander",
+            "properties": {
+              "CalcMode": "OutletPressure",
+              "POut": 105000,
+              "AdiabaticEfficiency": 88
+            }
+          },
+          {
+            "tag": "W-101",
+            "type": "EnergyStream"
+          },
+          {
+            "tag": "EXHAUST",
+            "type": "MaterialStream"
+          }
+        ],
+        "connections": [
+          {
+            "from": "AIR",
+            "to": "K-100"
+          },
+          {
+            "from": "W-100",
+            "to": "K-100"
+          },
+          {
+            "from": "K-100",
+            "to": "S-1"
+          },
+          {
+            "from": "S-1",
+            "to": "MIX-100"
+          },
+          {
+            "from": "FUEL GAS",
+            "to": "MIX-100"
+          },
+          {
+            "from": "MIX-100",
+            "to": "S-2"
+          },
+          {
+            "from": "S-2",
+            "to": "R-100"
+          },
+          {
+            "from": "Q-100",
+            "to": "R-100",
+            "toPort": 1
+          },
+          {
+            "from": "R-100",
+            "to": "S-3",
+            "fromPort": 0
+          },
+          {
+            "from": "R-100",
+            "to": "S-3L",
+            "fromPort": 1
+          },
+          {
+            "from": "S-3",
+            "to": "X-100"
+          },
+          {
+            "from": "X-100",
+            "to": "EXHAUST"
+          },
+          {
+            "from": "X-100",
+            "to": "W-101"
+          }
+        ]
+      }
     }
   ]
 }

@@ -772,6 +772,297 @@
           }
         ]
       }
+    },
+    {
+      "id": "gas-compression",
+      "name": "Gas compression with intercooling",
+      "description": "Low-pressure gas compressed in three stages from about 1 bar to 64 bar, with a cooler after each stage that brings the gas back to 40 C.",
+      "processType": "Transportation",
+      "compounds": [
+        "Methane",
+        "Ethane",
+        "Propane",
+        "Carbon dioxide"
+      ],
+      "keyCompounds": [
+        "Methane"
+      ],
+      "propertyPackage": {
+        "name": "Peng-Robinson (PR)"
+      },
+      "unitSystem": "SI",
+      "skeleton": {
+        "objects": [
+          {
+            "tag": "GAS",
+            "type": "MaterialStream",
+            "temperature": 303.15,
+            "pressure": 101325,
+            "massFlow": 5,
+            "composition": {
+              "Methane": 0.9,
+              "Ethane": 0.05,
+              "Propane": 0.03,
+              "Carbon dioxide": 0.02
+            }
+          },
+          {
+            "tag": "K-100",
+            "type": "Compressor",
+            "properties": {
+              "CalcMode": "OutletPressure",
+              "POut": 400000,
+              "AdiabaticEfficiency": 75
+            }
+          },
+          {
+            "tag": "W-100",
+            "type": "EnergyStream"
+          },
+          {
+            "tag": "S-1a",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "E-100",
+            "type": "Cooler",
+            "properties": {
+              "CalcMode": "OutletTemperature",
+              "OutletTemperature": 313.15,
+              "DeltaP": 0
+            }
+          },
+          {
+            "tag": "Q-100",
+            "type": "EnergyStream"
+          },
+          {
+            "tag": "S-1b",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "K-200",
+            "type": "Compressor",
+            "properties": {
+              "CalcMode": "OutletPressure",
+              "POut": 1600000,
+              "AdiabaticEfficiency": 75
+            }
+          },
+          {
+            "tag": "W-200",
+            "type": "EnergyStream"
+          },
+          {
+            "tag": "S-2a",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "E-200",
+            "type": "Cooler",
+            "properties": {
+              "CalcMode": "OutletTemperature",
+              "OutletTemperature": 313.15,
+              "DeltaP": 0
+            }
+          },
+          {
+            "tag": "Q-200",
+            "type": "EnergyStream"
+          },
+          {
+            "tag": "S-2b",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "K-300",
+            "type": "Compressor",
+            "properties": {
+              "CalcMode": "OutletPressure",
+              "POut": 6400000,
+              "AdiabaticEfficiency": 75
+            }
+          },
+          {
+            "tag": "W-300",
+            "type": "EnergyStream"
+          },
+          {
+            "tag": "S-3a",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "E-300",
+            "type": "Cooler",
+            "properties": {
+              "CalcMode": "OutletTemperature",
+              "OutletTemperature": 313.15,
+              "DeltaP": 0
+            }
+          },
+          {
+            "tag": "Q-300",
+            "type": "EnergyStream"
+          },
+          {
+            "tag": "HP GAS",
+            "type": "MaterialStream"
+          }
+        ],
+        "connections": [
+          {
+            "from": "GAS",
+            "to": "K-100"
+          },
+          {
+            "from": "W-100",
+            "to": "K-100"
+          },
+          {
+            "from": "K-100",
+            "to": "S-1a"
+          },
+          {
+            "from": "S-1a",
+            "to": "E-100"
+          },
+          {
+            "from": "E-100",
+            "to": "S-1b"
+          },
+          {
+            "from": "E-100",
+            "to": "Q-100"
+          },
+          {
+            "from": "S-1b",
+            "to": "K-200"
+          },
+          {
+            "from": "W-200",
+            "to": "K-200"
+          },
+          {
+            "from": "K-200",
+            "to": "S-2a"
+          },
+          {
+            "from": "S-2a",
+            "to": "E-200"
+          },
+          {
+            "from": "E-200",
+            "to": "S-2b"
+          },
+          {
+            "from": "E-200",
+            "to": "Q-200"
+          },
+          {
+            "from": "S-2b",
+            "to": "K-300"
+          },
+          {
+            "from": "W-300",
+            "to": "K-300"
+          },
+          {
+            "from": "K-300",
+            "to": "S-3a"
+          },
+          {
+            "from": "S-3a",
+            "to": "E-300"
+          },
+          {
+            "from": "E-300",
+            "to": "HP GAS"
+          },
+          {
+            "from": "E-300",
+            "to": "Q-300"
+          }
+        ]
+      }
+    },
+    {
+      "id": "three-phase-separation",
+      "name": "Three-phase separation of well fluid",
+      "description": "A well stream separated at 30 bar into gas, oil and water in a three-phase separator, the first step of an oil and gas production facility.",
+      "processType": "PhysicalSeparation",
+      "compounds": [
+        "Methane",
+        "Ethane",
+        "Propane",
+        "N-hexane",
+        "N-decane",
+        "Water"
+      ],
+      "keyCompounds": [
+        "Methane",
+        "N-decane",
+        "Water"
+      ],
+      "propertyPackage": {
+        "name": "Peng-Robinson (PR)"
+      },
+      "unitSystem": "SI",
+      "skeleton": {
+        "objects": [
+          {
+            "tag": "WELL FLUID",
+            "type": "MaterialStream",
+            "temperature": 333.15,
+            "pressure": 3000000,
+            "massFlow": 20,
+            "composition": {
+              "Methane": 0.3,
+              "Ethane": 0.05,
+              "Propane": 0.04,
+              "N-hexane": 0.11,
+              "N-decane": 0.2,
+              "Water": 0.3
+            }
+          },
+          {
+            "tag": "V-100",
+            "type": "Vessel"
+          },
+          {
+            "tag": "GAS",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "OIL",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "WATER",
+            "type": "MaterialStream"
+          }
+        ],
+        "connections": [
+          {
+            "from": "WELL FLUID",
+            "to": "V-100"
+          },
+          {
+            "from": "V-100",
+            "to": "GAS",
+            "fromPort": 0
+          },
+          {
+            "from": "V-100",
+            "to": "OIL",
+            "fromPort": 1
+          },
+          {
+            "from": "V-100",
+            "to": "WATER",
+            "fromPort": 2
+          }
+        ]
+      }
     }
   ]
 }

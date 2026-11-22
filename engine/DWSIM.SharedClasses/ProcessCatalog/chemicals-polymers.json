@@ -647,6 +647,119 @@
           }
         ]
       }
+    },
+    {
+      "id": "benzene-toluene-distillation",
+      "name": "Benzene and toluene distillation",
+      "description": "An equimolar benzene and toluene feed split in a distillation column into benzene at the top and toluene at the bottom.",
+      "processType": "PhysicalSeparation",
+      "compounds": [
+        "Benzene",
+        "Toluene"
+      ],
+      "keyCompounds": [
+        "Benzene",
+        "Toluene"
+      ],
+      "products": [
+        "Benzene",
+        "Toluene"
+      ],
+      "propertyPackage": {
+        "name": "Peng-Robinson (PR)"
+      },
+      "unitSystem": "SI",
+      "skeleton": {
+        "objects": [
+          {
+            "tag": "FEED",
+            "type": "MaterialStream",
+            "temperature": 365.15,
+            "pressure": 101325,
+            "molarFlow": 100,
+            "composition": {
+              "Benzene": 0.5,
+              "Toluene": 0.5
+            }
+          },
+          {
+            "tag": "T-100",
+            "type": "DistillationColumn",
+            "calls": [
+              {
+                "method": "SetNumberOfStages",
+                "args": [
+                  25
+                ]
+              },
+              {
+                "method": "ConnectFeed",
+                "args": [
+                  "@FEED",
+                  12
+                ]
+              },
+              {
+                "method": "ConnectDistillate",
+                "args": [
+                  "@BENZENE"
+                ]
+              },
+              {
+                "method": "ConnectBottoms",
+                "args": [
+                  "@TOLUENE"
+                ]
+              },
+              {
+                "method": "ConnectCondenserDuty",
+                "args": [
+                  "@QC"
+                ]
+              },
+              {
+                "method": "ConnectReboilerDuty",
+                "args": [
+                  "@QR"
+                ]
+              },
+              {
+                "method": "SetCondenserSpec",
+                "args": [
+                  "Reflux_Ratio",
+                  2.5,
+                  ""
+                ]
+              },
+              {
+                "method": "SetReboilerSpec",
+                "args": [
+                  "Product_Molar_Flow_Rate",
+                  50,
+                  "mol/s"
+                ]
+              }
+            ]
+          },
+          {
+            "tag": "BENZENE",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "TOLUENE",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "QC",
+            "type": "EnergyStream"
+          },
+          {
+            "tag": "QR",
+            "type": "EnergyStream"
+          }
+        ],
+        "connections": []
+      }
     }
   ]
 }

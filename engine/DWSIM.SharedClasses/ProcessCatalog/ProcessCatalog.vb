@@ -536,6 +536,18 @@ Namespace ProcessCatalog
 
         Private Shared Sub SetMember(target As Object, name As String, value As JToken, report As List(Of String), owner As String)
             Try
+                ' "Config.MembraneArea" sets a property of an object the unit operation holds
+                Dim dot = name.IndexOf("."c)
+                If dot > 0 Then
+                    Dim head = target.GetType().GetProperty(name.Substring(0, dot), BindingFlags.Public Or BindingFlags.Instance Or BindingFlags.IgnoreCase)
+                    Dim inner = head?.GetValue(target)
+                    If inner Is Nothing Then
+                        report.Add(owner & ": property not found: " & name.Substring(0, dot))
+                    Else
+                        SetMember(inner, name.Substring(dot + 1), value, report, owner)
+                    End If
+                    Return
+                End If
                 Dim t = target.GetType()
                 ' "Ratios[0]" sets an item of a list property (the split ratios of a splitter)
                 Dim m = Text.RegularExpressions.Regex.Match(name, "^(\w+)\[(\d+)\]$")

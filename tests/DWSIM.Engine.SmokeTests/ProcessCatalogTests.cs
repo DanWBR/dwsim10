@@ -36,6 +36,15 @@ namespace DWSIM.Engine.SmokeTests
             Settings.InspectorEnabled = false;
             Settings.CultureInfo = "en";
             FlowsheetBase.FlowsheetBase.AddPropPacks();
+
+            // a local run can check the processes that need Patreon components: copy those components
+            // into unitops and ppacks next to the tests, with DWSIM.Support, and set DWSIM_TEST_ACCESS_LEVEL
+            if (int.TryParse(Environment.GetEnvironmentVariable("DWSIM_TEST_ACCESS_LEVEL"), out var level))
+            {
+                var init = Type.GetType("DWSIM.Support.Initialization, DWSIM.Support");
+                init?.GetProperty("AccessLevelProvider", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+                    ?.SetValue(null, new Func<int>(() => level));
+            }
         }
 
         private static DWSIM.DynamicRunner.Flowsheet NewFlowsheet()

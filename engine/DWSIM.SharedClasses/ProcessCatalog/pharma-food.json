@@ -187,6 +187,81 @@
         ],
         "connections": []
       }
+    },
+    {
+      "id": "freeze-drying",
+      "name": "Freeze drying in vials",
+      "description": "A product solution filled in vials, frozen, and dried under vacuum in a lyophilizer: the ice sublimes in the primary drying and the bound water leaves in the secondary drying. The example is a 5 % mannitol solution.",
+      "processType": "PhysicalSeparation",
+      "compounds": [
+        "Water",
+        "d-Mannitol"
+      ],
+      "keyCompounds": [
+        "Water",
+        "d-Mannitol"
+      ],
+      "products": [
+        "d-Mannitol"
+      ],
+      "propertyPackage": {
+        "name": "NRTL"
+      },
+      "unitSystem": "SI",
+      "skeleton": {
+        "objects": [
+          {
+            "tag": "SOLUTION",
+            "type": "MaterialStream",
+            "temperature": 293.15,
+            "pressure": 101325,
+            "massFlow": 0.000492,
+            "composition": {
+              "Water": 0.95,
+              "d-Mannitol": 0.05
+            },
+            "compositionBasis": "mass"
+          },
+          {
+            "tag": "LYO-100",
+            "external": "Lyophilizer"
+          },
+          {
+            "tag": "SHELF HEAT",
+            "type": "EnergyStream"
+          },
+          {
+            "tag": "DRIED CAKE",
+            "type": "MaterialStream"
+          },
+          {
+            "tag": "WATER VAPOR",
+            "type": "MaterialStream"
+          }
+        ],
+        "connections": [
+          {
+            "from": "SOLUTION",
+            "to": "LYO-100",
+            "toPort": 0
+          },
+          {
+            "from": "SHELF HEAT",
+            "to": "LYO-100",
+            "toPort": 1
+          },
+          {
+            "from": "LYO-100",
+            "to": "DRIED CAKE",
+            "fromPort": 0
+          },
+          {
+            "from": "LYO-100",
+            "to": "WATER VAPOR",
+            "fromPort": 1
+          }
+        ]
+      }
     }
   ]
 }
