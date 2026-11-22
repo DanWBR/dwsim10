@@ -76,6 +76,7 @@ public partial class SimulationSetupWizard : Window
     private static readonly (string Title, string Description)[] Steps =
     {
         ("Introduction", "What this wizard sets up."),
+        ("Process Type", "Pick the process you will simulate, and DWSIM fills in the compounds, the property package, the reactions and the units for it."),
         ("Compounds", "Pick the compounds the simulation works with. Use the search box to find them by name, CAS number, formula or database."),
         ("Reactions", "Set up the reactions between the compounds you added. A simulation without reactors does not need any."),
         ("Property Packages", "Add the thermodynamic models the simulation calculates with. The first one on the list is the default for new objects."),
@@ -89,7 +90,8 @@ public partial class SimulationSetupWizard : Window
 
     private readonly List<Control> _pages = new();
     private Reactions.ReactionFinderPanel? _finderPanel;
-    private const int ReactionsPageIndex = 2;   // Introduction, Compounds, Reactions, ...
+    private const int ProcessPageIndex = 1;     // Introduction, Process Type, Compounds, Reactions, ...
+    private const int ReactionsPageIndex = 3;
     private readonly List<TextBlock> _stepLabels = new();
 
     private readonly ObservableCollection<CompoundRow> _compoundRows = new();
@@ -121,7 +123,10 @@ public partial class SimulationSetupWizard : Window
         BuildSteps();
 
         _pages.Add(BuildIntroduction());
-        _pages.Add(BuildCompounds());
+        // the compounds step is built first so that the process step can tick its rows
+        var compounds = BuildCompounds();
+        _pages.Add(BuildProcessType());
+        _pages.Add(compounds);
         _pages.Add(BuildReactions());
         _pages.Add(BuildPropertyPackages());
         _pages.Add(BuildUnits());
@@ -131,7 +136,7 @@ public partial class SimulationSetupWizard : Window
 
         BtnBack.Click += (_, _) => Show(_current - 1);
         BtnNext.Click += (_, _) => Show(_current + 1);
-        BtnFinish.Click += (_, _) => Close();
+        BtnFinish.Click += (_, _) => { CreateStartingFlowsheet(); Close(); };
         BtnCancel.Click += (_, _) => Close();
 
         _loading = false;
@@ -182,6 +187,10 @@ public partial class SimulationSetupWizard : Window
     {
         if (page < 0 || page >= _pages.Count) return;
 
+        // leaving the process step applies the chosen process, so the next steps show what it added
+        if (_current == ProcessPageIndex && page != ProcessPageIndex)
+            ApplySelectedProcess();
+
         // leaving the reactions step commits the checked suggestions to the default set (the checks
         // are idempotent), matching the classic wizard's commit-on-next
         if (_current == ReactionsPageIndex && page != ReactionsPageIndex)
@@ -214,8 +223,8 @@ public partial class SimulationSetupWizard : Window
 
         // the pages that read the simulation are filled when they are shown, so a compound
         // added on step 2 is already there when the property packages are picked on step 4
-        if (page == 3) RefreshPropertyPackages();
-        if (page == 4) LoadUnitSystem();
+        if (page == 4) RefreshPropertyPackages();
+        if (page == 5) LoadUnitSystem();
     }
 
     private static Border Group(string title, Control content)
@@ -295,7 +304,313 @@ public partial class SimulationSetupWizard : Window
     }
 
     // -------------------------------------------------------------------------
-    // 2. Compounds
+    // 2. Process type
+    // -------------------------------------------------------------------------
+
+    private List<DWSIM.SharedClasses.ProcessCatalog.ProcessDefinition> _processes = new();
+    private DWSIM.SharedClasses.ProcessCatalog.ProcessDefinition? _selectedProcess;
+    private DWSIM.SharedClasses.ProcessCatalog.ProcessDefinition? _appliedProcess;
+    private List<string> _addedCompounds = new();
+    private List<string> _addedPackages = new();
+    private List<string> _addedReactions = new();
+    private ListBox _industryList = null!;
+    private ListBox _processList = null!;
+    private TextBox _processSearch = null!;
+    private TextBlock _processName = null!;
+    private TextBlock _processDetails = null!;
+    private Border _processBadge = null!;
+    private RadioButton _startNone = null!, _startSkeleton = null!, _startAssistant = null!;
+    private bool _fillingProcesses;
+    private const string AllIndustries = "All industries";
+
+    /// <summary>The folder where the user can keep processes of their own, one catalog file per industry.</summary>
+    public static string UserProcessCatalogFolder() =>
+        System.IO.Path.Combine(DWSIM.GlobalSettings.Settings.GetConfigFileDir(), "Process Catalog");
+
+    private Control BuildProcessType()
+    {
+        var errors = new List<string>();
+        _processes = DWSIM.SharedClasses.ProcessCatalog.ProcessCatalogLoader.LoadAll(UserProcessCatalogFolder(), errors);
+        foreach (var er in errors) _flowsheet.ShowMessage("Process catalog: " + er, IFlowsheet.MessageType.Warning);
+
+        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("0.9*,1.3*,1.5*"), RowDefinitions = new RowDefinitions("Auto,*") };
+
+        var intro = new TextBlock
+        {
+            Text = "Pick the industry and the process you will simulate. DWSIM then fills in the compounds, the property " +
+                   "package, the reactions and the units, and you can change any of them on the next steps. Pick Blank " +
+                   "Simulation to choose everything yourself.",
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 0, 0, 8)
+        };
+        Grid.SetColumnSpan(intro, 3);
+        grid.Children.Add(intro);
+
+        _industryList = new ListBox { Margin = new Thickness(0, 0, 6, 0) };
+        _industryList.Items.Add(AllIndustries);
+        foreach (var ind in DWSIM.SharedClasses.PaletteIndustry.Sort(_processes.Select(p => p.Industry)))
+            _industryList.Items.Add(ind);
+        _industryList.SelectedIndex = 0;
+        _industryList.SelectionChanged += (_, _) => FillProcessList();
+        Grid.SetRow(_industryList, 1);
+        grid.Children.Add(_industryList);
+
+        var middle = new DockPanel { Margin = new Thickness(0, 0, 6, 0) };
+        _processSearch = new TextBox { Watermark = "Search processes (name, compound or industry)", Margin = new Thickness(0, 0, 0, 4) };
+        global::Avalonia.Automation.AutomationProperties.SetAutomationId(_processSearch, "ProcessSearch");
+        _processSearch.TextChanged += (_, _) => FillProcessList();
+        // Enter or the down arrow picks the first process found
+        _processSearch.KeyDown += (_, e) =>
+        {
+            if (e.Key != global::Avalonia.Input.Key.Enter && e.Key != global::Avalonia.Input.Key.Down) return;
+            var first = _processList.Items.OfType<ListBoxItem>().FirstOrDefault(i => i.Tag is DWSIM.SharedClasses.ProcessCatalog.ProcessDefinition);
+            if (first != null) { _processList.SelectedItem = first; _processList.Focus(); }
+            e.Handled = true;
+        };
+        DockPanel.SetDock(_processSearch, global::Avalonia.Controls.Dock.Top);
+        middle.Children.Add(_processSearch);
+        _processList = new ListBox();
+        _processList.SelectionChanged += (_, _) =>
+        {
+            if (_fillingProcesses || _processList.SelectedItem is not ListBoxItem item) return;
+            _selectedProcess = item.Tag as DWSIM.SharedClasses.ProcessCatalog.ProcessDefinition;
+            ShowProcessDetails(_selectedProcess);
+            bool skeleton = HasSkeleton(_selectedProcess);
+            _startSkeleton.IsChecked = skeleton;
+            _startNone.IsChecked = !skeleton;
+        };
+        middle.Children.Add(_processList);
+        Grid.SetRow(middle, 1);
+        Grid.SetColumn(middle, 1);
+        grid.Children.Add(middle);
+
+        var right = new DockPanel();
+        var titleRow = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
+        _processBadge = new Border
+        {
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(3),
+            Padding = new Thickness(3, 0, 3, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+            IsVisible = false
+        };
+        DockPanel.SetDock(_processBadge, global::Avalonia.Controls.Dock.Right);
+        titleRow.Children.Add(_processBadge);
+        _processName = new TextBlock { FontWeight = FontWeight.Bold, FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(13), TextWrapping = TextWrapping.Wrap };
+        titleRow.Children.Add(_processName);
+        DockPanel.SetDock(titleRow, global::Avalonia.Controls.Dock.Top);
+        right.Children.Add(titleRow);
+
+        var startStack = new StackPanel { Spacing = 2 };
+        _startNone = new RadioButton { Content = "Start with an empty flowsheet", GroupName = "start", IsChecked = true };
+        _startSkeleton = new RadioButton { Content = "Build the starting flowsheet of this process", GroupName = "start" };
+        _startAssistant = new RadioButton { Content = "Ask the AI Assistant for a starting flowsheet", GroupName = "start",
+                                            IsVisible = DWSIM.GlobalSettings.Settings.AskAssistant != null };
+        startStack.Children.Add(_startNone);
+        startStack.Children.Add(_startSkeleton);
+        startStack.Children.Add(_startAssistant);
+        var startGroup = Group("When you click Finish", startStack);
+        startGroup.Margin = new Thickness(0, 8, 0, 0);
+        DockPanel.SetDock(startGroup, global::Avalonia.Controls.Dock.Bottom);
+        right.Children.Add(startGroup);
+
+        _processDetails = new TextBlock { TextWrapping = TextWrapping.Wrap };
+        right.Children.Add(new ScrollViewer { Content = _processDetails, HorizontalScrollBarVisibility = global::Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled });
+        Grid.SetRow(right, 1);
+        Grid.SetColumn(right, 2);
+        grid.Children.Add(right);
+
+        FillProcessList();
+        return grid;
+    }
+
+    private static bool HasSkeleton(DWSIM.SharedClasses.ProcessCatalog.ProcessDefinition? p) =>
+        p?.Skeleton != null && p.Skeleton.Objects.Count > 0;
+
+    private void FillProcessList()
+    {
+        if (_processList == null || _industryList == null) return;
+        _fillingProcesses = true;
+        _processList.Items.Clear();
+
+        var industry = _industryList.SelectedIndex > 0 ? _industryList.SelectedItem as string : null;
+        var query = _processSearch?.Text?.Trim() ?? "";
+        int userLevel = DWSIM.SharedClasses.Utility.GetUserAccessLevel();
+
+        ListBoxItem Header(string text) => new ListBoxItem
+        {
+            Content = new TextBlock { Text = text, FontWeight = FontWeight.SemiBold, Opacity = 0.7 },
+            IsEnabled = false,
+            Focusable = false
+        };
+
+        _processList.Items.Add(Header("Start from scratch"));
+        var blank = new ListBoxItem { Content = new TextBlock { Text = "Blank Simulation", Margin = new Thickness(10, 0, 0, 0) }, Tag = null };
+        _processList.Items.Add(blank);
+        ListBoxItem? selected = _selectedProcess == null ? blank : null;
+
+        string? lastIndustry = null;
+        foreach (var p in _processes)
+        {
+            if (industry != null && p.Industry != industry) continue;
+            if (!DWSIM.SharedClasses.Utility.PaletteSearchMatches(query, p.Name, p.Description, p.Industry, string.Join(" ", p.Compounds))) continue;
+            if (p.Industry != lastIndustry) { _processList.Items.Add(Header(p.Industry)); lastIndustry = p.Industry; }
+
+            var row = new DockPanel { Margin = new Thickness(10, 0, 0, 0) };
+            int level = DWSIM.SharedClasses.ProcessCatalog.ProcessApplier.GetRequiredLevel(_flowsheet, p);
+            if (level > 0)
+            {
+                var badge = new Border { BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(3), Padding = new Thickness(3, 0, 3, 0), Margin = new Thickness(6, 0, 0, 0) };
+                FlowsheetView.FillLevelBadge(badge, level, userLevel);
+                DockPanel.SetDock(badge, global::Avalonia.Controls.Dock.Right);
+                row.Children.Add(badge);
+            }
+            row.Children.Add(new TextBlock { Text = p.Name, VerticalAlignment = VerticalAlignment.Center });
+            var item = new ListBoxItem { Content = row, Tag = p };
+            _processList.Items.Add(item);
+            if (ReferenceEquals(p, _selectedProcess)) selected = item;
+        }
+
+        _processList.SelectedItem = selected;
+        _fillingProcesses = false;
+        ShowProcessDetails(_selectedProcess);
+    }
+
+    private void ShowProcessDetails(DWSIM.SharedClasses.ProcessCatalog.ProcessDefinition? p)
+    {
+        if (p == null)
+        {
+            _processName.Text = "Blank Simulation";
+            _processDetails.Text = "Choose the compounds, the property package, the reactions and the units yourself on the next steps.";
+            _processBadge.IsVisible = false;
+            _startSkeleton.IsEnabled = false;
+            _startAssistant.IsEnabled = false;
+            _startNone.IsChecked = true;
+            return;
+        }
+
+        _processName.Text = p.Name;
+        var lines = new List<string>
+        {
+            p.Description, "",
+            "Industry: " + p.Industry,
+            "Compounds: " + string.Join(", ", p.Compounds),
+            "Property package: " + p.PropertyPackage.Name
+        };
+        if (p.Reactions.Count > 0) lines.Add("Reactions: " + string.Join("; ", p.Reactions.Select(r => r.Name + " (" + r.Type + ")")));
+        if (!string.IsNullOrWhiteSpace(p.UnitSystem)) lines.Add("System of units: " + p.UnitSystem);
+        if (HasSkeleton(p))
+            lines.Add("Starting flowsheet: " + string.Join(", ", p.Skeleton!.Objects.Where(o => o.Type != "MaterialStream" && o.Type != "EnergyStream").Select(o => o.Tag)));
+        var problems = DWSIM.SharedClasses.ProcessCatalog.ProcessApplier.Validate(_flowsheet, p);
+        if (problems.Count > 0)
+        {
+            lines.Add("");
+            lines.Add("This installation can't apply all of it:");
+            lines.AddRange(problems.Select(x => "  " + x));
+        }
+        _processDetails.Text = string.Join(Environment.NewLine, lines);
+
+        int level = DWSIM.SharedClasses.ProcessCatalog.ProcessApplier.GetRequiredLevel(_flowsheet, p);
+        _processBadge.IsVisible = level > 0;
+        if (level > 0) FlowsheetView.FillLevelBadge(_processBadge, level, DWSIM.SharedClasses.Utility.GetUserAccessLevel());
+
+        _startSkeleton.IsEnabled = HasSkeleton(p);
+        _startAssistant.IsEnabled = true;
+    }
+
+    /// <summary>Applies the chosen process when the user leaves the step, after taking out what a
+    /// process chosen before added.</summary>
+    private void ApplySelectedProcess()
+    {
+        if (ReferenceEquals(_selectedProcess, _appliedProcess)) return;
+
+        UndoAppliedProcess();
+        if (_selectedProcess == null) return;
+
+        var compsBefore = _flowsheet.SelectedCompounds.Keys.ToList();
+        var ppsBefore = _flowsheet.PropertyPackages.Keys.ToList();
+        var rxBefore = _flowsheet.Reactions.Keys.ToList();
+
+        var report = DWSIM.SharedClasses.ProcessCatalog.ProcessApplier.ApplySetup(_flowsheet, _selectedProcess);
+
+        _addedCompounds = _flowsheet.SelectedCompounds.Keys.Except(compsBefore).ToList();
+        _addedPackages = _flowsheet.PropertyPackages.Keys.Except(ppsBefore).ToList();
+        _addedReactions = _flowsheet.Reactions.Keys.Except(rxBefore).ToList();
+        _appliedProcess = _selectedProcess;
+
+        foreach (var r in report) _flowsheet.ShowMessage(_selectedProcess.Name + ": " + r, IFlowsheet.MessageType.Warning);
+
+        RefreshCompoundRows();
+        _flowsheet.UpdateInterface();
+    }
+
+    private void UndoAppliedProcess()
+    {
+        if (_appliedProcess == null) return;
+
+        foreach (var c in _addedCompounds)
+            if (_flowsheet.SelectedCompounds.TryGetValue(c, out var comp)) CompoundSelection.Remove(_flowsheet, comp);
+        foreach (var id in _addedPackages) _flowsheet.PropertyPackages.Remove(id);
+        foreach (var id in _addedReactions)
+        {
+            _flowsheet.Reactions.Remove(id);
+            foreach (var rs in _flowsheet.ReactionSets.Values)
+                if (rs.Reactions.ContainsKey(id)) rs.Reactions.Remove(id);
+        }
+        _addedCompounds.Clear();
+        _addedPackages.Clear();
+        _addedReactions.Clear();
+        _appliedProcess = null;
+        RefreshCompoundRows();
+    }
+
+    // the check boxes of the compounds step follow what the process added or took out
+    private void RefreshCompoundRows()
+    {
+        var wasLoading = _loading;
+        _loading = true;
+        foreach (var row in _allCompoundRows) row.Added = _flowsheet.SelectedCompounds.ContainsKey(row.Compound.Name);
+        _loading = wasLoading;
+        UpdateCompoundCount();
+    }
+
+    /// <summary>Builds the starting flowsheet of the applied process, or asks the AI Assistant for one.</summary>
+    private void CreateStartingFlowsheet()
+    {
+        if (_appliedProcess == null) return;
+
+        if (_startSkeleton.IsChecked == true && HasSkeleton(_appliedProcess))
+        {
+            DWSIM.SharedClasses.ProcessCatalog.ProcessApplier.AddExternalHandler? addExternal = null;
+            if (_flowsheet is DWSIM.FlowsheetBase.FlowsheetBase fb)
+            {
+                addExternal = (template, x, y, tag) =>
+                {
+                    var fresh = (IExternalUnitOperation)template.ReturnInstance(template.GetType().AssemblyQualifiedName);
+                    var id = fb.AddObjectToSurface(DWSIM.Interfaces.Enums.GraphicObjects.ObjectType.External, x, y, tag, "", fresh, false);
+                    return fb.SimulationObjects[id];
+                };
+            }
+            var report = DWSIM.SharedClasses.ProcessCatalog.ProcessApplier.BuildSkeleton(_flowsheet, _appliedProcess, addExternal);
+            foreach (var r in report) _flowsheet.ShowMessage(_appliedProcess.Name + ": " + r, IFlowsheet.MessageType.Warning);
+            _flowsheet.ShowMessage("Starting flowsheet of " + _appliedProcess.Name + " created. Check the feed streams and the specifications before you solve it.",
+                                   IFlowsheet.MessageType.Information);
+            _flowsheet.UpdateInterface();
+            ZoomToFit?.Invoke();
+        }
+        else if (_startAssistant.IsChecked == true && DWSIM.GlobalSettings.Settings.AskAssistant != null)
+        {
+            var prompt = "Build a basic starting flowsheet for this process: " + _appliedProcess.Name + ". " + _appliedProcess.Description +
+                         " The compounds, the property package and the reactions are already in the simulation.";
+            DWSIM.GlobalSettings.Settings.AskAssistant.Invoke(_flowsheet, "", prompt);
+        }
+    }
+
+    /// <summary>Set by the flowsheet view: fits the drawing in the canvas after the starting flowsheet is built.</summary>
+    public Action? ZoomToFit { get; set; }
+
+    // -------------------------------------------------------------------------
+    // 3. Compounds
     // -------------------------------------------------------------------------
 
     private Control BuildCompounds()

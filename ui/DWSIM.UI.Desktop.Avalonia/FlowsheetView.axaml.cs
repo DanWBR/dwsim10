@@ -70,7 +70,7 @@ public partial class FlowsheetView : UserControl
     public void ShowSetupWizard()
     {
         if (_flowsheet == null) return;
-        new SimulationSetupWizard(_flowsheet).Show(HostWindow);
+        new SimulationSetupWizard(_flowsheet) { ZoomToFit = () => { Canvas.Refresh(); ZoomFit(); } }.Show(HostWindow);
     }
 
     /// <summary>Opens the data regression tool over this simulation, for the welcome screen.</summary>
@@ -1044,7 +1044,7 @@ public partial class FlowsheetView : UserControl
 
         if (showWizard)
         {
-            var wizard = new SimulationSetupWizard(fs);
+            var wizard = new SimulationSetupWizard(fs) { ZoomToFit = () => { Canvas.Refresh(); ZoomFit(); } };
             wizard.Show();
         }
     }
@@ -3594,7 +3594,7 @@ public partial class FlowsheetView : UserControl
         return grid;
     }
 
-    private static void FillLevelBadge(Border badge, int level, int userLevel)
+    internal static void FillLevelBadge(Border badge, int level, int userLevel)
     {
         bool locked = userLevel < level;
         var (back, fore, border) = level switch
