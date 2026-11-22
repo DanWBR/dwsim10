@@ -2677,7 +2677,12 @@ Imports DWSIM.ExtensionMethods
     Public Sub CheckTag(obj As IGraphicObject)
 
         While GetFlowsheetSimulationObject(obj.Tag) IsNot Nothing
-            obj.Tag = Regex.Replace(obj.Tag, "\d+", Function(m) (Integer.Parse(m.Value) + 1).ToString(New String("0", m.Value.Length)))
+            If Regex.IsMatch(obj.Tag, "\d") Then
+                obj.Tag = Regex.Replace(obj.Tag, "\d+", Function(m) (Integer.Parse(m.Value) + 1).ToString(New String("0", m.Value.Length)))
+            Else
+                'a tag without digits gets a number, because incrementing its digits would leave it unchanged
+                obj.Tag = obj.Tag & " 2"
+            End If
         End While
 
     End Sub
