@@ -40,6 +40,18 @@
 - [NEW] User Guide: Fire Water Networks section in the Pipe Network part, with the plant geometry, the hose reach, the drawings and water hammer
 - [NEW] Sample: Pipe Network - Fire Water Network (ring main with hydrants, jockey, main and standby fire pumps and a tank park with cooling rings and foam, placed on the plant for the drawings, with four water hammer cases)
 - [NEW] Tutorials: six pipe network tutorials in English and Portuguese (water distribution, gas gathering with a compressor, flare and relief network, fire water network, the fire water network on the plant with its documents, water hammer), each with a Python script and a saved flowsheet
+- [NEW] Kraft Liquors property package (Patreon, Premium): wood, pulp, white, green and black liquors, lime and lime mud; dissolved solids lumped by their dry solids, boiling point rise (eucalyptus or generic), enthalpy with the heat of dilution, density, viscosity, thermal conductivity and surface tension of black liquor
+- [NEW] Additional compounds with the tag Pulp: cellulose, xylan, glucomannan, hardwood and softwood lignin, wood extractives and acetyl groups, sodium lignates, isosaccharinates, lactate and tall oil soap, sodium sulfide, calcium oxide, dissolved chlorine dioxide and dissolved lignins
+- [NEW] Pulp Stream Analysis (Patreon, Premium; Utilities): consistency, dry solids, TTA, AA, EA, sulfidity, causticity, reduction, heating value, boiling point rise and kappa number of a stream; sets chips, pulp and liquors from the quantities of a mill
+- [NEW] Kraft Digester unit operation (Patreon, Premium): continuous digester with impregnation, cooking and wash zones, three-phase delignification and carbohydrate losses, target kappa or H-factor, yield, black liquor and heat duty
+- [NEW] Pulp Washer unit operation (Patreon, Premium): brown stock and bleach plant washing with the Nordén efficiency (E10) and typical values for diffusers, presses, filters and drum displacers
+- [NEW] Bleaching Stage unit operation (Patreon, Premium): chlorine dioxide (D) and oxygen (O) stages with published kinetics for eucalyptus pulp
+- [NEW] Evaporator Train unit operation (Patreon, Premium): multiple-effect black liquor evaporator, backward or forward feed, steam for a strong liquor dry solids or dry solids for a given steam, boiling point rise and temperature difference of each effect
+- [NEW] Recovery Boiler unit operation (Patreon, Premium): black liquor combustion, smelt at the reduction efficiency, steam from the feedwater by the heat loss method, optional dissolving tank to green liquor
+- [NEW] Causticizer and Lime Kiln unit operations (Patreon, Premium): slaking and causticizing to the equilibrium less an approach, lime as given or adjusted; lime mud calcination with the fuel flow that closes the heat balance
+- [NEW] User Guide: Pulp and Paper part (Kraft Liquors package, Pulp Stream Analysis and the kraft mill unit operations)
+- [NEW] Case Library: bleached eucalyptus kraft mill (about 1460 ADt/d, digester to dried pulp, oxygen and chlorine dioxide bleaching, evaporators, recovery boiler, causticizing and lime kiln with the white liquor and lime loops closed)
+- [NEW] Tutorial: kraft pulping and chemical recovery, in English and Portuguese, with a Python script and a saved flowsheet
 - [CHG] Flowsheet Check: warns when the streams of one fluid around a unit use different property packages
 - [CHG] Fail-safe flash with solids: a warning in the log names the stream, the specification and the original error
 - [CHG] Windows installers of final releases are signed with a code signing certificate
@@ -119,3 +131,5 @@
 - [FIX] Pipe Network with every outlet shut: numerical noise at zero flow stopped the solve with a reversed flow error at the reservoir
 - [FIX] Pipe Network: the gas left a compressor block at its inlet temperature; the compressor now adds the heat of compression with its efficiency, like the Compressor unit operation
 - [FIX] Flare networks: a knockout drum sized by the tool could fail its own velocity check by a rounding difference
+- [FIX] Solid salts of the electrolyte database had zero sensible heat, and compounds solid at 25 C lost their enthalpy of fusion (Na2SO4 23.6, Na2CO3 29.7, CaCO3 53.1 kJ/mol too low)
+- [FIX] Falling Film Evaporator in vapor fraction mode: a feed that already boiled above the outlet specification gave an outlet without vapor and no message; it now stops with a message
