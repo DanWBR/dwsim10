@@ -110,6 +110,7 @@ Version 10.3.0
 - [CHG] Windows installers of final releases are signed with a code signing certificate
 - [CHG] Naphtali-Sandholm column solver: the bubble point pass that prepares its estimates solves the column once and leaves a composition or stream ratio specification to the Newton iteration; it used to search for the reflux or bottoms rate that met it, which could take longer than the solve itself
 - [CHG] Welcome screen (Classic): a click on an item of the lists selects it and shows its details, a double-click opens it
+- [CHG] Recycle editor (Classic): an Acceleration list sets None, Wegstein, Dominant Eigenvalue or Global Broyden
 - [CHG] Samples and Case Library cases: process type, description, key compounds, reactants and products, and a picture of the flowsheet in the samples
 - [CHG] PH flash, fast mode: near a boiling point it takes about half the PT flashes, with the same result (a cane juice heater: 21 against 41)
 - [CHG] ADM1 Full Parameters window (cross-platform interface): every parameter group with the on/off options and the solver settings, a description of each parameter, and load and save of JSON parameter sets (the BSM2, swine manure and thermophilic sets open from the Samples folder)
@@ -186,6 +187,7 @@ Version 10.3.0
 - [FIX] Flare networks: a knockout drum sized by the tool could fail its own velocity check by a rounding difference
 - [FIX] Solid salts of the electrolyte database had zero sensible heat, and compounds solid at 25 C lost their enthalpy of fusion (Na2SO4 23.6, Na2CO3 29.7, CaCO3 53.1 kJ/mol too low)
 - [FIX] Falling Film Evaporator in vapor fraction mode: a feed that already boiled above the outlet specification gave an outlet without vapor and no message; it now stops with a message
+- [FIX] Reactor editors (Classic): the energy stream of a conversion reactor connected to its inlet energy port wasn't shown, and choosing another energy stream for an equilibrium or Gibbs reactor stopped with an error
 
 Version 10.2.16
 
