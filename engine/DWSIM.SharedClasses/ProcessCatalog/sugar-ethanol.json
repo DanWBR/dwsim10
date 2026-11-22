@@ -1,0 +1,38 @@
+{
+  "industry": "Sugar and Ethanol",
+  "processes": [
+    {
+      "id": "hydrous-ethanol-distillation",
+      "name": "Hydrous ethanol distillation",
+      "description": "A dilute ethanol and water feed, such as a fermented wine, distilled in a column with a total condenser to hydrous ethanol at the top and a stillage at the bottom.",
+      "processType": "PhysicalSeparation",
+      "compounds": [ "Ethanol", "Water" ],
+      "keyCompounds": [ "Ethanol", "Water" ],
+      "products": [ "Ethanol" ],
+      "propertyPackage": { "name": "NRTL" },
+      "unitSystem": "SI",
+      "skeleton": {
+        "objects": [
+          { "tag": "WINE", "type": "MaterialStream", "temperature": 363.15, "pressure": 101325, "massFlow": 10,
+            "composition": { "Ethanol": 0.10, "Water": 0.90 }, "compositionBasis": "mass" },
+          { "tag": "T-101", "type": "DistillationColumn",
+            "calls": [
+              { "method": "SetNumberOfStages", "args": [ 20 ] },
+              { "method": "ConnectFeed", "args": [ "@WINE", 10 ] },
+              { "method": "ConnectDistillate", "args": [ "@HYDROUS ETHANOL" ] },
+              { "method": "ConnectBottoms", "args": [ "@STILLAGE" ] },
+              { "method": "ConnectCondenserDuty", "args": [ "@QC" ] },
+              { "method": "ConnectReboilerDuty", "args": [ "@QR" ] },
+              { "method": "SetCondenserSpec", "args": [ "Reflux_Ratio", 3, "" ] },
+              { "method": "SetReboilerSpec", "args": [ "Product_Mass_Flow_Rate", 8.95, "kg/s" ] }
+            ] },
+          { "tag": "HYDROUS ETHANOL", "type": "MaterialStream" },
+          { "tag": "STILLAGE", "type": "MaterialStream" },
+          { "tag": "QC", "type": "EnergyStream" },
+          { "tag": "QR", "type": "EnergyStream" }
+        ],
+        "connections": []
+      }
+    }
+  ]
+}

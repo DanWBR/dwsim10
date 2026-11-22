@@ -1,0 +1,57 @@
+{
+  "industry": "Chemicals and Polymers",
+  "processes": [
+    {
+      "id": "methanol-synthesis",
+      "name": "Methanol synthesis",
+      "description": "Syngas heated to the reactor temperature, methanol formed in an isothermal equilibrium reactor (CO and CO2 hydrogenation with the water-gas shift), then cooled and flashed into recycle gas and crude methanol.",
+      "processType": "Transformation",
+      "compounds": [ "Hydrogen", "Carbon monoxide", "Carbon dioxide", "Methane", "Methanol", "Water" ],
+      "keyCompounds": [ "Methanol" ],
+      "reactants": [ "Hydrogen", "Carbon monoxide", "Carbon dioxide" ],
+      "products": [ "Methanol", "Water" ],
+      "propertyPackage": { "name": "Peng-Robinson (PR)" },
+      "unitSystem": "SI",
+      "reactions": [
+        { "type": "Equilibrium", "name": "CO hydrogenation", "stoichiometry": { "Carbon monoxide": -1, "Hydrogen": -2, "Methanol": 1 },
+          "baseCompound": "Carbon monoxide", "phase": "Vapor", "basis": "Fugacity", "units": "Pa" },
+        { "type": "Equilibrium", "name": "Reverse water-gas shift", "stoichiometry": { "Carbon dioxide": -1, "Hydrogen": -1, "Carbon monoxide": 1, "Water": 1 },
+          "baseCompound": "Carbon dioxide", "phase": "Vapor", "basis": "Fugacity", "units": "Pa" }
+      ],
+      "skeleton": {
+        "objects": [
+          { "tag": "SYNGAS", "type": "MaterialStream", "temperature": 313.15, "pressure": 5000000, "molarFlow": 1000,
+            "composition": { "Hydrogen": 0.67, "Carbon monoxide": 0.23, "Carbon dioxide": 0.07, "Methane": 0.03 } },
+          { "tag": "E-101", "type": "Heater", "properties": { "CalcMode": "OutletTemperature", "OutletTemperature": 523.15, "DeltaP": 0 } },
+          { "tag": "Q-101", "type": "EnergyStream" },
+          { "tag": "S-2", "type": "MaterialStream" },
+          { "tag": "R-101", "type": "RCT_Equilibrium", "properties": { "ReactorOperationMode": "Isothermic", "DeltaP": 0 } },
+          { "tag": "Q-102", "type": "EnergyStream" },
+          { "tag": "S-3", "type": "MaterialStream" },
+          { "tag": "S-3L", "type": "MaterialStream" },
+          { "tag": "E-102", "type": "Cooler", "properties": { "CalcMode": "OutletTemperature", "OutletTemperature": 313.15, "DeltaP": 0 } },
+          { "tag": "Q-103", "type": "EnergyStream" },
+          { "tag": "S-4", "type": "MaterialStream" },
+          { "tag": "V-101", "type": "Vessel" },
+          { "tag": "RECYCLE GAS", "type": "MaterialStream" },
+          { "tag": "CRUDE METHANOL", "type": "MaterialStream" }
+        ],
+        "connections": [
+          { "from": "SYNGAS", "to": "E-101" },
+          { "from": "Q-101", "to": "E-101" },
+          { "from": "E-101", "to": "S-2" },
+          { "from": "S-2", "to": "R-101" },
+          { "from": "R-101", "to": "S-3", "fromPort": 0 },
+          { "from": "R-101", "to": "S-3L", "fromPort": 1 },
+          { "from": "Q-102", "to": "R-101", "toPort": 1 },
+          { "from": "S-3", "to": "E-102" },
+          { "from": "E-102", "to": "S-4" },
+          { "from": "E-102", "to": "Q-103" },
+          { "from": "S-4", "to": "V-101" },
+          { "from": "V-101", "to": "RECYCLE GAS", "fromPort": 0 },
+          { "from": "V-101", "to": "CRUDE METHANOL", "fromPort": 1 }
+        ]
+      }
+    }
+  ]
+}

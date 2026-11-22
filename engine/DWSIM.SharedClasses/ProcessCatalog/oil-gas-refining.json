@@ -1,0 +1,47 @@
+{
+  "industry": "Oil, Gas and Refining",
+  "processes": [
+    {
+      "id": "propane-refrigeration",
+      "name": "Propane refrigeration cycle",
+      "description": "A single-stage propane loop: the compressor raises the vapor to the condensing pressure, the condenser takes it to liquid, the valve lets it down, and the evaporator takes the process heat at about -20 C.",
+      "processType": "RefrigerationCycle",
+      "compounds": [ "Propane" ],
+      "keyCompounds": [ "Propane" ],
+      "propertyPackage": { "name": "Peng-Robinson (PR)" },
+      "unitSystem": "SI",
+      "skeleton": {
+        "objects": [
+          { "tag": "S-1", "type": "MaterialStream", "temperature": 253.15, "pressure": 200000, "massFlow": 1, "composition": { "Propane": 1 } },
+          { "tag": "K-100", "type": "Compressor", "properties": { "CalcMode": "OutletPressure", "POut": 1600000, "AdiabaticEfficiency": 75 } },
+          { "tag": "W-100", "type": "EnergyStream" },
+          { "tag": "S-2", "type": "MaterialStream" },
+          { "tag": "E-100", "type": "Cooler", "properties": { "CalcMode": "OutletTemperature", "OutletTemperature": 313.15, "DeltaP": 0 } },
+          { "tag": "Q-100", "type": "EnergyStream" },
+          { "tag": "S-3", "type": "MaterialStream" },
+          { "tag": "VLV-100", "type": "Valve", "properties": { "CalcMode": "OutletPressure", "OutletPressure": 200000 } },
+          { "tag": "S-4", "type": "MaterialStream" },
+          { "tag": "E-101", "type": "Heater", "properties": { "CalcMode": "OutletTemperature", "OutletTemperature": 253.15, "DeltaP": 0 } },
+          { "tag": "Q-101", "type": "EnergyStream" },
+          { "tag": "S-5", "type": "MaterialStream" },
+          { "tag": "REC-1", "type": "OT_Recycle" }
+        ],
+        "connections": [
+          { "from": "S-1", "to": "K-100" },
+          { "from": "W-100", "to": "K-100" },
+          { "from": "K-100", "to": "S-2" },
+          { "from": "S-2", "to": "E-100" },
+          { "from": "E-100", "to": "S-3" },
+          { "from": "E-100", "to": "Q-100" },
+          { "from": "S-3", "to": "VLV-100" },
+          { "from": "VLV-100", "to": "S-4" },
+          { "from": "S-4", "to": "E-101" },
+          { "from": "Q-101", "to": "E-101" },
+          { "from": "E-101", "to": "S-5" },
+          { "from": "S-5", "to": "REC-1" },
+          { "from": "REC-1", "to": "S-1" }
+        ]
+      }
+    }
+  ]
+}
