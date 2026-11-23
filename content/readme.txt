@@ -210,6 +210,7 @@ Version 10.3.0
 - [FIX] An object added or pasted with the tag of an existing object kept the same tag when that tag had no digits
 - [FIX] HTML text blocks showed plain text without the formatting of the HTML; they now show headings, bold, italic, lists and tables, and the editors convert them to Markdown blocks
 - [FIX] Connection editors: after a simulation was opened, inlet ports with a stream showed an internal identifier instead of their name
+- [FIX] Cross-Platform: option buttons used a larger font than the check boxes and the rest of the window
 
 Version 10.2.16
 

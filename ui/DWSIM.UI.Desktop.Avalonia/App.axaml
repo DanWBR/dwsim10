@@ -203,6 +203,13 @@
       <Setter Property="Padding" Value="8,0,0,0" />
       <Setter Property="Margin" Value="0,3,0,3" />
     </Style>
+    <!-- Option buttons: the same type and spacing as the check boxes. -->
+    <Style Selector="RadioButton">
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="Padding" Value="8,0,0,0" />
+      <Setter Property="Margin" Value="0,3,0,3" />
+    </Style>
 
     <!-- Compact dock tab headers. Semi/DockFluent leave them tall; force a compact height. -->
     <Style Selector="dac|ToolTabStripItem">
