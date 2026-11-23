@@ -273,6 +273,10 @@ Imports DWSIM.ExtensionMethods
                 gObj = New HTMLTextGraphic(xcoord, ycoord)
                 prefix = "HTMLTEXT"
 
+            Case ObjectType.GO_MarkdownText
+                gObj = New MarkdownTextGraphic(xcoord, ycoord)
+                prefix = "MDTEXT"
+
             Case ObjectType.GO_Rectangle
                 gObj = New RectangleGraphic(New SKPoint(xcoord, ycoord), "")
                 prefix = "RECT"
@@ -465,6 +469,7 @@ Imports DWSIM.ExtensionMethods
                         gobj.ObjectType = ObjectType.GO_SpreadsheetTable Or
                         gobj.ObjectType = ObjectType.GO_Text Or
                         gobj.ObjectType = ObjectType.GO_HTMLText Or
+                        gobj.ObjectType = ObjectType.GO_MarkdownText Or
                         gobj.ObjectType = ObjectType.GO_Button Or
                         gobj.ObjectType = ObjectType.GO_Chart Then
 

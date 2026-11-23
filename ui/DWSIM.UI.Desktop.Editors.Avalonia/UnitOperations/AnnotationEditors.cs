@@ -42,7 +42,10 @@ namespace DWSIM.UI.Desktop.Editors
                     BuildChart(chart, flowsheet, panel);
                     break;
                 case Text.HTMLTextGraphic html:
-                    BuildHtmlText(html, panel);
+                    BuildHtmlText(html, flowsheet, panel, redraw);
+                    break;
+                case Text.MarkdownTextGraphic markdown:
+                    BuildMarkdownText(markdown, panel);
                     break;
                 case Text.TextGraphic text:
                     BuildText(text, panel);
@@ -90,6 +93,8 @@ namespace DWSIM.UI.Desktop.Editors
                     : "The position is locked. Clear Lock Position in the context menu to move the object.");
             panel.CreateAndAddNumericEditorRow("Width", obj.Width, 1, 100000, 0,
                 (s, e) => obj.Width = (int)(s.Value ?? 1));
+            // the height of a text block follows its text
+            if (obj is Text.MarkdownTextGraphic || obj is Text.HTMLTextGraphic) return;
             panel.CreateAndAddNumericEditorRow("Height", obj.Height, 1, 100000, 0,
                 (s, e) => obj.Height = (int)(s.Value ?? 1));
         }
@@ -385,10 +390,21 @@ namespace DWSIM.UI.Desktop.Editors
                 (s, e) => text.Color = ToSkia(s.Color));
         }
 
-        private static void BuildHtmlText(Text.HTMLTextGraphic text, AvaloniaEditorPanel panel)
+        private static void BuildHtmlText(Text.HTMLTextGraphic text, IFlowsheet flowsheet, AvaloniaEditorPanel panel, Action? redraw)
         {
             panel.CreateAndAddLabelRow("HTML Text Block");
-            panel.CreateAndAddDescriptionRow("A subset of HTML is rendered on the flowsheet.");
+            panel.CreateAndAddDescriptionRow("The flowsheet shows the paragraphs, headings, bold, italic, lists, tables and links of the HTML. " +
+                "If you convert the block to a Markdown block, its text is easier to edit and keeps the same look.");
+
+            panel.CreateAndAddButtonRow("Convert to a Markdown text block", null, (s, e) =>
+            {
+                if (flowsheet?.GetSurface() is not DWSIM.Drawing.SkiaSharp.GraphicsSurface surface) return;
+                var md = Text.MarkdownTextGraphic.ReplaceHtmlBlock(surface, text);
+                panel.Children.Clear();
+                BuildMarkdownText(md, panel);
+                AddGeometryRows(md, flowsheet, panel);
+                redraw?.Invoke();
+            });
 
             panel.CreateAndAddMultilineMonoSpaceTextBoxRow(text.Text, 180, false,
                 (s, e) => text.Text = s.Text ?? "");
@@ -398,6 +414,61 @@ namespace DWSIM.UI.Desktop.Editors
 
             panel.CreateAndAddColorPickerRow("Colour", ToAvalonia(text.Color),
                 (s, e) => text.Color = ToSkia(s.Color));
+        }
+
+        private static void BuildMarkdownText(Text.MarkdownTextGraphic text, AvaloniaEditorPanel panel)
+        {
+            panel.CreateAndAddLabelRow("Markdown Text Block");
+            panel.CreateAndAddDescriptionRow("The flowsheet shows the text as you type. {1:V}, {1:U} and {1:N} show the value, " +
+                "units and name of the first Watch panel item, {2:V} those of the second, and so on.");
+
+            TextBox? box = null;
+            var tools = new WrapPanel { Orientation = Orientation.Horizontal };
+            void AddTool(string label, string tip, Action<TextBox> act)
+            {
+                var b = new Button { Content = label, Padding = new global::Avalonia.Thickness(7, 2), Margin = new global::Avalonia.Thickness(0, 0, 4, 4) };
+                ToolTip.SetTip(b, tip);
+                b.Click += (_, _) => { if (box != null) { act(box); box.Focus(); } };
+                tools.Children.Add(b);
+            }
+            AddTool("B", "Bold", t => MarkdownEditing.Wrap(t, "**", "**", "bold text"));
+            AddTool("I", "Italic", t => MarkdownEditing.Wrap(t, "*", "*", "italic text"));
+            AddTool("S", "Strikethrough", t => MarkdownEditing.Wrap(t, "~~", "~~", "text"));
+            AddTool("Code", "Inline code", t => MarkdownEditing.Wrap(t, "`", "`", "code"));
+            AddTool("H1", "Heading 1", t => MarkdownEditing.PrefixLine(t, "# "));
+            AddTool("H2", "Heading 2", t => MarkdownEditing.PrefixLine(t, "## "));
+            AddTool("H3", "Heading 3", t => MarkdownEditing.PrefixLine(t, "### "));
+            AddTool("List", "Bullet list", t => MarkdownEditing.PrefixLine(t, "- "));
+            AddTool("1. List", "Numbered list", t => MarkdownEditing.PrefixLine(t, "1. "));
+            AddTool("Task", "Task list item", t => MarkdownEditing.PrefixLine(t, "- [ ] "));
+            AddTool("Quote", "Quote", t => MarkdownEditing.PrefixLine(t, "> "));
+            AddTool("Table", "Table", t => MarkdownEditing.InsertBlock(t, "| Column 1 | Column 2 |\n|:---|---:|\n| | |"));
+            AddTool("Code block", "Code block", t => MarkdownEditing.InsertBlock(t, "```\ncode\n```"));
+            AddTool("Rule", "Horizontal rule", t => MarkdownEditing.InsertBlock(t, "---"));
+            AddTool("Link", "Link", t => MarkdownEditing.Wrap(t, "[", "](https://)", "text"));
+            panel.CreateAndAddControlRow(tools);
+
+            box = panel.CreateAndAddMultilineMonoSpaceTextBoxRow(text.Text, 280, false,
+                (s, e) => text.Text = s.Text ?? "");
+            box.TextWrapping = global::Avalonia.Media.TextWrapping.Wrap;
+
+            panel.CreateAndAddNumericEditorRow("Font size", text.Size, 4, 200, 1,
+                (s, e) => text.Size = (double)(s.Value ?? 13));
+
+            panel.CreateAndAddColorPickerRow("Text colour", ToAvalonia(text.Color),
+                (s, e) => text.Color = ToSkia(s.Color));
+
+            panel.CreateAndAddCheckBoxRow("Background", text.Fill,
+                (s, e) => text.Fill = s.IsChecked.GetValueOrDefault());
+
+            panel.CreateAndAddColorPickerRow("Background colour", ToAvalonia(text.FillColor),
+                (s, e) => text.FillColor = ToSkia(s.Color));
+
+            panel.CreateAndAddCheckBoxRow("Border", text.Border,
+                (s, e) => text.Border = s.IsChecked.GetValueOrDefault());
+
+            panel.CreateAndAddColorPickerRow("Border colour", ToAvalonia(text.BorderColor),
+                (s, e) => text.BorderColor = ToSkia(s.Color));
         }
 
         private static void BuildRectangle(Shapes.RectangleGraphic rect, AvaloniaEditorPanel panel)

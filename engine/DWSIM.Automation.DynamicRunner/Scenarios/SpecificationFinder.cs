@@ -55,7 +55,7 @@ namespace DWSIM.Automation.DynamicRunner.Scenarios
             if (obj == null || obj.GraphicObject == null) return true;
             var type = obj.GraphicObject.ObjectType;
             return type == ObjectType.GO_Text || type == ObjectType.GO_Image || type == ObjectType.GO_Table || type == ObjectType.GO_MasterTable ||
-                   type == ObjectType.GO_SpreadsheetTable || type == ObjectType.GO_FloatingTable || type == ObjectType.GO_Chart || type == ObjectType.GO_Rectangle || type == ObjectType.GO_HTMLText;
+                   type == ObjectType.GO_SpreadsheetTable || type == ObjectType.GO_FloatingTable || type == ObjectType.GO_Chart || type == ObjectType.GO_Rectangle || type == ObjectType.GO_HTMLText || type == ObjectType.GO_MarkdownText;
         }
 
         /// <summary>The property ids that are specifications of the object's current mode.</summary>

@@ -70,6 +70,7 @@
 - [NEW] Flowsheet pictures for the 10.3 and refining unit operations, with the ports on the drawing; new icons for the logical blocks, the Extension Pack blocks and the Pipe Network block; new pictures for the controllers, adjusts, specifications, recycles, gauges, inputs and switches in the three drawing modes, with the values on the dial, screen or sight glass
 - [NEW] TEA and LCA of the 10.3 unit operations: the Contact Dryer, Alcoholic Fermenter, kraft mill and Bayer refinery blocks are sized and priced from their results and add their utilities and emissions to the inventory; the Lyophilizer, Recovery Boiler, Lime Kiln and Hydrate Calciner are listed with their size for an override price
 - [NEW] CAD Tools: Plant layout setting of the 3D model: Compact (the default; the columns and rows of the flowsheet packed together, and trains of identical equipment as a matrix), Medium (room for access) or Sparse (the flowsheet drawing scaled up)
+- [NEW] Markdown text block (Insert > Markdown Text): headings, emphasis, lists, task lists, quotes, code, rules and tables, wraps at the block width, shows Watch panel values ({1:V} {1:U}); Classic editor with a live preview drawn like the flowsheet, Cross-Platform editor panel with formatting buttons
 - [CHG] Flowsheet Check: warns when the streams of one fluid around a unit use different property packages
 - [CHG] Fail-safe flash with solids: a warning in the log names the stream, the specification and the original error
 - [CHG] Windows installers of final releases are signed with a code signing certificate
@@ -164,3 +165,4 @@
 - [FIX] LCA: the duty of a Cooler counted as heating, heat exchangers and pipes counted as utilities, and an Expander counted as electricity used
 - [FIX] Classic: an empty status bar sat above the supporter benefits bar when there was no Patreon key
 - [FIX] An object added or pasted with the tag of an existing object kept the same tag when that tag had no digits
+- [FIX] HTML text blocks showed plain text without the formatting of the HTML; they now show headings, bold, italic, lists and tables, and the editors convert them to Markdown blocks

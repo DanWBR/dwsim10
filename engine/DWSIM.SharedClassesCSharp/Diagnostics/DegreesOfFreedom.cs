@@ -925,6 +925,7 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
                 case ObjectType.GO_Chart:
                 case ObjectType.GO_InputControl:
                 case ObjectType.GO_HTMLText:
+                case ObjectType.GO_MarkdownText:
                 case ObjectType.GO_Button:
                 case ObjectType.GO_Animation:
                 case ObjectType.Nenhum:

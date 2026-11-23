@@ -46,88 +46,32 @@ Namespace GraphicObjects
 
         Public Property Color As SKColor = SKColors.Black
 
+        Private _layout As MarkdownRenderer.Layout
+        Private _key As String
+
         Public Overrides Sub Draw(ByVal g As Object)
 
             Dim canvas As SKCanvas = DirectCast(g, SKCanvas)
 
-            Using tpaint As New SKPaint()
-
-                If DrawMode = 0 Then
-                    With tpaint
-                        .TextSize = Size
-                        .IsAntialias = GlobalSettings.Settings.DrawingAntiAlias
-                        .Color = If(GraphicsSurface.DarkCanvas, SKColors.LightSteelBlue, Color)
-                        .IsStroke = False
-                        .Typeface = GetFont()
-                    End With
-                Else
-                    With tpaint
-                        .TextSize = Size
-                        .IsAntialias = GlobalSettings.Settings.DrawingAntiAlias
-                        .Color = SKColors.Black
-                        .IsStroke = False
-                        .Typeface = GetFont()
-                    End With
-                End If
-
-                Dim newtext = ReplaceVars(Text)
-
-                ' Strip HTML tags for a cross-platform fallback. The original implementation used
-                ' TheArtOfDev.HtmlRenderer.WinForms which pulled System.Windows.Forms into the
-                ' engine's transitive dependencies, breaking .NET 8 / Linux / macOS hosts. SkiaSharp
-                ' does its own text layout, so we render the plain text line-by-line and let the
-                ' user style via Size / Color properties.
-                Dim plain = StripHtml(newtext)
-                Dim lineHeight As Single = CSng(Size * 1.3)
-                Dim curY As Single = CSng(Y + lineHeight)
-                For Each line In plain.Split({vbCrLf, vbLf}, StringSplitOptions.None)
-                    canvas.DrawText(line, X, curY, tpaint)
-                    curY += lineHeight
-                Next
-
-            End Using
+            ' the HTML is converted to Markdown and drawn by the Markdown renderer: paragraphs, headings,
+            ' bold, italic, lists, tables and links keep their formatting; fonts, sizes and colors of the
+            ' HTML give way to the block's size and color
+            Dim md = MarkdownRenderer.FromHtml(TextVariables.Replace(Flowsheet, Text))
+            Dim bw = DrawMode = 1
+            Dim dark = GraphicsSurface.DarkCanvas AndAlso Not bw
+            Dim tc = If(dark, SKColors.LightSteelBlue, If(bw, SKColors.Black, Color))
+            Dim w = Math.Max(40.0F, CSng(Width))
+            Dim fonts = MarkdownRenderer.CreateFontSet(RegularTypeFace, BoldTypeFace, ItalicTypeFace, BoldItalicTypeFace)
+            Dim key = String.Join(ChrW(1), md, w.ToString(), Size.ToString(), tc.ToString(), bw.ToString(), dark.ToString(),
+                                  fonts.Regular.GetHashCode().ToString())
+            If _layout Is Nothing OrElse key <> _key Then
+                _layout = MarkdownRenderer.Build(md, w, CSng(Size), fonts, MarkdownRenderer.CreatePalette(tc, dark, bw))
+                _key = key
+            End If
+            Height = CInt(Math.Ceiling(Math.Max(_layout.Height, Size * 1.5)))
+            _layout.Draw(canvas, X, Y)
 
         End Sub
-
-        Private Shared Function StripHtml(input As String) As String
-            If String.IsNullOrEmpty(input) Then Return ""
-            ' Normalize <br> / <p> / </p> to newlines, then drop the remaining tags. A real HTML
-            ' renderer would be overkill for what is effectively a labelled annotation.
-            Dim t = input.Replace("<br>", vbLf).Replace("<br/>", vbLf).Replace("<br />", vbLf)
-            t = t.Replace("</p>", vbLf).Replace("<p>", "").Replace("<P>", "").Replace("</P>", vbLf)
-            Return System.Text.RegularExpressions.Regex.Replace(t, "<[^>]+>", "").Trim()
-        End Function
-
-        Private Function ReplaceVars(oldtext As String) As String
-
-            Dim newtext As String = oldtext
-            Dim i As Integer = 0
-
-            If Flowsheet IsNot Nothing Then
-                If Text.Contains("{") And Text.Contains("}") Then
-                    For i = 1 To Flowsheet.WatchItems.Count
-                        Dim objID = Flowsheet.WatchItems(i - 1).ObjID
-                        Dim propID = Flowsheet.WatchItems(i - 1).PropID
-                        If Flowsheet.SimulationObjects.ContainsKey(objID) Then
-                            Dim units = Flowsheet.SimulationObjects(objID).GetPropertyUnit(propID)
-                            Dim name = Flowsheet.GetTranslatedString(propID)
-                            newtext = newtext.Replace("{" + i.ToString() + ":N}", name)
-                            newtext = newtext.Replace("{" + i.ToString() + ":U}", units)
-                            Dim value = Flowsheet.SimulationObjects(objID).GetPropertyValue(propID).ToString()
-                            If Double.TryParse(value, New Double) Then
-                                Dim dval = Double.Parse(value).ToString(Flowsheet.FlowsheetOptions.NumberFormat)
-                                newtext = newtext.Replace("{" + i.ToString() + ":V}", dval)
-                            Else
-                                newtext = newtext.Replace("{" + i.ToString() + ":V}", value)
-                            End If
-                        End If
-                    Next
-                End If
-            End If
-
-            Return newtext
-
-        End Function
 
     End Class
 

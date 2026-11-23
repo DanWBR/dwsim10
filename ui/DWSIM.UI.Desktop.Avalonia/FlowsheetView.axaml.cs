@@ -2026,7 +2026,7 @@ public partial class FlowsheetView : UserControl
         MenuAddEnergyStream.Click      += (_, _) => AddObjectAtCenter(ObjectType.EnergyStream, "Energy Stream");
         // annotations have no simulation object behind them and take the other entry point
         MenuAddText.Click              += (_, _) => AddAnnotationAtCenter(ObjectType.GO_Text);
-        MenuAddHTMLText.Click          += (_, _) => AddAnnotationAtCenter(ObjectType.GO_HTMLText);
+        MenuAddMarkdownText.Click      += (_, _) => AddAnnotationAtCenter(ObjectType.GO_MarkdownText);
         MenuAddRectangle.Click         += (_, _) => AddAnnotationAtCenter(ObjectType.GO_Rectangle);
         MenuAddButton.Click            += (_, _) => AddAnnotationAtCenter(ObjectType.GO_Button);
         MenuAddImage.Click             += async (_, _) => await AddImageAsync();

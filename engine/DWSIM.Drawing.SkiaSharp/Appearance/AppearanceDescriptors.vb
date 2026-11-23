@@ -295,7 +295,7 @@ Namespace Appearance
                     Return AppearanceTarget.Button
                 Case ObjectType.GO_Image
                     Return AppearanceTarget.Picture
-                Case ObjectType.GO_HTMLText
+                Case ObjectType.GO_HTMLText, ObjectType.GO_MarkdownText
                     Return AppearanceTarget.FormattedText
                 Case ObjectType.GO_FloatingTable
                     Return AppearanceTarget.FloatingTable
@@ -332,6 +332,7 @@ Namespace Appearance
             Select Case gobj.ObjectType
                 Case ObjectType.GO_Image : Return "Picture"
                 Case ObjectType.GO_HTMLText : Return "Formatted text (HTML)"
+                Case ObjectType.GO_MarkdownText : Return "Markdown text"
                 Case ObjectType.GO_Text : Return "Text"
                 Case ObjectType.GO_Rectangle : Return "Rectangle"
                 Case ObjectType.GO_Table : Return "Property table"

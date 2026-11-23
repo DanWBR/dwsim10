@@ -56,7 +56,7 @@ Public Class OrthogonalFlowsheetLayout
             Case ObjectType.GO_Table, ObjectType.GO_Text, ObjectType.GO_Image, ObjectType.GO_FloatingTable,
                  ObjectType.GO_Animation, ObjectType.GO_MasterTable, ObjectType.GO_SpreadsheetTable,
                  ObjectType.GO_Rectangle, ObjectType.GO_Chart, ObjectType.GO_InputControl,
-                 ObjectType.GO_HTMLText, ObjectType.GO_Button, ObjectType.Nenhum
+                 ObjectType.GO_HTMLText, ObjectType.GO_MarkdownText, ObjectType.GO_Button, ObjectType.Nenhum
                 Return True
         End Select
         Return False

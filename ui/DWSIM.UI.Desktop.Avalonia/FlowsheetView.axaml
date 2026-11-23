@@ -85,7 +85,7 @@
         <MenuItem Header="Chart Object"          Name="MenuAddChart" />
         <Separator />
         <MenuItem Header="Text Block"            Name="MenuAddText" />
-        <MenuItem Header="HTML Text Block"       Name="MenuAddHTMLText" />
+        <MenuItem Header="Markdown Text Block"   Name="MenuAddMarkdownText" />
         <MenuItem Header="Rectangle"             Name="MenuAddRectangle" />
         <MenuItem Header="Button"                Name="MenuAddButton" />
         <MenuItem Header="Image..."              Name="MenuAddImage" />
