@@ -679,6 +679,8 @@ Label_00CC:
                 End Try
             Next
 
+            ' the inlet ports carry "objID|index" in ConnectorName while the outlets reconnect; their names come back afterwards
+            Dim portNames As New Dictionary(Of Global.DWSIM.Interfaces.IConnectionPoint, String)
             For Each xel As XElement In data
                 Try
                     Dim id As String = pkey & xel.Element("Name").Value
@@ -689,6 +691,7 @@ Label_00CC:
                             Dim i As Integer = 0
                             For Each xel2 As XElement In xel.Element("InputConnectors").Elements
                                 If xel2.@IsAttached = True Then
+                                    If Not portNames.ContainsKey(obj.InputConnectors(i)) Then portNames(obj.InputConnectors(i)) = obj.InputConnectors(i).ConnectorName
                                     obj.InputConnectors(i).ConnectorName = pkey & xel2.@AttachedFromObjID & "|" & xel2.@AttachedFromConnIndex
                                     obj.InputConnectors(i).Type = [Enum].Parse(obj.InputConnectors(i).Type.GetType, xel2.@ConnType)
                                     If reconnectinlets Then
@@ -757,6 +760,9 @@ Label_00CC:
                 Catch ex As Exception
                     excs.Add(New Exception("Error Loading Flowsheet Object Connection Information", ex))
                 End Try
+            Next
+            For Each kv In portNames
+                kv.Key.ConnectorName = kv.Value
             Next
 
         End Sub
