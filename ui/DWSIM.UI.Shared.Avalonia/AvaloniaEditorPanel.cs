@@ -95,7 +95,7 @@ public class AvaloniaEditorPanel : StackPanel
 
         var lbl = new TextBlock
         {
-            Text = label,
+            Text = label.Localize(),
             VerticalAlignment = VerticalAlignment.Center,
             FontWeight = boldLabel ? FontWeight.Bold : FontWeight.Normal,
             Margin = new Thickness(0, 0, 6, 0),

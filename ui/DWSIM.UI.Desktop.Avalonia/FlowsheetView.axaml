@@ -1,4 +1,6 @@
 ﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:loc="using:DWSIM.UI.Shared.Avalonia"
+             xmlns:i18n="using:DWSIM.UI.Desktop.Avalonia"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:DWSIM.UI.Desktop.Avalonia"
              xmlns:ctrls="clr-namespace:DWSIM.UI.Desktop.Avalonia.Controls"
@@ -8,160 +10,160 @@
 
     <!-- ===== Menu Bar ===== -->
     <Menu DockPanel.Dock="Top" Name="MainMenuBar">
-      <MenuItem Header="_File">
-        <MenuItem Header="_New"            Name="MenuNew"     InputGesture="Ctrl+N" />
-        <MenuItem Header="_Open..."        Name="MenuOpen"    InputGesture="Ctrl+O" />
-        <MenuItem Header="Open _Recent"    Name="MenuRecent" />
+      <MenuItem i18n:LocalizationMenu.SourceHeader="_File" Header="{loc:Localize '_File'}">
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_New" Header="{loc:Localize '_New'}"            Name="MenuNew"     InputGesture="Ctrl+N" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_Open..." Header="{loc:Localize '_Open...'}"        Name="MenuOpen"    InputGesture="Ctrl+O" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Open _Recent" Header="{loc:Localize 'Open _Recent'}"    Name="MenuRecent" />
         <Separator />
-        <MenuItem Header="_Save"           Name="MenuSave"    InputGesture="Ctrl+S" />
-        <MenuItem Header="Save _As..."     Name="MenuSaveAs"  InputGesture="Ctrl+Shift+S" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_Save" Header="{loc:Localize '_Save'}"           Name="MenuSave"    InputGesture="Ctrl+S" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Save _As..." Header="{loc:Localize 'Save _As...'}"     Name="MenuSaveAs"  InputGesture="Ctrl+Shift+S" />
         <Separator />
-        <MenuItem Header="_Export Flowsheet">
-          <MenuItem Header="To _PNG Image..." Name="MenuExportPNG" />
-          <MenuItem Header="To _SVG File..."  Name="MenuExportSVG" />
-          <MenuItem Header="To P_DF File..."  Name="MenuExportPDF" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_Export Flowsheet" Header="{loc:Localize '_Export Flowsheet'}">
+          <MenuItem i18n:LocalizationMenu.SourceHeader="To _PNG Image..." Header="{loc:Localize 'To _PNG Image...'}" Name="MenuExportPNG" />
+          <MenuItem i18n:LocalizationMenu.SourceHeader="To _SVG File..." Header="{loc:Localize 'To _SVG File...'}"  Name="MenuExportSVG" />
+          <MenuItem i18n:LocalizationMenu.SourceHeader="To P_DF File..." Header="{loc:Localize 'To P_DF File...'}"  Name="MenuExportPDF" />
         </MenuItem>
         <Separator />
-        <MenuItem Header="_Close"          Name="MenuClose"   InputGesture="Ctrl+Q" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_Close" Header="{loc:Localize '_Close'}"          Name="MenuClose"   InputGesture="Ctrl+Q" />
       </MenuItem>
-      <MenuItem Header="E_dit">
-        <MenuItem Header="_Undo"           Name="MenuUndo"    InputGesture="Ctrl+Z" />
-        <MenuItem Header="_Redo"           Name="MenuRedo"    InputGesture="Ctrl+Y" />
+      <MenuItem i18n:LocalizationMenu.SourceHeader="E_dit" Header="{loc:Localize 'E_dit'}">
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_Undo" Header="{loc:Localize '_Undo'}"           Name="MenuUndo"    InputGesture="Ctrl+Z" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_Redo" Header="{loc:Localize '_Redo'}"           Name="MenuRedo"    InputGesture="Ctrl+Y" />
         <Separator />
-        <MenuItem Header="Cu_t"            Name="MenuCut"     InputGesture="Ctrl+X" />
-        <MenuItem Header="_Copy"           Name="MenuCopy"    InputGesture="Ctrl+C" />
-        <MenuItem Header="_Paste"          Name="MenuPaste"   InputGesture="Ctrl+V" />
-        <MenuItem Header="Select _All"     Name="MenuSelectAll" InputGesture="Ctrl+A" />
-        <MenuItem Header="_Invert Selection" Name="MenuInvertSelection" />
-        <MenuItem Header="D_eselect All"   Name="MenuDeselectAll" />
-        <MenuItem Header="Remove Selected" Name="MenuDelete" />
-        <MenuItem Header="Cl_one Selected" Name="MenuClone" />
-        <MenuItem Header="Disconnect All"  Name="MenuDisconnectAll" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Cu_t" Header="{loc:Localize 'Cu_t'}"            Name="MenuCut"     InputGesture="Ctrl+X" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_Copy" Header="{loc:Localize '_Copy'}"           Name="MenuCopy"    InputGesture="Ctrl+C" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_Paste" Header="{loc:Localize '_Paste'}"          Name="MenuPaste"   InputGesture="Ctrl+V" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Select _All" Header="{loc:Localize 'Select _All'}"     Name="MenuSelectAll" InputGesture="Ctrl+A" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_Invert Selection" Header="{loc:Localize '_Invert Selection'}" Name="MenuInvertSelection" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="D_eselect All" Header="{loc:Localize 'D_eselect All'}"   Name="MenuDeselectAll" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Remove Selected" Header="{loc:Localize 'Remove Selected'}" Name="MenuDelete" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Cl_one Selected" Header="{loc:Localize 'Cl_one Selected'}" Name="MenuClone" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Disconnect All" Header="{loc:Localize 'Disconnect All'}"  Name="MenuDisconnectAll" />
         <Separator />
-        <MenuItem Header="Simulation _Settings..." Name="MenuSimSettings" InputGesture="Alt+M" />
-        <MenuItem Header="_General Settings..."    Name="MenuGlobalSettings" InputGesture="Alt+G" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Simulation _Settings..." Header="{loc:Localize 'Simulation _Settings...'}" Name="MenuSimSettings" InputGesture="Alt+M" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_General Settings..." Header="{loc:Localize '_General Settings...'}"    Name="MenuGlobalSettings" InputGesture="Alt+G" />
       </MenuItem>
-      <MenuItem Header="_Solver">
-        <MenuItem Header="_Solve"                Name="MenuSolve"       InputGesture="F5" />
-        <MenuItem Header="_Force Solve"          Name="MenuSolveCustom" InputGesture="Ctrl+Alt+F5" />
-        <MenuItem Header="_Abort"                Name="MenuStop" />
+      <MenuItem i18n:LocalizationMenu.SourceHeader="_Solver" Header="{loc:Localize '_Solver'}">
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_Solve" Header="{loc:Localize '_Solve'}"                Name="MenuSolve"       InputGesture="F5" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_Force Solve" Header="{loc:Localize '_Force Solve'}"          Name="MenuSolveCustom" InputGesture="Ctrl+Alt+F5" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_Abort" Header="{loc:Localize '_Abort'}"                Name="MenuStop" />
         <Separator />
-        <MenuItem Header="Flowsheet _Calculator Active" Name="MenuCalculatorActive" ToggleType="CheckBox" InputGesture="F6" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Flowsheet _Calculator Active" Header="{loc:Localize 'Flowsheet _Calculator Active'}" Name="MenuCalculatorActive" ToggleType="CheckBox" InputGesture="F6" />
         <Separator />
-        <MenuItem Header="Solver St_rategy" Name="MenuSolverStrategy">
-          <MenuItem Header="_Sequential-Modular"                       Name="MenuStrategySequential"   ToggleType="CheckBox" />
-          <MenuItem Header="S_imultaneous (registered flowsheet solver)" Name="MenuStrategySimultaneous" ToggleType="CheckBox" />
-          <MenuItem Header="_Auto (simultaneous when it has a warm start)" Name="MenuStrategyAuto"       ToggleType="CheckBox" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Solver St_rategy" Header="Solver St_rategy" Name="MenuSolverStrategy">
+          <MenuItem i18n:LocalizationMenu.SourceHeader="_Sequential-Modular" Header="_Sequential-Modular"                       Name="MenuStrategySequential"   ToggleType="CheckBox" />
+          <MenuItem i18n:LocalizationMenu.SourceHeader="S_imultaneous (registered flowsheet solver)" Header="S_imultaneous (registered flowsheet solver)" Name="MenuStrategySimultaneous" ToggleType="CheckBox" />
+          <MenuItem i18n:LocalizationMenu.SourceHeader="_Auto (simultaneous when it has a warm start)" Header="_Auto (simultaneous when it has a warm start)" Name="MenuStrategyAuto"       ToggleType="CheckBox" />
         </MenuItem>
       </MenuItem>
-      <MenuItem Header="_Tools">
-        <MenuItem Header="_Unit Operation Extension Manager..." Name="MenuUOExtManager" />
-        <MenuItem Header="Create C_ompound..."       Name="MenuCreateCompound" />
-        <MenuItem Header="Create _Biomass Compound..." Name="MenuBiomassCompound" />
+      <MenuItem i18n:LocalizationMenu.SourceHeader="_Tools" Header="{loc:Localize '_Tools'}">
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_Unit Operation Extension Manager..." Header="{loc:Localize '_Unit Operation Extension Manager...'}" Name="MenuUOExtManager" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Create C_ompound..." Header="{loc:Localize 'Create C_ompound...'}"       Name="MenuCreateCompound" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Create _Biomass Compound..." Header="{loc:Localize 'Create _Biomass Compound...'}" Name="MenuBiomassCompound" />
         <Separator />
-        <MenuItem Header="Petroleum C7+ C_haracterization..." Name="MenuPetroleumChar" />
-        <MenuItem Header="_Distillation Curve Characterization..." Name="MenuDistCurve" />
-        <MenuItem Header="Bulk Add Pseudo_compounds..." Name="MenuBulkPseudos" />
-        <MenuItem Header="Petroleum _Assay Manager..."  Name="MenuAssayManager" />
-        <MenuItem Header="Pol_ymer Characterization..." Name="MenuPolymerChar" />
-        <MenuItem Header="_Pure Compound Properties..." Name="MenuPureComp" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Petroleum C7+ C_haracterization..." Header="{loc:Localize 'Petroleum C7+ C_haracterization...'}" Name="MenuPetroleumChar" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_Distillation Curve Characterization..." Header="{loc:Localize '_Distillation Curve Characterization...'}" Name="MenuDistCurve" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Bulk Add Pseudo_compounds..." Header="{loc:Localize 'Bulk Add Pseudo_compounds...'}" Name="MenuBulkPseudos" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Petroleum _Assay Manager..." Header="{loc:Localize 'Petroleum _Assay Manager...'}"  Name="MenuAssayManager" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Pol_ymer Characterization..." Header="{loc:Localize 'Pol_ymer Characterization...'}" Name="MenuPolymerChar" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_Pure Compound Properties..." Header="{loc:Localize '_Pure Compound Properties...'}" Name="MenuPureComp" />
         <Separator />
-        <MenuItem Header="_Reaction Manager..."      Name="MenuReactions" />
-        <MenuItem Header="Data _Regression..."       Name="MenuDataRegression" />
-        <MenuItem Header="Script _Manager..."        Name="MenuScripts" />
-        <MenuItem Header="Systems of _Units..."      Name="MenuUnitSystems" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_Reaction Manager..." Header="{loc:Localize '_Reaction Manager...'}"      Name="MenuReactions" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Data _Regression..." Header="{loc:Localize 'Data _Regression...'}"       Name="MenuDataRegression" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Script _Manager..." Header="{loc:Localize 'Script _Manager...'}"        Name="MenuScripts" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Systems of _Units..." Header="{loc:Localize 'Systems of _Units...'}"      Name="MenuUnitSystems" />
         <Separator />
-        <MenuItem Header="_Inspector Reports..."     Name="MenuInspector" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_Inspector Reports..." Header="{loc:Localize '_Inspector Reports...'}"     Name="MenuInspector" />
       </MenuItem>
-      <MenuItem Header="_Insert">
-        <MenuItem Header="Simulation _Object..." Name="MenuAddObject" InputGesture="Alt+A">
-          <MenuItem Header="Material Stream"   Name="MenuAddMaterialStream" />
-          <MenuItem Header="Energy Stream"     Name="MenuAddEnergyStream" />
+      <MenuItem i18n:LocalizationMenu.SourceHeader="_Insert" Header="{loc:Localize '_Insert'}">
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Simulation _Object..." Header="{loc:Localize 'Simulation _Object...'}" Name="MenuAddObject" InputGesture="Alt+A">
+          <MenuItem i18n:LocalizationMenu.SourceHeader="Material Stream" Header="{loc:Localize 'Material Stream'}"   Name="MenuAddMaterialStream" />
+          <MenuItem i18n:LocalizationMenu.SourceHeader="Energy Stream" Header="{loc:Localize 'Energy Stream'}"     Name="MenuAddEnergyStream" />
         </MenuItem>
         <Separator />
-        <MenuItem Header="Property Table"        Name="MenuAddTable" />
-        <MenuItem Header="Master Property Table" Name="MenuAddMasterTable" />
-        <MenuItem Header="Spreadsheet Table"     Name="MenuAddSpreadsheetTable" />
-        <MenuItem Header="Chart Object"          Name="MenuAddChart" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Property Table" Header="{loc:Localize 'Property Table'}"        Name="MenuAddTable" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Master Property Table" Header="{loc:Localize 'Master Property Table'}" Name="MenuAddMasterTable" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Spreadsheet Table" Header="{loc:Localize 'Spreadsheet Table'}"     Name="MenuAddSpreadsheetTable" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Chart Object" Header="{loc:Localize 'Chart Object'}"          Name="MenuAddChart" />
         <Separator />
-        <MenuItem Header="Text Block"            Name="MenuAddText" />
-        <MenuItem Header="HTML Text Block"       Name="MenuAddHTMLText" />
-        <MenuItem Header="Rectangle"             Name="MenuAddRectangle" />
-        <MenuItem Header="Button"                Name="MenuAddButton" />
-        <MenuItem Header="Image..."              Name="MenuAddImage" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Text Block" Header="{loc:Localize 'Text Block'}"            Name="MenuAddText" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="HTML Text Block" Header="{loc:Localize 'HTML Text Block'}"       Name="MenuAddHTMLText" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Rectangle" Header="{loc:Localize 'Rectangle'}"             Name="MenuAddRectangle" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Button" Header="{loc:Localize 'Button'}"                Name="MenuAddButton" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Image..." Header="{loc:Localize 'Image...'}"              Name="MenuAddImage" />
       </MenuItem>
-      <MenuItem Header="_Dynamics">
-        <MenuItem Header="Dynamic Mode _Active"    Name="MenuDynamicsToggle" />
-        <MenuItem Header="Dynamics _Wizard"        Name="MenuDynWizard" />
-        <MenuItem Header="_Dynamics Manager"       Name="MenuDynManager" />
-        <MenuItem Header="_Integrator Controls"    Name="MenuDynIntegrator" />
-        <MenuItem Header="_PID Controller Tuning"  Name="MenuDynPIDTuning" />
-        <MenuItem Header="_Vessel Depressurization..." Name="MenuDepressurization" />
+      <MenuItem i18n:LocalizationMenu.SourceHeader="_Dynamics" Header="{loc:Localize '_Dynamics'}">
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Dynamic Mode _Active" Header="{loc:Localize 'Dynamic Mode _Active'}"    Name="MenuDynamicsToggle" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Dynamics _Wizard" Header="{loc:Localize 'Dynamics _Wizard'}"        Name="MenuDynWizard" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_Dynamics Manager" Header="{loc:Localize '_Dynamics Manager'}"       Name="MenuDynManager" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_Integrator Controls" Header="{loc:Localize '_Integrator Controls'}"    Name="MenuDynIntegrator" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_PID Controller Tuning" Header="{loc:Localize '_PID Controller Tuning'}"  Name="MenuDynPIDTuning" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_Vessel Depressurization..." Header="{loc:Localize '_Vessel Depressurization...'}" Name="MenuDepressurization" />
       </MenuItem>
-      <MenuItem Header="_Utilities">
-        <MenuItem Header="Pressure Safety _Valve Sizing..." Name="MenuPsvSizing" />
-        <MenuItem Header="_Gas-Liquid Separator Sizing..." Name="MenuSepSizing" />
-        <MenuItem Header="_Column Internals..."           Name="MenuColumnInternals" />
-        <MenuItem Header="_Binary Envelope..."        Name="MenuUtilBE" />
-        <MenuItem Header="Ternary Envelope (_LLE)..." Name="MenuUtilLLE" />
-        <MenuItem Header="_Phase Envelope..."         Name="MenuUtilPE" />
-        <MenuItem Header="_True Critical Point..."    Name="MenuUtilTCP" />
-        <MenuItem Header="Petroleum Cold _Flow Properties..." Name="MenuColdFlow" />
-        <MenuItem Header="_Distillation Curves..."    Name="MenuStreamDistCurves" />
-        <MenuItem Header="Natural Gas H_ydrates..."   Name="MenuHydrates" />
+      <MenuItem i18n:LocalizationMenu.SourceHeader="_Utilities" Header="{loc:Localize '_Utilities'}">
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Pressure Safety _Valve Sizing..." Header="{loc:Localize 'Pressure Safety _Valve Sizing...'}" Name="MenuPsvSizing" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_Gas-Liquid Separator Sizing..." Header="{loc:Localize '_Gas-Liquid Separator Sizing...'}" Name="MenuSepSizing" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_Column Internals..." Header="{loc:Localize '_Column Internals...'}"           Name="MenuColumnInternals" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_Binary Envelope..." Header="{loc:Localize '_Binary Envelope...'}"        Name="MenuUtilBE" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Ternary Envelope (_LLE)..." Header="{loc:Localize 'Ternary Envelope (_LLE)...'}" Name="MenuUtilLLE" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_Phase Envelope..." Header="{loc:Localize '_Phase Envelope...'}"         Name="MenuUtilPE" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_True Critical Point..." Header="{loc:Localize '_True Critical Point...'}"    Name="MenuUtilTCP" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Petroleum Cold _Flow Properties..." Header="{loc:Localize 'Petroleum Cold _Flow Properties...'}" Name="MenuColdFlow" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_Distillation Curves..." Header="_Distillation Curves..."    Name="MenuStreamDistCurves" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Natural Gas H_ydrates..." Header="{loc:Localize 'Natural Gas H_ydrates...'}"   Name="MenuHydrates" />
         <Separator />
-        <MenuItem Header="_McCabe-Thiele Diagram..."  Name="MenuMcCabeThiele" />
-        <MenuItem Header="_Equation of State Explorer..." Name="MenuEosExplorer" />
-        <MenuItem Header="Property Package _Comparison..." Name="MenuPackageComparison" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_McCabe-Thiele Diagram..." Header="{loc:Localize '_McCabe-Thiele Diagram...'}"  Name="MenuMcCabeThiele" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_Equation of State Explorer..." Header="{loc:Localize '_Equation of State Explorer...'}" Name="MenuEosExplorer" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Property Package _Comparison..." Header="{loc:Localize 'Property Package _Comparison...'}" Name="MenuPackageComparison" />
       </MenuItem>
-      <MenuItem Header="Flowsheet _Analysis">
-        <MenuItem Header="_Sensitivity Analysis..."  Name="MenuSensitivity" />
-        <MenuItem Header="_Multivariate Optimizer..." Name="MenuOptimizer" />
-        <MenuItem Header="Mass and Energy _Balance Summary..." Name="MenuBalance" />
-        <MenuItem Header="Flowsheet Chec_k..."   Name="MenuFlowsheetCheck" InputGesture="F8" />
-        <MenuItem Header="E_xplain Result..."   Name="MenuExplainResult" />
-        <MenuItem Header="Scenario Compa_rison..."   Name="MenuScenarioComparison" />
-        <MenuItem Header="_Live Sliders..."   Name="MenuLiveSliders" />
-        <MenuItem Header="Property _Chart..."        Name="MenuPropertyChart" />
+      <MenuItem i18n:LocalizationMenu.SourceHeader="Flowsheet _Analysis" Header="{loc:Localize 'Flowsheet _Analysis'}">
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_Sensitivity Analysis..." Header="{loc:Localize '_Sensitivity Analysis...'}"  Name="MenuSensitivity" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_Multivariate Optimizer..." Header="{loc:Localize '_Multivariate Optimizer...'}" Name="MenuOptimizer" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Mass and Energy _Balance Summary..." Header="{loc:Localize 'Mass and Energy _Balance Summary...'}" Name="MenuBalance" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Flowsheet Chec_k..." Header="{loc:Localize 'Flowsheet Chec_k...'}"   Name="MenuFlowsheetCheck" InputGesture="F8" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="E_xplain Result..." Header="{loc:Localize 'E_xplain Result...'}"   Name="MenuExplainResult" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Scenario Compa_rison..." Header="{loc:Localize 'Scenario Compa_rison...'}"   Name="MenuScenarioComparison" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_Live Sliders..." Header="{loc:Localize '_Live Sliders...'}"   Name="MenuLiveSliders" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Property _Chart..." Header="{loc:Localize 'Property _Chart...'}"        Name="MenuPropertyChart" />
       </MenuItem>
-      <MenuItem Header="_Results">
-        <MenuItem Header="_Results Report..."         Name="MenuResultsReport" />
-        <MenuItem Header="_Markdown Report Viewer..." Name="MenuMarkdownReport" />
+      <MenuItem i18n:LocalizationMenu.SourceHeader="_Results" Header="{loc:Localize '_Results'}">
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_Results Report..." Header="{loc:Localize '_Results Report...'}"         Name="MenuResultsReport" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_Markdown Report Viewer..." Header="{loc:Localize '_Markdown Report Viewer...'}" Name="MenuMarkdownReport" />
       </MenuItem>
-      <MenuItem Header="_Plugins" Name="MenuPlugins" />
-      <MenuItem Header="_View">
-        <MenuItem Header="Show _Editor Panel"      Name="MenuShowEditor" />
-        <MenuItem Header="Show _Object Palette"    Name="MenuShowPalette" />
-        <MenuItem Header="Show _Log Panel"         Name="MenuShowResults" />
-        <MenuItem Header="Show _Watch Panel"       Name="MenuShowWatch" />
-        <MenuItem Header="Show _Sub-Toolbar"       Name="MenuShowSubToolbar" />
+      <MenuItem i18n:LocalizationMenu.SourceHeader="_Plugins" Header="{loc:Localize '_Plugins'}" Name="MenuPlugins" />
+      <MenuItem i18n:LocalizationMenu.SourceHeader="_View" Header="{loc:Localize '_View'}">
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Show _Editor Panel" Header="{loc:Localize 'Show _Editor Panel'}"      Name="MenuShowEditor" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Show _Object Palette" Header="{loc:Localize 'Show _Object Palette'}"    Name="MenuShowPalette" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Show _Log Panel" Header="{loc:Localize 'Show _Log Panel'}"         Name="MenuShowResults" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Show _Watch Panel" Header="{loc:Localize 'Show _Watch Panel'}"       Name="MenuShowWatch" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Show _Sub-Toolbar" Header="{loc:Localize 'Show _Sub-Toolbar'}"       Name="MenuShowSubToolbar" />
         <Separator />
-        <MenuItem Header="Close All Opened _Editors" Name="MenuCloseAllEditors" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Close All Opened _Editors" Header="{loc:Localize 'Close All Opened _Editors'}" Name="MenuCloseAllEditors" />
         <Separator />
-        <MenuItem Header="Colour Streams _By" Name="MenuStreamColor">
-          <MenuItem Header="Solver _Status"    Name="MenuStreamColorStatus"   ToggleType="Radio" GroupName="StreamColor" />
-          <MenuItem Header="_Temperature"      Name="MenuStreamColorT"        ToggleType="Radio" GroupName="StreamColor" />
-          <MenuItem Header="_Pressure"         Name="MenuStreamColorP"        ToggleType="Radio" GroupName="StreamColor" />
-          <MenuItem Header="_Vapour Fraction"  Name="MenuStreamColorVF"       ToggleType="Radio" GroupName="StreamColor" />
-          <MenuItem Header="P_hase"            Name="MenuStreamColorPhase"    ToggleType="Radio" GroupName="StreamColor" />
-          <MenuItem Header="_Mass Flow"        Name="MenuStreamColorFlow"     ToggleType="Radio" GroupName="StreamColor" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Colour Streams _By" Header="{loc:Localize 'Colour Streams _By'}" Name="MenuStreamColor">
+          <MenuItem i18n:LocalizationMenu.SourceHeader="Solver _Status" Header="{loc:Localize 'Solver _Status'}"    Name="MenuStreamColorStatus"   ToggleType="Radio" GroupName="StreamColor" />
+          <MenuItem i18n:LocalizationMenu.SourceHeader="_Temperature" Header="{loc:Localize '_Temperature'}"      Name="MenuStreamColorT"        ToggleType="Radio" GroupName="StreamColor" />
+          <MenuItem i18n:LocalizationMenu.SourceHeader="_Pressure" Header="{loc:Localize '_Pressure'}"         Name="MenuStreamColorP"        ToggleType="Radio" GroupName="StreamColor" />
+          <MenuItem i18n:LocalizationMenu.SourceHeader="_Vapour Fraction" Header="{loc:Localize '_Vapour Fraction'}"  Name="MenuStreamColorVF"       ToggleType="Radio" GroupName="StreamColor" />
+          <MenuItem i18n:LocalizationMenu.SourceHeader="P_hase" Header="{loc:Localize 'P_hase'}"            Name="MenuStreamColorPhase"    ToggleType="Radio" GroupName="StreamColor" />
+          <MenuItem i18n:LocalizationMenu.SourceHeader="_Mass Flow" Header="{loc:Localize '_Mass Flow'}"        Name="MenuStreamColorFlow"     ToggleType="Radio" GroupName="StreamColor" />
         </MenuItem>
         <Separator />
-        <MenuItem Header="_Zoom In"        Name="MenuZoomIn" />
-        <MenuItem Header="Zoom _Out"       Name="MenuZoomOut" />
-        <MenuItem Header="Fit to _Window"  Name="MenuZoomFit" />
-        <MenuItem Header="_Reset Zoom"     Name="MenuZoomReset" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_Zoom In" Header="{loc:Localize '_Zoom In'}"        Name="MenuZoomIn" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Zoom _Out" Header="{loc:Localize 'Zoom _Out'}"       Name="MenuZoomOut" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Fit to _Window" Header="{loc:Localize 'Fit to _Window'}"  Name="MenuZoomFit" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_Reset Zoom" Header="{loc:Localize '_Reset Zoom'}"     Name="MenuZoomReset" />
       </MenuItem>
-      <MenuItem Header="_Help">
-        <MenuItem Header="Help for the _Selection" Name="MenuHelpContext" InputGesture="F1" />
-        <MenuItem Header="Online _Tutorials"       Name="MenuHelpTutorials" />
-        <MenuItem Header="_User Guide (HTML)..."   Name="MenuHelpHtml" />
+      <MenuItem i18n:LocalizationMenu.SourceHeader="_Help" Header="{loc:Localize '_Help'}">
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Help for the _Selection" Header="{loc:Localize 'Help for the _Selection'}" Name="MenuHelpContext" InputGesture="F1" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Online _Tutorials" Header="{loc:Localize 'Online _Tutorials'}"       Name="MenuHelpTutorials" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_User Guide (HTML)..." Header="{loc:Localize '_User Guide (HTML)...'}"   Name="MenuHelpHtml" />
         <Separator />
-        <MenuItem Header="_Support"                Name="MenuHelpSupport" />
-        <MenuItem Header="Report a _Bug"           Name="MenuHelpBug" />
-        <MenuItem Header="Go to DWSIM's _Website"  Name="MenuHelpWebsite" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_Support" Header="{loc:Localize '_Support'}"                Name="MenuHelpSupport" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Report a _Bug" Header="{loc:Localize 'Report a _Bug'}"           Name="MenuHelpBug" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="Go to DWSIM's _Website" Header="Go to DWSIM's _Website"  Name="MenuHelpWebsite" />
         <Separator />
-        <MenuItem Header="_About DWSIM..."         Name="MenuAbout" />
+        <MenuItem i18n:LocalizationMenu.SourceHeader="_About DWSIM..." Header="{loc:Localize '_About DWSIM...'}"         Name="MenuAbout" />
       </MenuItem>
     </Menu>
 
@@ -171,12 +173,12 @@
     <Border DockPanel.Dock="Top" BorderThickness="0,0,0,1" Padding="4,2">
       <StackPanel Orientation="Horizontal" Spacing="2">
 
-        <Button Name="BtnSave"    Classes="toolbar" ToolTip.Tip="Save"                        Content="💾" FontSize="{DynamicResource ToolbarIconSize}" />
+        <Button Name="BtnSave"    Classes="toolbar" ToolTip.Tip="{loc:Localize 'Save'}"                        Content="💾" FontSize="{DynamicResource ToolbarIconSize}" />
         <Button Name="BtnSimSettings" Classes="toolbar" ToolTip.Tip="Simulation Settings (Alt+M)" Content="⚙" FontSize="{DynamicResource ToolbarIconSize}" />
         <Button Name="BtnUnitOpsExt"  Classes="toolbar" ToolTip.Tip="UnitOps Extensions"      Content="🧩" FontSize="{DynamicResource ToolbarIconSize}" />
 
         <Separator />
-        <TextBlock Text="Steady-State Solver" VerticalAlignment="Center" FontSize="{DynamicResource FontSizeSmall}" Opacity="0.7" Margin="4,0,2,0" />
+        <TextBlock Text="{loc:Localize 'Steady-State Solver'}" VerticalAlignment="Center" FontSize="{DynamicResource FontSizeSmall}" Opacity="0.7" Margin="4,0,2,0" />
         <ToggleButton Name="BtnCalculatorActive" Classes="toolbar" ToolTip.Tip="Flowsheet Calculator Active (F6)" Content="⏻" FontSize="{DynamicResource ToolbarIconSize}" />
         <Button       Name="BtnSolveForce" Classes="toolbar" ToolTip.Tip="Force Solve"        Content="⏩" FontSize="{DynamicResource ToolbarIconSize}" />
         <Button       Name="BtnSolve"      Classes="toolbar" ToolTip.Tip="Solve (F5)"         Content="▶" FontSize="{DynamicResource ToolbarIconSize}" Foreground="Green" />
@@ -187,17 +189,17 @@
         <Button Name="BtnRedo"    Classes="toolbar" ToolTip.Tip="Redo (Ctrl+Y)" Content="↪" FontSize="{DynamicResource ToolbarIconSize}" />
 
         <Separator />
-        <TextBlock Text="Dynamics Solver" VerticalAlignment="Center" FontSize="{DynamicResource FontSizeSmall}" Opacity="0.7" Margin="4,0,2,0" />
+        <TextBlock Text="{loc:Localize 'Dynamics Solver'}" VerticalAlignment="Center" FontSize="{DynamicResource FontSizeSmall}" Opacity="0.7" Margin="4,0,2,0" />
         <ToggleButton Name="BtnDynamicsMode" Classes="toolbar" ToolTip.Tip="Dynamic Mode Active/Inactive" Content="🕒" FontSize="{DynamicResource ToolbarIconSize}" />
-        <Button       Name="BtnDynManager"   Classes="toolbar" ToolTip.Tip="Dynamics Manager"   Content="📋" FontSize="{DynamicResource ToolbarIconSize}" />
-        <Button       Name="BtnDynIntegrator" Classes="toolbar" ToolTip.Tip="Integrator Controls" Content="⏱" FontSize="{DynamicResource ToolbarIconSize}" />
+        <Button       Name="BtnDynManager"   Classes="toolbar" ToolTip.Tip="{loc:Localize 'Dynamics Manager'}"   Content="📋" FontSize="{DynamicResource ToolbarIconSize}" />
+        <Button       Name="BtnDynIntegrator" Classes="toolbar" ToolTip.Tip="{loc:Localize 'Integrator Controls'}" Content="⏱" FontSize="{DynamicResource ToolbarIconSize}" />
 
         <Separator />
-        <TextBlock Text="Flowsheet States" VerticalAlignment="Center" FontSize="{DynamicResource FontSizeSmall}" Opacity="0.7" Margin="4,0,2,0" />
+        <TextBlock Text="{loc:Localize 'Flowsheet States'}" VerticalAlignment="Center" FontSize="{DynamicResource FontSizeSmall}" Opacity="0.7" Margin="4,0,2,0" />
         <ComboBox Name="CbStoredSolutions" Width="150" FontSize="{DynamicResource FontSizeSmall}" VerticalAlignment="Center" />
         <Button Name="BtnStoreSolution"  Classes="toolbar" ToolTip.Tip="Store Current"    Content="➕" FontSize="{DynamicResource ToolbarIconSize}" />
         <Button Name="BtnLoadSolution"   Classes="toolbar" ToolTip.Tip="Restore Selected" Content="♻" FontSize="{DynamicResource ToolbarIconSize}" />
-        <Button Name="BtnDeleteSolution" Classes="toolbar" ToolTip.Tip="Remove Selected"  Content="🗑" FontSize="{DynamicResource ToolbarIconSize}" />
+        <Button Name="BtnDeleteSolution" Classes="toolbar" ToolTip.Tip="{loc:Localize 'Remove Selected'}"  Content="🗑" FontSize="{DynamicResource ToolbarIconSize}" />
 
       </StackPanel>
     </Border>
@@ -219,13 +221,13 @@
         <Border Classes="vdivider" />
 
         <WrapPanel Name="SubToolbarGroup" Orientation="Horizontal" VerticalAlignment="Center">
-          <CheckBox Name="ChkDrawGrid" Content="Grid" VerticalAlignment="Center" FontSize="{DynamicResource FontSizeSmall}" />
-          <CheckBox Name="ChkSnapToGrid" Content="Snap" VerticalAlignment="Center" FontSize="{DynamicResource FontSizeSmall}" />
+          <CheckBox Name="ChkDrawGrid" Content="{loc:Localize 'Grid'}" VerticalAlignment="Center" FontSize="{DynamicResource FontSizeSmall}" />
+          <CheckBox Name="ChkSnapToGrid" Content="{loc:Localize 'Snap'}" VerticalAlignment="Center" FontSize="{DynamicResource FontSizeSmall}" />
           <CheckBox Name="ChkLockLayout" Content="Lock Layout" VerticalAlignment="Center" FontSize="{DynamicResource FontSizeSmall}"
                     ToolTip.Tip="Keep every object where it is: dragging, aligning, snapping and the automatic layouts don't move anything. Panning and zooming still work. Saved with the flowsheet." />
-          <CheckBox Name="ChkMultiSelect" Content="Multi-Select" VerticalAlignment="Center" FontSize="{DynamicResource FontSizeSmall}" />
+          <CheckBox Name="ChkMultiSelect" Content="{loc:Localize 'Multi-Select'}" VerticalAlignment="Center" FontSize="{DynamicResource FontSizeSmall}" />
           <Border Classes="vdivider" />
-          <TextBlock Text="Align:" VerticalAlignment="Center" FontSize="{DynamicResource FontSizeSmall}" Margin="4,0,2,0" />
+          <TextBlock Text="{loc:Localize 'Align:'}" VerticalAlignment="Center" FontSize="{DynamicResource FontSizeSmall}" Margin="4,0,2,0" />
           <Button Name="BtnAlignLeft"   Classes="subtoolbar" ToolTip.Tip="Align Lefts"   Content="⇤" />
           <Button Name="BtnAlignCenter" Classes="subtoolbar" ToolTip.Tip="Align Centers" Content="⇔" />
           <Button Name="BtnAlignRight"  Classes="subtoolbar" ToolTip.Tip="Align Rights"  Content="⇥" />
@@ -235,8 +237,8 @@
           <Button Name="BtnEqualizeH"   Classes="subtoolbar" ToolTip.Tip="Equalize Horizontal Spacing" Content="↔" />
           <Button Name="BtnEqualizeV"   Classes="subtoolbar" ToolTip.Tip="Equalize Vertical Spacing"   Content="↕" />
           <Border Classes="vdivider" />
-          <TextBlock Text="Search:" VerticalAlignment="Center" FontSize="{DynamicResource FontSizeSmall}" Margin="4,0,2,0" />
-          <TextBox Name="TbSearch" Width="140" Watermark="Find object..." FontSize="{DynamicResource FontSizeSmall}"
+          <TextBlock Text="{loc:Localize 'Search:'}" VerticalAlignment="Center" FontSize="{DynamicResource FontSizeSmall}" Margin="4,0,2,0" />
+          <TextBox Name="TbSearch" Width="140" Watermark="{loc:Localize 'Find object...'}" FontSize="{DynamicResource FontSizeSmall}"
                    VerticalAlignment="Center" VerticalContentAlignment="Center" />
         </WrapPanel>
       </WrapPanel>

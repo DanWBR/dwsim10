@@ -21,7 +21,13 @@ namespace DWSIM.UI.Desktop.Avalonia;
 public partial class PreferencesWindow : Window
 {
 
-    private static readonly string[] Cultures = { "en", "pt-BR", "de", "es", "ru", "zh-CN", "fr" };
+    public static readonly LanguageChoice[] Languages =
+    {
+        new("en", "English (en)"), new("pt-BR", "Português (pt-BR)"),
+        new("de", "Deutsch (de)"), new("es", "Español (es)"),
+        new("ru", "Русский (ru)"), new("zh-CN", "简体中文 (zh-CN)"),
+        new("fr", "Français (fr)")
+    };
 
     private static readonly string[] FontSizes =
         { "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16" };
@@ -105,7 +111,7 @@ public partial class PreferencesWindow : Window
     {
         return new TabItem
         {
-            Header = header,
+            Header = header.Localize(),
             Content = new ScrollViewer
             {
                 HorizontalScrollBarVisibility = global::Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
@@ -281,7 +287,7 @@ public partial class PreferencesWindow : Window
 
         var files = await storage.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = "Select File",
+            Title = "Select File".Localize(),
             AllowMultiple = false,
             FileTypeFilter = types
         });
@@ -378,7 +384,7 @@ public partial class PreferencesWindow : Window
 
         var folders = await storage.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {
-            Title = "Select Backup Folder",
+            Title = "Select Backup Folder".Localize(),
             AllowMultiple = false
         });
 
@@ -445,7 +451,7 @@ public partial class PreferencesWindow : Window
 
         var files = await storage.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = "Select Python Library",
+            Title = "Select Python Library".Localize(),
             AllowMultiple = false,
             FileTypeFilter = new[]
             {
@@ -575,9 +581,12 @@ public partial class PreferencesWindow : Window
         _theme = page.CreateAndAddDropDownRow("Theme", themes, currentTheme, null);
         page.CreateAndAddDescriptionRow("The theme is applied as soon as the settings are accepted.");
 
-        var cultures = Cultures.ToList();
-        _culture = page.CreateAndAddDropDownRow("Culture / Locale", cultures,
-            Math.Max(0, cultures.IndexOf(S.CurrentCulture ?? "en")), null);
+        var languageNames = Languages.Select(language => language.DisplayName).ToList();
+        var selectedLanguage = System.Array.FindIndex(Languages,
+            language => language.Code == (S.CurrentCulture ?? "en"));
+        _culture = page.CreateAndAddDropDownRow("Language", languageNames,
+            Math.Max(0, selectedLanguage), null);
+        page.CreateAndAddDescriptionRow("Language changes take effect after restarting DWSIM.");
 
         return page;
     }
@@ -649,10 +658,11 @@ public partial class PreferencesWindow : Window
 
         ApplyTheme();
 
-        if (_culture.SelectedItem is string culture)
+        if (_culture.SelectedIndex >= 0 && _culture.SelectedIndex < Languages.Length)
         {
-            S.CurrentCulture = culture;
-            S.CultureInfo = culture;
+            var code = Languages[_culture.SelectedIndex].Code;
+            S.CurrentCulture = code;
+            S.CultureInfo = code;
         }
 
         try { S.SaveSettings("dwsim_newui.ini"); }

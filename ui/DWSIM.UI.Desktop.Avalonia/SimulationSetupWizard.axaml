@@ -1,7 +1,8 @@
 <Window xmlns="https://github.com/avaloniaui"
+        xmlns:loc="using:DWSIM.UI.Shared.Avalonia"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="DWSIM.UI.Desktop.Avalonia.SimulationSetupWizard"
-        Title="Simulation Setup Wizard"
+        Title="{loc:Localize 'Simulation Setup Wizard'}"
         Width="920" Height="660"
         WindowStartupLocation="CenterOwner"
         CanResize="True">
@@ -12,10 +13,10 @@
     <Border DockPanel.Dock="Bottom" BorderThickness="0,1,0,0" Padding="12,8">
       <DockPanel LastChildFill="True">
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8">
-          <Button Name="BtnBack"   Classes="wizard" Content="&lt; Back"  Width="90" />
-          <Button Name="BtnNext"   Classes="wizard" Content="Next &gt;"  Width="90" />
-          <Button Name="BtnFinish" Classes="wizard" Content="Finish"     Width="90" />
-          <Button Name="BtnCancel" Classes="wizard" Content="Close"      Width="90" IsCancel="True" />
+          <Button Name="BtnBack"   Classes="wizard" Content="{loc:Localize '&lt; Back'}"  Width="90" />
+          <Button Name="BtnNext"   Classes="wizard" Content="{loc:Localize 'Next &gt;'}"  Width="90" />
+          <Button Name="BtnFinish" Classes="wizard" Content="{loc:Localize 'Finish'}"     Width="90" />
+          <Button Name="BtnCancel" Classes="wizard" Content="{loc:Localize 'Close'}"      Width="90" IsCancel="True" />
         </StackPanel>
         <TextBlock Name="LblFooter" Text="" FontSize="{DynamicResource FontSizeSmall}"
                    VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
@@ -25,7 +26,7 @@
     <!-- ===== Header ===== -->
     <Border DockPanel.Dock="Top" Padding="16,10" BorderThickness="0,0,0,1">
       <StackPanel Spacing="2">
-        <TextBlock Name="LblHeaderTitle" Text="Welcome" FontSize="16" FontWeight="Bold" />
+        <TextBlock Name="LblHeaderTitle" Text="{loc:Localize 'Welcome'}" FontSize="16" FontWeight="Bold" />
         <TextBlock Name="LblHeaderDesc" Text="" FontSize="{DynamicResource FontSizeNormal}" TextWrapping="Wrap" />
       </StackPanel>
     </Border>
