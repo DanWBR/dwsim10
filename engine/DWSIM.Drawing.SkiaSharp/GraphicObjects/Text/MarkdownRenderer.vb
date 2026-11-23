@@ -664,6 +664,58 @@ Namespace GraphicObjects
                 Return New LineMetrics With {.Asc = -fm.Ascent, .Desc = fm.Descent}
             End Function
 
+            Private ReadOnly Fallbacks As New Dictionary(Of Long, SKTypeface)
+
+            ''' <summary>
+            ''' Splits text into runs drawn with one typeface each: the given one, or for a character it doesn't
+            ''' have (arrows, Greek letters, math signs), a system font that has it in the same style.
+            ''' </summary>
+            Public Function Segments(text As String, tf As SKTypeface) As List(Of KeyValuePair(Of String, SKTypeface))
+                Dim result As New List(Of KeyValuePair(Of String, SKTypeface))
+                If String.IsNullOrEmpty(text) Then Return result
+                Dim sb As New StringBuilder
+                Dim current As SKTypeface = tf
+                Dim i = 0
+                While i < text.Length
+                    Dim len = If(Char.IsHighSurrogate(text(i)) AndAlso i + 1 < text.Length AndAlso Char.IsLowSurrogate(text(i + 1)), 2, 1)
+                    Dim cp = If(len = 2, Char.ConvertToUtf32(text(i), text(i + 1)), AscW(text(i)))
+                    Dim use = tf
+                    If cp > 127 AndAlso Not Char.IsWhiteSpace(text(i)) AndAlso tf.GetGlyph(cp) = 0 Then use = Fallback(tf, cp)
+                    If use IsNot current AndAlso sb.Length > 0 Then
+                        result.Add(New KeyValuePair(Of String, SKTypeface)(sb.ToString(), current))
+                        sb.Clear()
+                    End If
+                    current = use
+                    sb.Append(text, i, len)
+                    i += len
+                End While
+                If sb.Length > 0 Then result.Add(New KeyValuePair(Of String, SKTypeface)(sb.ToString(), current))
+                Return result
+            End Function
+
+            Private Function Fallback(tf As SKTypeface, cp As Integer) As SKTypeface
+                Dim key = (CLng(tf.GetHashCode()) << 32) Or CLng(cp)
+                Dim f As SKTypeface = Nothing
+                If Fallbacks.TryGetValue(key, f) Then Return f
+                Try
+                    f = SKFontManager.Default.MatchCharacter(tf.FamilyName, tf.FontStyle, Nothing, cp)
+                Catch
+                    f = Nothing
+                End Try
+                If f Is Nothing Then f = tf
+                Fallbacks(key) = f
+                Return f
+            End Function
+
+            ''' <summary>The width of text drawn with its font fallbacks.</summary>
+            Public Function MeasureMixed(text As String, tf As SKTypeface, size As Single) As Single
+                Dim w As Single = 0
+                For Each seg In Segments(text, tf)
+                    w += Measure(seg.Key, seg.Value, size)
+                Next
+                Return w
+            End Function
+
             Public Function LineHeight(size As Single) As Single
                 Dim m = Metrics(size)
                 Return (m.Asc + m.Desc) * 1.18F
@@ -688,6 +740,10 @@ Namespace GraphicObjects
             Public X As Single
             Public IsSpace As Boolean
             Public IsBreak As Boolean
+            Public TF As SKTypeface
+            Public TS As Single
+            ''' <summary>Continues the word of the token before it (a run of another font inside a word).</summary>
+            Public Glue As Boolean
         End Class
 
         ''' <summary>Lays out Markdown to a width.</summary>
@@ -772,9 +828,23 @@ Namespace GraphicObjects
                 Dim txt = If(r.Code, r.Text, Regex.Replace(r.Text, "\s+", " "))
                 Dim tf = cx.Fonts.Pick(r.Bold OrElse forceBold, r.Italic, r.Code)
                 Dim ts = If(r.Code, size * 0.88F, size)
+                Dim first = True
                 For Each piece In Regex.Split(txt, "( +)")
                     If piece.Length = 0 Then Continue For
-                    toks.Add(New Tok With {.Text = piece, .Run = r, .IsSpace = piece.Trim().Length = 0, .W = cx.Measure(piece, tf, ts)})
+                    If piece.Trim().Length = 0 Then
+                        toks.Add(New Tok With {.Text = piece, .Run = r, .IsSpace = True, .TF = tf, .TS = ts, .W = cx.Measure(piece, tf, ts)})
+                        first = True
+                        Continue For
+                    End If
+                    ' a word continues the previous run's word when the run starts without a space
+                    Dim glueToPrevious = first AndAlso toks.Count > 0 AndAlso Not toks(toks.Count - 1).IsSpace AndAlso Not toks(toks.Count - 1).IsBreak
+                    Dim k = 0
+                    For Each seg In cx.Segments(piece, tf)
+                        toks.Add(New Tok With {.Text = seg.Key, .Run = r, .TF = seg.Value, .TS = ts, .W = cx.Measure(seg.Key, seg.Value, ts),
+                                 .Glue = If(k = 0, glueToPrevious, True)})
+                        k += 1
+                    Next
+                    first = False
                 Next
             Next
 
@@ -782,21 +852,34 @@ Namespace GraphicObjects
             Dim lines As New List(Of List(Of Tok))
             Dim line As New List(Of Tok)
             Dim lw As Single = 0
-            For Each tk In toks
+            Dim ti = 0
+            While ti < toks.Count
+                Dim tk = toks(ti)
                 If tk.IsBreak Then
                     lines.Add(line)
                     line = New List(Of Tok)
                     lw = 0
-                    Continue For
+                    ti += 1
+                    Continue While
                 End If
                 If tk.IsSpace Then
-                    If line.Count = 0 Then Continue For
-                    tk.X = lw
-                    line.Add(tk)
-                    lw += tk.W
-                    Continue For
+                    If line.Count > 0 Then
+                        tk.X = lw
+                        line.Add(tk)
+                        lw += tk.W
+                    End If
+                    ti += 1
+                    Continue While
                 End If
-                If lw + tk.W > maxW AndAlso line.Any(Function(o) Not o.IsSpace) Then
+                ' the word: this token and the tokens glued to it
+                Dim word As New List(Of Tok) From {tk}
+                Dim tj = ti + 1
+                While tj < toks.Count AndAlso toks(tj).Glue AndAlso Not toks(tj).IsSpace AndAlso Not toks(tj).IsBreak
+                    word.Add(toks(tj))
+                    tj += 1
+                End While
+                Dim ww = word.Sum(Function(o) o.W)
+                If lw + ww > maxW AndAlso line.Any(Function(o) Not o.IsSpace) Then
                     While line.Count > 0 AndAlso line(line.Count - 1).IsSpace
                         line.RemoveAt(line.Count - 1)
                     End While
@@ -804,33 +887,40 @@ Namespace GraphicObjects
                     line = New List(Of Tok)
                     lw = 0
                 End If
-                If tk.W > maxW Then
-                    ' a word wider than the line: broken by characters
-                    Dim tf = cx.Fonts.Pick(tk.Run.Bold OrElse forceBold, tk.Run.Italic, tk.Run.Code)
-                    Dim ts = If(tk.Run.Code, size * 0.88F, size)
-                    Dim restText = tk.Text
-                    While restText.Length > 0
-                        Dim n = 1
-                        While n < restText.Length AndAlso lw + cx.Measure(restText.Substring(0, n + 1), tf, ts) <= maxW
-                            n += 1
+                For Each wt In word
+                    If ww > maxW AndAlso lw + wt.W > maxW Then
+                        ' a word wider than the line: broken by characters
+                        Dim restText = wt.Text
+                        While restText.Length > 0
+                            Dim n = 1
+                            While n < restText.Length AndAlso lw + cx.Measure(restText.Substring(0, n + 1), wt.TF, wt.TS) <= maxW
+                                n += 1
+                            End While
+                            If lw > 0 AndAlso lw + cx.Measure(restText.Substring(0, n), wt.TF, wt.TS) > maxW Then
+                                lines.Add(line)
+                                line = New List(Of Tok)
+                                lw = 0
+                                Continue While
+                            End If
+                            Dim part = restText.Substring(0, n)
+                            Dim pw = cx.Measure(part, wt.TF, wt.TS)
+                            line.Add(New Tok With {.Text = part, .Run = wt.Run, .W = pw, .X = lw, .TF = wt.TF, .TS = wt.TS})
+                            lw += pw
+                            restText = restText.Substring(n)
+                            If restText.Length > 0 Then
+                                lines.Add(line)
+                                line = New List(Of Tok)
+                                lw = 0
+                            End If
                         End While
-                        Dim part = restText.Substring(0, n)
-                        Dim pw = cx.Measure(part, tf, ts)
-                        line.Add(New Tok With {.Text = part, .Run = tk.Run, .W = pw, .X = lw})
-                        lw += pw
-                        restText = restText.Substring(n)
-                        If restText.Length > 0 Then
-                            lines.Add(line)
-                            line = New List(Of Tok)
-                            lw = 0
-                        End If
-                    End While
-                    Continue For
-                End If
-                tk.X = lw
-                line.Add(tk)
-                lw += tk.W
-            Next
+                    Else
+                        wt.X = lw
+                        line.Add(wt)
+                        lw += wt.W
+                    End If
+                Next
+                ti = tj
+            End While
             While line.Count > 0 AndAlso line(line.Count - 1).IsSpace
                 line.RemoveAt(line.Count - 1)
             End While
@@ -861,8 +951,8 @@ Namespace GraphicObjects
                 End While
                 For Each tk In ln
                     Dim r = tk.Run
-                    Dim tf = cx.Fonts.Pick(r.Bold OrElse forceBold, r.Italic, r.Code)
-                    Dim ts = If(r.Code, size * 0.88F, size)
+                    Dim tf = tk.TF
+                    Dim ts = tk.TS
                     Dim col = If(r.Link IsNot Nothing, cx.Pal.Link, color)
                     If Not tk.IsSpace Then
                         ops.Add(New DrawOp With {.Kind = OpKind.Text, .Text = tk.Text, .X = dx + tk.X, .Y = baseline, .Color = col, .Typeface = tf, .Size = ts})
@@ -893,7 +983,7 @@ Namespace GraphicObjects
                     Continue For
                 End If
                 Dim txt = If(r.Code, r.Text, Regex.Replace(r.Text, "\s+", " "))
-                w += cx.Measure(txt, cx.Fonts.Pick(r.Bold OrElse forceBold, r.Italic, r.Code), If(r.Code, size * 0.88F, size))
+                w += cx.MeasureMixed(txt, cx.Fonts.Pick(r.Bold OrElse forceBold, r.Italic, r.Code), If(r.Code, size * 0.88F, size))
             Next
             Return Math.Max(best, w)
         End Function
@@ -966,9 +1056,11 @@ Namespace GraphicObjects
             ops.Add(New DrawOp With {.Kind = OpKind.RoundRect, .Rect = New SKRect(0, y0, width, y0 + h), .Size = size * 0.35F, .Color = cx.Pal.CodeBack})
             Dim y = y0 + pad
             For Each l In lines
-                If l.Length > 0 Then
-                    ops.Add(New DrawOp With {.Kind = OpKind.Text, .Text = l, .X = pad, .Y = y + (lh - (-fm.Ascent + fm.Descent)) / 2 - fm.Ascent, .Color = cx.Pal.Text, .Typeface = mono, .Size = cs})
-                End If
+                Dim lx = pad
+                For Each seg In cx.Segments(l, mono)
+                    ops.Add(New DrawOp With {.Kind = OpKind.Text, .Text = seg.Key, .X = lx, .Y = y + (lh - (-fm.Ascent + fm.Descent)) / 2 - fm.Ascent, .Color = cx.Pal.Text, .Typeface = seg.Value, .Size = cs})
+                    lx += cx.Measure(seg.Key, seg.Value, cs)
+                Next
                 y += lh
             Next
             Return h
