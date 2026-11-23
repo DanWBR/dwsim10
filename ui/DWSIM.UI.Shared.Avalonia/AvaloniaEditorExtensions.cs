@@ -30,7 +30,7 @@ public static class AvaloniaEditorExtensions
 
         var lbl = new TextBlock
         {
-            Text = text,
+            Text = text.Localize(),
             FontWeight = FontWeight.Bold,
             FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(12),
             TextWrapping = TextWrapping.Wrap,
@@ -47,7 +47,7 @@ public static class AvaloniaEditorExtensions
     {
         var lbl = new TextBlock
         {
-            Text = text,
+            Text = text.Localize(),
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 2, 0, 2)
         };
@@ -59,7 +59,7 @@ public static class AvaloniaEditorExtensions
     {
         var lbl = new TextBlock
         {
-            Text = text,
+            Text = text.Localize(),
             FontWeight = FontWeight.Bold,
             FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(12),
             TextWrapping = TextWrapping.Wrap,
@@ -73,7 +73,7 @@ public static class AvaloniaEditorExtensions
     {
         var lbl = new TextBlock
         {
-            Text = text,
+            Text = text.Localize(),
             TextWrapping = TextWrapping.Wrap,
             FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             // Opacity, not a colour: 70%-black was invisible against a dark background. Leaving the
@@ -203,7 +203,7 @@ public static class AvaloniaEditorExtensions
         string label, string placeholder, string currval,
         Action<TextBox, EventArgs>? command)
     {
-        var tb = new TextBox { Text = currval, Watermark = placeholder, Width = ControlWidth };
+        var tb = new TextBox { Text = currval, Watermark = placeholder.Localize(), Width = ControlWidth };
 
         if (command != null) WireEnterCommit(tb, panel, command);
 
@@ -245,7 +245,7 @@ public static class AvaloniaEditorExtensions
             ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,4,Auto"),
             Margin = new Thickness(0, 1, 0, 1)
         };
-        var lbl = new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) };
+        var lbl = new TextBlock { Text = label.Localize(), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) };
         Grid.SetColumn(lbl, 0);
         Grid.SetColumn(tb1, 2);
         Grid.SetColumn(tb2, 4);
@@ -272,7 +272,7 @@ public static class AvaloniaEditorExtensions
             ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,4,Auto"),
             Margin = new Thickness(0, 1, 0, 1)
         };
-        var lbl = new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) };
+        var lbl = new TextBlock { Text = label.Localize(), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) };
         Grid.SetColumn(lbl, 0);
         Grid.SetColumn(tb1, 2);
         Grid.SetColumn(tb2, 4);
@@ -477,7 +477,7 @@ public static class AvaloniaEditorExtensions
         string text, bool value,
         Action<CheckBox, EventArgs>? command, Action? keypress = null)
     {
-        var cb = new CheckBox { Content = text, IsChecked = value };
+        var cb = new CheckBox { Content = text.Localize(), IsChecked = value };
 
         if (command != null) cb.IsCheckedChanged += (s, e) => { command((CheckBox)s!, e); panel.OnAfterEdit?.Invoke(); };
         if (keypress != null) cb.IsCheckedChanged += (_, _) => keypress();
@@ -496,7 +496,7 @@ public static class AvaloniaEditorExtensions
     {
         var btn = new Button
         {
-            Content = buttonLabel,
+            Content = buttonLabel.Localize(),
             HorizontalAlignment = HorizontalAlignment.Stretch
         };
         btn.Classes.Add("panel");
@@ -511,7 +511,7 @@ public static class AvaloniaEditorExtensions
         string label, string buttonLabel, string? imageResId,
         Action<Button, EventArgs>? command)
     {
-        var btn = new Button { Content = buttonLabel, Width = ControlWidth };
+        var btn = new Button { Content = buttonLabel.Localize(), Width = ControlWidth };
         btn.Classes.Add("panel");
 
         if (command != null) btn.Click += (s, e) => command((Button)s!, e);
@@ -524,7 +524,7 @@ public static class AvaloniaEditorExtensions
         string label, string buttonLabel, string? imageResId,
         Action<Button, EventArgs>? command)
     {
-        var btn = new Button { Content = buttonLabel, Width = ControlWidth };
+        var btn = new Button { Content = buttonLabel.Localize(), Width = ControlWidth };
         btn.Classes.Add("panel");
 
         if (command != null) btn.Click += (s, e) => command((Button)s!, e);
@@ -552,9 +552,9 @@ public static class AvaloniaEditorExtensions
         string buttonLabel2, string? imageResId2,
         Action<Button, EventArgs>? command, Action<Button, EventArgs>? command2)
     {
-        var btn = new Button { Content = buttonLabel, Width = 100 };
+        var btn = new Button { Content = buttonLabel.Localize(), Width = 100 };
         btn.Classes.Add("panel");
-        var btn2 = new Button { Content = buttonLabel2, Width = 100 };
+        var btn2 = new Button { Content = buttonLabel2.Localize(), Width = 100 };
         btn2.Classes.Add("panel");
 
         if (command != null) btn.Click += (s, e) => command((Button)s!, e);
@@ -573,9 +573,9 @@ public static class AvaloniaEditorExtensions
         string buttonLabel2, string? imageResId2,
         Action<Button, EventArgs>? command, Action<Button, EventArgs>? command2)
     {
-        var btn = new Button { Content = buttonLabel, Width = 100 };
+        var btn = new Button { Content = buttonLabel.Localize(), Width = 100 };
         btn.Classes.Add("panel");
-        var btn2 = new Button { Content = buttonLabel2, Width = 100 };
+        var btn2 = new Button { Content = buttonLabel2.Localize(), Width = 100 };
         btn2.Classes.Add("panel");
 
         if (command != null) btn.Click += (s, e) => command((Button)s!, e);
@@ -597,7 +597,7 @@ public static class AvaloniaEditorExtensions
     {
         var tb = new TextBox { HorizontalAlignment = HorizontalAlignment.Stretch };
         tb.Text = textboxValue;
-        var btn = new Button { Content = buttonLabel, Width = 80 };
+        var btn = new Button { Content = buttonLabel.Localize(), Width = 80 };
         btn.Classes.Add("panel");
 
         if (txteditcommand != null) tb.TextChanged += (s, e) => txteditcommand((TextBox)s!, e);
@@ -608,7 +608,7 @@ public static class AvaloniaEditorExtensions
             ColumnDefinitions = new ColumnDefinitions("Auto,*,4,Auto"),
             Margin = new Thickness(0, 1, 0, 1)
         };
-        var lbl = new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) };
+        var lbl = new TextBlock { Text = label.Localize(), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) };
         Grid.SetColumn(lbl, 0);
         Grid.SetColumn(tb, 1);
         Grid.SetColumn(btn, 3);
@@ -634,9 +634,9 @@ public static class AvaloniaEditorExtensions
     {
         var tb = new TextBox { Width = 250 };
         tb.Text = tbText;
-        var btn = new Button { Content = buttonLabel, Width = 100 };
+        var btn = new Button { Content = buttonLabel.Localize(), Width = 100 };
         btn.Classes.Add("panel");
-        var btn2 = new Button { Content = buttonLabel2, Width = 100 };
+        var btn2 = new Button { Content = buttonLabel2.Localize(), Width = 100 };
         btn2.Classes.Add("panel");
 
         if (command0 != null) tb.TextChanged += (s, e) => command0((TextBox)s!, e);
@@ -659,11 +659,11 @@ public static class AvaloniaEditorExtensions
     {
         var tb = new TextBox { Width = 300 };
         tb.Text = tbText;
-        var b1 = new Button { Content = bl1, Width = 100 };
+        var b1 = new Button { Content = bl1.Localize(), Width = 100 };
         b1.Classes.Add("panel");
-        var b2 = new Button { Content = bl2, Width = 100 };
+        var b2 = new Button { Content = bl2.Localize(), Width = 100 };
         b2.Classes.Add("panel");
-        var b3 = new Button { Content = bl3, Width = 100 };
+        var b3 = new Button { Content = bl3.Localize(), Width = 100 };
         b3.Classes.Add("panel");
 
         if (command0 != null) tb.TextChanged += (s, e) => command0((TextBox)s!, e);
@@ -688,13 +688,13 @@ public static class AvaloniaEditorExtensions
     {
         var tb = new TextBox { Width = 300 };
         tb.Text = tbText;
-        var b1 = new Button { Content = bl1, Width = 100 };
+        var b1 = new Button { Content = bl1.Localize(), Width = 100 };
         b1.Classes.Add("panel");
-        var b2 = new Button { Content = bl2, Width = 100 };
+        var b2 = new Button { Content = bl2.Localize(), Width = 100 };
         b2.Classes.Add("panel");
-        var b3 = new Button { Content = bl3, Width = 100 };
+        var b3 = new Button { Content = bl3.Localize(), Width = 100 };
         b3.Classes.Add("panel");
-        var b4 = new Button { Content = bl4, Width = 100 };
+        var b4 = new Button { Content = bl4.Localize(), Width = 100 };
         b4.Classes.Add("panel");
 
         if (command0 != null) tb.TextChanged += (s, e) => command0((TextBox)s!, e);
@@ -741,7 +741,7 @@ public static class AvaloniaEditorExtensions
             ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,4,Auto"),
             Margin = new Thickness(0, 1, 0, 1)
         };
-        var l1 = new TextBlock { Text = text1, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) };
+        var l1 = new TextBlock { Text = text1.Localize(), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) };
         var l2 = new TextBlock { Text = text2, Width = ControlWidth, TextAlignment = TextAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
         var l3 = new TextBlock { Text = text3, Width = ControlWidth, VerticalAlignment = VerticalAlignment.Center };
         Grid.SetColumn(l1, 0);

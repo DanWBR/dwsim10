@@ -4219,7 +4219,7 @@ public partial class FlowsheetView : UserControl
         return MainMenuBar.Items
             .OfType<MenuItem>()
             .FirstOrDefault(m =>
-                (m.Header?.ToString() ?? "").Replace("_", "") == header);
+                LocalizationMenu.GetSourceHeader(m).Replace("_", "") == header);
     }
 
     /// <summary>
@@ -4235,7 +4235,7 @@ public partial class FlowsheetView : UserControl
         {
             menu = new MenuItem { Header = header };
             var at = (extender as DWSIM.Interfaces.IExtenderCollection2)?.InsertAtPosition ?? -1;
-            var help = MainMenuBar.Items.OfType<MenuItem>().FirstOrDefault(m => (m.Header?.ToString() ?? "").Replace("_", "") == "Help");
+            var help = FindTopLevelMenu("Help");
             var last = help != null ? MainMenuBar.Items.IndexOf(help) : MainMenuBar.Items.Count;
             if (at < 0 || at > last) at = last;
             MainMenuBar.Items.Insert(at, menu);

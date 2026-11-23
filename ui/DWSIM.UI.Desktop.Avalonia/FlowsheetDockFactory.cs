@@ -1,4 +1,5 @@
 ﻿using System;
+using DWSIM.UI.Shared.Avalonia;
 using System.Linq;
 using System.Collections.Generic;
 using Avalonia.Controls;
@@ -100,7 +101,7 @@ public sealed class FlowsheetDockFactory : Factory
         EditorTool = new Tool
         {
             Id = "Editor",
-            Title = "Editor",
+            Title = "Editor".Localize(),
             Content = _editorContent,
             CanClose = false,
             CanPin = false,
@@ -112,7 +113,7 @@ public sealed class FlowsheetDockFactory : Factory
         CanvasDocument = new Document
         {
             Id = "Canvas",
-            Title = "Flowsheet",
+            Title = "Flowsheet".Localize(),
             Content = _canvasContent,
             CanClose = false,
             CanPin = false,
@@ -122,7 +123,7 @@ public sealed class FlowsheetDockFactory : Factory
         ResultsDocument = new Document
         {
             Id = "Results",
-            Title = "Results",
+            Title = "Results".Localize(),
             Content = _resultsContent,
             CanClose = false,
             CanPin = false,
@@ -132,7 +133,7 @@ public sealed class FlowsheetDockFactory : Factory
         MaterialStreamsDocument = new Document
         {
             Id = "MaterialStreams",
-            Title = "Material Streams",
+            Title = "Material Streams".Localize(),
             Content = _materialStreamsContent,
             CanClose = false,
             CanPin = false,
@@ -142,7 +143,7 @@ public sealed class FlowsheetDockFactory : Factory
         SpreadsheetDocument = new Document
         {
             Id = "Spreadsheet",
-            Title = "Spreadsheet",
+            Title = "Spreadsheet".Localize(),
             Content = _spreadsheetContent,
             CanClose = false,
             CanPin = false,
@@ -152,7 +153,7 @@ public sealed class FlowsheetDockFactory : Factory
         DynamicsManagerDocument = new Document
         {
             Id = "DynamicsManager",
-            Title = "Dynamics Manager",
+            Title = "Dynamics Manager".Localize(),
             Content = _dynamicsManagerContent,
             CanClose = false,
             CanPin = false,
@@ -163,7 +164,7 @@ public sealed class FlowsheetDockFactory : Factory
         PaletteTool = new Tool
         {
             Id = "Palette",
-            Title = "Objects",
+            Title = "Objects".Localize(),
             Content = _paletteContent,
             CanClose = false,
             CanPin = false,
@@ -175,7 +176,7 @@ public sealed class FlowsheetDockFactory : Factory
         LogTool = new Tool
         {
             Id = "Log",
-            Title = "Log",
+            Title = "Log".Localize(),
             Content = _logContent,
             CanClose = false,
             CanPin = false,
@@ -186,7 +187,7 @@ public sealed class FlowsheetDockFactory : Factory
         IntegratorTool = new Tool
         {
             Id = "Integrator",
-            Title = "Integrator Controls",
+            Title = "Integrator Controls".Localize(),
             Content = _integratorContent,
             CanClose = false,
             CanPin = false,
@@ -197,7 +198,7 @@ public sealed class FlowsheetDockFactory : Factory
         WatchTool = new Tool
         {
             Id = "Watch",
-            Title = "Watch",
+            Title = "Watch".Localize(),
             Content = _watchContent,
             CanClose = false,
             CanPin = false,
@@ -209,7 +210,7 @@ public sealed class FlowsheetDockFactory : Factory
         var leftDock = new ToolDock
         {
             Id = "LeftDock",
-            Title = "Left",
+            Title = "Left".Localize(),
             Alignment = Alignment.Left,
             Proportion = 0.20,
             VisibleDockables = CreateList<IDockable>(EditorTool),
@@ -219,7 +220,7 @@ public sealed class FlowsheetDockFactory : Factory
         var documentDock = new DocumentDock
         {
             Id = "DocumentDock",
-            Title = "Documents",
+            Title = "Documents".Localize(),
             IsCollapsable = false,
             CanCreateDocument = false,
             VisibleDockables = CreateList<IDockable>(
@@ -234,7 +235,7 @@ public sealed class FlowsheetDockFactory : Factory
         var rightDock = new ToolDock
         {
             Id = "RightDock",
-            Title = "Right",
+            Title = "Right".Localize(),
             Alignment = Alignment.Right,
             Proportion = 0.15,
             VisibleDockables = CreateList<IDockable>(PaletteTool),
@@ -244,7 +245,7 @@ public sealed class FlowsheetDockFactory : Factory
         var bottomDock = new ToolDock
         {
             Id = "BottomDock",
-            Title = "Bottom",
+            Title = "Bottom".Localize(),
             Alignment = Alignment.Bottom,
             Proportion = 0.22,
             VisibleDockables = CreateList<IDockable>(LogTool, IntegratorTool, WatchTool),
@@ -256,7 +257,7 @@ public sealed class FlowsheetDockFactory : Factory
         var horizontalDock = new ProportionalDock
         {
             Id = "HorizontalDock",
-            Title = "Horizontal",
+            Title = "Horizontal".Localize(),
             Orientation = Dock.Model.Core.Orientation.Horizontal,
             VisibleDockables = CreateList<IDockable>(
                 leftDock,
@@ -270,7 +271,7 @@ public sealed class FlowsheetDockFactory : Factory
         var mainLayout = new ProportionalDock
         {
             Id = "MainLayout",
-            Title = "Main",
+            Title = "Main".Localize(),
             Orientation = Dock.Model.Core.Orientation.Vertical,
             VisibleDockables = CreateList<IDockable>(
                 horizontalDock,

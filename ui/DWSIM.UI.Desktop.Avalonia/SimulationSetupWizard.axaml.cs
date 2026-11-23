@@ -159,7 +159,7 @@ public partial class SimulationSetupWizard : Window
         {
             var label = new TextBlock
             {
-                Text = (i + 1) + ". " + Steps[i].Title,
+                Text = (i + 1) + ". " + Steps[i].Title.Localize(),
                 FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(12),
                 TextWrapping = TextWrapping.Wrap
             };
@@ -204,8 +204,8 @@ public partial class SimulationSetupWizard : Window
         if (page == ReactionsPageIndex)
             _finderPanel?.RefreshSuggestions();
 
-        LblHeaderTitle.Text = "Step " + (page + 1) + " of " + _pages.Count + " - " + Steps[page].Title;
-        LblHeaderDesc.Text = Steps[page].Description;
+        LblHeaderTitle.Text = string.Format("Step {0} of {1} - {2}".Localize(), page + 1, _pages.Count, Steps[page].Title.Localize());
+        LblHeaderDesc.Text = Steps[page].Description.Localize();
 
         LblFooter.Text = page == _pages.Count - 1
             ? "Everything is already applied to the simulation. Click 'Finish' to start building your process."
@@ -233,7 +233,7 @@ public partial class SimulationSetupWizard : Window
 
         stack.Children.Add(new TextBlock
         {
-            Text = title,
+            Text = title.Localize(),
             FontWeight = FontWeight.SemiBold,
             Margin = new Thickness(0, 0, 0, 4)
         });
@@ -255,7 +255,7 @@ public partial class SimulationSetupWizard : Window
     {
         return new TextBlock
         {
-            Text = text,
+            Text = text.Localize(),
             FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             Opacity = 0.75,
             TextWrapping = TextWrapping.Wrap,
@@ -273,7 +273,7 @@ public partial class SimulationSetupWizard : Window
 
         stack.Children.Add(new TextBlock
         {
-            Text = "Welcome to the simulation setup wizard.",
+            Text = "Welcome to the simulation setup wizard.".Localize(),
             FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(14),
             FontWeight = FontWeight.SemiBold
         });
@@ -296,7 +296,7 @@ public partial class SimulationSetupWizard : Window
 
         stack.Children.Add(new TextBlock
         {
-            Text = "Click 'Next' to continue.",
+            Text = "Click 'Next' to continue.".Localize(),
             Margin = new Thickness(0, 8, 0, 0)
         });
 
@@ -424,7 +424,7 @@ public partial class SimulationSetupWizard : Window
         // the ready-made simulations of the process, in the samples and in the Case Library
         _examplesList = new ListBox { MaxHeight = DWSIM.UI.Shared.Avalonia.UiScale.Size(110) };
         global::Avalonia.Automation.AutomationProperties.SetAutomationId(_examplesList, "ProcessExamples");
-        _openExample = new Button { Content = "Open", MinWidth = 90, IsEnabled = false };
+        _openExample = new Button { Content = "Open".Localize(), MinWidth = 90, IsEnabled = false };
         global::Avalonia.Automation.AutomationProperties.SetAutomationId(_openExample, "OpenProcessExample");
         _exampleStatus = new TextBlock { Text = "Replaces the new simulation.", Opacity = 0.75, VerticalAlignment = VerticalAlignment.Center,
                                          TextWrapping = TextWrapping.Wrap, FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11) };
@@ -704,7 +704,7 @@ public partial class SimulationSetupWizard : Window
         var searchRow = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
         var searchLabel = new TextBlock
         {
-            Text = "Search",
+            Text = "Search".Localize(),
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 0, 8, 0)
         };
@@ -734,7 +734,7 @@ public partial class SimulationSetupWizard : Window
         // two clicks and reads as broken; a checkbox in the cell itself takes the first one
         grid.Columns.Add(new DataGridTemplateColumn
         {
-            Header = "Added",
+            Header = "Added".Localize(),
             Width = new DataGridLength(70),
             CellTemplate = new FuncDataTemplate<CompoundRow>((row, _) =>
             {
@@ -747,28 +747,28 @@ public partial class SimulationSetupWizard : Window
         });
         grid.Columns.Add(new DataGridTextColumn
         {
-            Header = "Name",
+            Header = "Name".Localize(),
             Binding = new Binding("Name"),
             IsReadOnly = true,
             Width = new DataGridLength(2.2, DataGridLengthUnitType.Star)
         });
         grid.Columns.Add(new DataGridTextColumn
         {
-            Header = "CAS Number",
+            Header = "CAS Number".Localize(),
             Binding = new Binding("CAS"),
             IsReadOnly = true,
             Width = new DataGridLength(110)
         });
         grid.Columns.Add(new DataGridTextColumn
         {
-            Header = "Formula",
+            Header = "Formula".Localize(),
             Binding = new Binding("Formula"),
             IsReadOnly = true,
             Width = new DataGridLength(1, DataGridLengthUnitType.Star)
         });
         grid.Columns.Add(new DataGridTextColumn
         {
-            Header = "Database",
+            Header = "Database".Localize(),
             Binding = new Binding("Database"),
             IsReadOnly = true,
             Width = new DataGridLength(100)
@@ -903,7 +903,7 @@ public partial class SimulationSetupWizard : Window
         var top = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
         var label = new TextBlock
         {
-            Text = "Select a property package to add it:",
+            Text = "Select a property package to add it:".Localize(),
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 0, 8, 0)
         };
@@ -930,13 +930,13 @@ public partial class SimulationSetupWizard : Window
 
         grid.Columns.Add(new DataGridTextColumn
         {
-            Header = "Name",
+            Header = "Name".Localize(),
             Binding = new Binding("Name"),
             Width = new DataGridLength(2, DataGridLengthUnitType.Star)
         });
         grid.Columns.Add(new DataGridTextColumn
         {
-            Header = "Type",
+            Header = "Type".Localize(),
             Binding = new Binding("Type"),
             Width = new DataGridLength(2.4, DataGridLengthUnitType.Star)
         });
@@ -1011,7 +1011,7 @@ public partial class SimulationSetupWizard : Window
             var panel = AvaloniaCommon.GetDefaultContainer();
             pp.PopulateCrossPlatformEditor(panel);
 
-            var close = new Button { Content = "Close", Width = 90, IsCancel = true };
+            var close = new Button { Content = "Close".Localize(), Width = 90, IsCancel = true };
             close.Classes.Add("dialog");
 
             var bottom = new StackPanel
@@ -1082,7 +1082,7 @@ public partial class SimulationSetupWizard : Window
         var top = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
         var label = new TextBlock
         {
-            Text = "System of Units",
+            Text = "System of Units".Localize(),
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 0, 8, 0)
         };
@@ -1100,11 +1100,11 @@ public partial class SimulationSetupWizard : Window
             Margin = new Thickness(0, 8, 0, 0)
         };
 
-        var create = new Button { Content = "Create New...", FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11) };
+        var create = new Button { Content = "Create New...".Localize(), FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11) };
         create.Classes.Add("panel");
         create.Click += (_, _) => CreateUnitSystem(clone: false);
 
-        var clone = new Button { Content = "Clone Selected", FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11) };
+        var clone = new Button { Content = "Clone Selected".Localize(), FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11) };
         clone.Classes.Add("panel");
         clone.Click += (_, _) => CreateUnitSystem(clone: true);
 
@@ -1188,7 +1188,7 @@ public partial class SimulationSetupWizard : Window
 
         var doubleClick = new CheckBox
         {
-            Content = "Open the object editor on a double click",
+            Content = "Open the object editor on a double click".Localize(),
             IsChecked = !DWSIM.GlobalSettings.Settings.EditOnSelect
         };
         doubleClick.IsCheckedChanged += (_, _) =>
@@ -1208,7 +1208,7 @@ public partial class SimulationSetupWizard : Window
 
         var smart = new CheckBox
         {
-            Content = "Calculate an object only when one of its inputs changed",
+            Content = "Calculate an object only when one of its inputs changed".Localize(),
             IsChecked = !Options.ForceObjectSolving
         };
         smart.IsCheckedChanged += (_, _) =>
@@ -1228,7 +1228,7 @@ public partial class SimulationSetupWizard : Window
 
         var failSafe = new CheckBox
         {
-            Content = "Try a simple VLE calculation when the selected method fails",
+            Content = "Try a simple VLE calculation when the selected method fails".Localize(),
             IsChecked = FailSafeEnabled()
         };
         failSafe.IsCheckedChanged += (_, _) =>
@@ -1282,7 +1282,7 @@ public partial class SimulationSetupWizard : Window
 
         var enabled = new CheckBox
         {
-            Content = "Record every change so it can be undone",
+            Content = "Record every change so it can be undone".Localize(),
             IsChecked = Options.EnabledUndoRedo
         };
         enabled.IsCheckedChanged += (_, _) =>
@@ -1339,7 +1339,7 @@ public partial class SimulationSetupWizard : Window
             if (numbers.SelectedItem is string format) Options.NumberFormat = format;
         };
 
-        formats.Children.Add(new TextBlock { Text = "General numbers", FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11) });
+        formats.Children.Add(new TextBlock { Text = "General numbers".Localize(), FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11) });
         formats.Children.Add(numbers);
 
         var fractions = new ComboBox
@@ -1356,7 +1356,7 @@ public partial class SimulationSetupWizard : Window
 
         formats.Children.Add(new TextBlock
         {
-            Text = "Compound amounts",
+            Text = "Compound amounts".Localize(),
             FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             Margin = new Thickness(0, 6, 0, 0)
         });

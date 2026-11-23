@@ -1,7 +1,8 @@
 <Window xmlns="https://github.com/avaloniaui"
+        xmlns:loc="using:DWSIM.UI.Shared.Avalonia"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="DWSIM.UI.Desktop.Avalonia.PreferencesWindow"
-        Title="General Settings"
+        Title="{loc:Localize 'General Settings'}"
         Width="760" Height="600"
         WindowStartupLocation="CenterOwner"
         CanResize="True">
@@ -11,8 +12,8 @@
     <!-- Footer buttons -->
     <Border DockPanel.Dock="Bottom" BorderThickness="0,1,0,0" Padding="12,8">
       <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-        <Button Name="BtnCancel" Classes="dialog" Content="Cancel" Width="80" IsCancel="True" />
-        <Button Name="BtnOK"     Classes="dialog" Content="OK"     Width="80" IsDefault="True" />
+        <Button Name="BtnCancel" Classes="dialog" Content="{loc:Localize 'Cancel'}" Width="80" IsCancel="True" />
+        <Button Name="BtnOK"     Classes="dialog" Content="{loc:Localize 'OK'}"     Width="80" IsDefault="True" />
       </StackPanel>
     </Border>
 

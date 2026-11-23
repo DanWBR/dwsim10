@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Concurrent;
 using System.Globalization;
+using System.Collections.Generic;
+using System.IO;
+using System.Text.Json;
 using System.Linq;
 using System.Reflection;
 using System.Resources;
@@ -14,9 +17,10 @@ namespace DWSIM.UI.Shared.Avalonia;
 ///
 /// Resolution order:
 ///   1. A registered fallback dictionary (for ad-hoc Avalonia-only strings).
-///   2. <c>DWSIM.UI.Forms.Localization.Strings</c> (loaded reflectively to avoid a
+///   2. An embedded dictionary for the selected UI culture.
+///   3. <c>DWSIM.UI.Forms.Localization.Strings</c> (loaded reflectively to avoid a
 ///      compile-time dependency on the .NET 4.7.2 UI.Forms project from netstandard).
-///   3. The original string (so missing keys never blank the UI).
+///   4. The original string (so missing keys never blank the UI).
 ///
 /// Call <see cref="SetCulture"/> from PreferencesWindow when the user changes the locale.
 /// </summary>
@@ -26,6 +30,7 @@ public static class Localization
     private static ResourceManager? _resources;
     private static CultureInfo _culture = CultureInfo.CurrentUICulture;
     private static bool _resourceProbed;
+    private static IReadOnlyDictionary<string, string> _translations = LoadTranslations(_culture);
 
     /// <summary>Hard-code translations for strings the resource bundle doesn't carry.</summary>
     public static void Register(string key, string value) => _fallback[key] = value;
@@ -35,7 +40,10 @@ public static class Localization
     {
         try
         {
-            _culture = CultureInfo.GetCultureInfo(cultureName);
+            var culture = CultureInfo.GetCultureInfo(cultureName);
+            var translations = LoadTranslations(culture);
+            _culture = culture;
+            _translations = translations;
             CultureInfo.DefaultThreadCurrentUICulture = _culture;
         }
         catch { /* invalid culture string — keep current */ }
@@ -46,6 +54,8 @@ public static class Localization
         if (string.IsNullOrEmpty(source)) return source;
 
         if (_fallback.TryGetValue(source, out var direct)) return direct;
+
+        if (_translations.TryGetValue(source, out var localized)) return localized;
 
         EnsureResourcesProbed();
         if (_resources != null)
@@ -58,6 +68,28 @@ public static class Localization
             catch { /* missing key, fall through */ }
         }
         return source;
+    }
+
+    private static IReadOnlyDictionary<string, string> LoadTranslations(CultureInfo culture)
+    {
+        for (var candidate = culture; !string.IsNullOrEmpty(candidate.Name); candidate = candidate.Parent)
+        {
+            var resource = $"DWSIM.UI.Shared.Avalonia.Localization.{candidate.Name}.json";
+            using var stream = typeof(Localization).Assembly.GetManifestResourceStream(resource);
+            if (stream == null) continue;
+            try
+            {
+                var entries = JsonSerializer.Deserialize<Dictionary<string, string>>(stream);
+                if (entries != null)
+                    return entries.Where(p => !string.IsNullOrEmpty(p.Key) && !string.IsNullOrEmpty(p.Value))
+                        .ToDictionary(p => p.Key, p => p.Value, StringComparer.Ordinal);
+            }
+            catch (Exception error) when (error is IOException or JsonException)
+            {
+                System.Diagnostics.Trace.WriteLine($"Unable to load UI translations for {candidate.Name}: {error.Message}");
+            }
+        }
+        return new Dictionary<string, string>(StringComparer.Ordinal);
     }
 
     private static void EnsureResourcesProbed()
