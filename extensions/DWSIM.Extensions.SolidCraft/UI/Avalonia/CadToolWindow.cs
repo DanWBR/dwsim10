@@ -46,7 +46,7 @@ namespace DWSIM.Extensions.SolidCraft
         List<CheckBox> itemChecks;
         StackPanel overwrite;
         Button run, preview;
-        ComboBox standard, status, resolution, samples, view;
+        ComboBox standard, status, resolution, samples, view, plantLayout;
 
         public CadToolWindow(CadToolRequest request)
         {
@@ -249,7 +249,9 @@ namespace DWSIM.Extensions.SolidCraft
                 foreach (var c in new[] { labels, flowAnimation, insulation, platforms, instruments, dynamicReplay }) checks.Children.Add(c);
                 rackHeight = Short();
                 itemGap = Short();
-                root.Children.Add(Group("3D model", Rows((null, checks),
+                plantLayout = new ComboBox { ItemsSource = CadTools.PlantLayouts, MinWidth = 160 };
+                ToolTip.SetTip(plantLayout, "Compact: the flowsheet's columns and rows, each as wide as its largest item. Medium: the same with room for access. Sparse: the flowsheet drawing scaled up.");
+                root.Children.Add(Group("3D model", Rows((null, checks), ("Plant layout", plantLayout),
                     ("Top of the pipe rack (" + r.LengthUnits + ")", rackHeight), ("Smallest gap between items (" + r.LengthUnits + ")", itemGap))));
 
                 render = new CheckBox { Content = "Render a photorealistic picture of the model (path tracing)" };
@@ -345,6 +347,7 @@ namespace DWSIM.Extensions.SolidCraft
                 dynamicReplay.IsChecked = o.DynamicReplay;
                 rackHeight.Text = r.ToLength(o.RackHeight).ToString("0.###", CultureInfo.CurrentCulture);
                 itemGap.Text = r.ToLength(o.ItemGap).ToString("0.###", CultureInfo.CurrentCulture);
+                plantLayout.SelectedIndex = (int)o.LayoutKind;
                 render.IsChecked = o.Render;
                 var preset = Array.FindIndex(CadTools.RenderSizes, s => s.Width == o.RenderWidth && s.Height == o.RenderHeight);
                 if (preset >= 0) resolution.SelectedIndex = preset;
@@ -521,6 +524,7 @@ namespace DWSIM.Extensions.SolidCraft
                 if (!TryRead(itemGap.Text, out var gap)) return "The gap between items is not a number.";
                 o.RackHeight = Math.Max(2.5, Math.Min(30, r.FromLength(rack)));
                 o.ItemGap = Math.Max(0.5, Math.Min(20, r.FromLength(gap)));
+                o.PlantLayout = CadTools.PlantLayouts[Math.Max(0, plantLayout.SelectedIndex)];
                 o.Render = render.IsChecked == true;
                 if (!CadTools.TryReadSize(ResolutionText, out var width, out var height)) return "The resolution is the width and the height in pixels, such as 2000 x 1250.";
                 o.RenderWidth = width;

@@ -44,6 +44,12 @@ namespace DWSIM.Extensions.SolidCraft
         /// <summary>Smallest gap kept between neighbouring items when the drawing is scaled to the plot plan, m.</summary>
         public double ItemGap = 2;
 
+        /// <summary>The plant layout of the 3D model: Compact, Medium or Sparse (see <see cref="PlantLayoutKind"/>).</summary>
+        public string PlantLayout = "Compact";
+
+        [JsonIgnore]
+        public PlantLayoutKind LayoutKind => Enum.TryParse<PlantLayoutKind>(PlantLayout, true, out var k) ? k : PlantLayoutKind.Compact;
+
         /// <summary>The conventions of the CADCraft drawings: ISO, ASME or Petrobras (see <see cref="SolidCraft.DrawingStyle"/>).</summary>
         public string DrawingStandard = "ISO";
 
@@ -107,5 +113,16 @@ namespace DWSIM.Extensions.SolidCraft
         }
 
         public string ToJson() => JsonConvert.SerializeObject(this);
+    }
+
+    /// <summary>How the 3D model places the items on the plot plan.</summary>
+    public enum PlantLayoutKind
+    {
+        /// <summary>The flowsheet's columns and rows in the same order, each as wide as its largest item plus the item gap.</summary>
+        Compact,
+        /// <summary>As compact, with three times the item gap plus 3 m between the columns and rows, for access.</summary>
+        Medium,
+        /// <summary>The flowsheet drawing scaled up until no two items are closer than the item gap.</summary>
+        Sparse
     }
 }

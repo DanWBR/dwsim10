@@ -48,6 +48,8 @@ namespace DWSIM.Extensions.SolidCraft
             this.tbRackHeight = new System.Windows.Forms.TextBox();
             this.lblItemGap = new System.Windows.Forms.Label();
             this.tbItemGap = new System.Windows.Forms.TextBox();
+            this.lblPlantLayout = new System.Windows.Forms.Label();
+            this.cbPlantLayout = new System.Windows.Forms.ComboBox();
             this.gbRender = new System.Windows.Forms.GroupBox();
             this.tlpRender = new System.Windows.Forms.TableLayoutPanel();
             this.chkRender = new System.Windows.Forms.CheckBox();
@@ -449,16 +451,19 @@ namespace DWSIM.Extensions.SolidCraft
             this.tlpModel.Controls.Add(this.tbRackHeight, 1, 3);
             this.tlpModel.Controls.Add(this.lblItemGap, 0, 4);
             this.tlpModel.Controls.Add(this.tbItemGap, 1, 4);
+            this.tlpModel.Controls.Add(this.lblPlantLayout, 0, 5);
+            this.tlpModel.Controls.Add(this.cbPlantLayout, 1, 5);
             this.tlpModel.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tlpModel.Location = new System.Drawing.Point(3, 16);
             this.tlpModel.Name = "tlpModel";
-            this.tlpModel.RowCount = 5;
+            this.tlpModel.RowCount = 6;
             this.tlpModel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             this.tlpModel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             this.tlpModel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             this.tlpModel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             this.tlpModel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
-            this.tlpModel.Size = new System.Drawing.Size(556, 121);
+            this.tlpModel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
+            this.tlpModel.Size = new System.Drawing.Size(556, 148);
             this.tlpModel.TabIndex = 0;
             //
             // chkLabels
@@ -554,6 +559,25 @@ namespace DWSIM.Extensions.SolidCraft
             this.tbItemGap.Name = "tbItemGap";
             this.tbItemGap.Size = new System.Drawing.Size(80, 20);
             this.tbItemGap.TabIndex = 9;
+            //
+            // lblPlantLayout
+            //
+            this.lblPlantLayout.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            this.lblPlantLayout.AutoSize = true;
+            this.lblPlantLayout.Location = new System.Drawing.Point(3, 129);
+            this.lblPlantLayout.Name = "lblPlantLayout";
+            this.lblPlantLayout.Size = new System.Drawing.Size(64, 13);
+            this.lblPlantLayout.TabIndex = 10;
+            this.lblPlantLayout.Text = "Plant layout";
+            //
+            // cbPlantLayout
+            //
+            this.cbPlantLayout.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.cbPlantLayout.FormattingEnabled = true;
+            this.cbPlantLayout.Location = new System.Drawing.Point(281, 125);
+            this.cbPlantLayout.Name = "cbPlantLayout";
+            this.cbPlantLayout.Size = new System.Drawing.Size(121, 21);
+            this.cbPlantLayout.TabIndex = 11;
             //
             // gbRender
             //
@@ -1352,6 +1376,8 @@ namespace DWSIM.Extensions.SolidCraft
         private System.Windows.Forms.TextBox tbRackHeight;
         private System.Windows.Forms.Label lblItemGap;
         private System.Windows.Forms.TextBox tbItemGap;
+        private System.Windows.Forms.Label lblPlantLayout;
+        private System.Windows.Forms.ComboBox cbPlantLayout;
         private System.Windows.Forms.GroupBox gbRender;
         private System.Windows.Forms.TableLayoutPanel tlpRender;
         private System.Windows.Forms.CheckBox chkRender;

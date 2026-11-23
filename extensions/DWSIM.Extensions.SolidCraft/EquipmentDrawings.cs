@@ -118,7 +118,7 @@ namespace DWSIM.Extensions.SolidCraft
             // the body: the parts that make up the item, without platforms, ladders, rails and the
             // column's own reflux drum and reboiler
             var parts = item.Parts.Where(p => !p.NoClash && p.Kind != PrimitiveKind.Torus &&
-                !new[] { "reflux", "reboiler", "platform", "handrail", "ladder" }.Any(x => (p.Name ?? "").StartsWith(x))).ToList();
+                !new[] { "reflux", "reboiler", "platform", "handrail", "ladder", "unit " }.Any(x => (p.Name ?? "").StartsWith(x))).ToList();
 
             var nozzles = Nozzles(model, item);
 

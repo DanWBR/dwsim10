@@ -67,6 +67,7 @@ namespace DWSIM.Extensions.SolidCraft
 
             gbDrawing.Visible = gbTitle.Visible = r.IsDrawing;
             cbStandard.Items.AddRange(CadTools.Standards);
+            cbPlantLayout.Items.AddRange(CadTools.PlantLayouts);
             cbStatus.Items.AddRange(CadTools.Statuses);
             lblClearance.Visible = tbClearance.Visible = r.ShowsClearance;
             chkDrawingSet.Visible = r.ShowsDrawingSet;
@@ -131,6 +132,7 @@ namespace DWSIM.Extensions.SolidCraft
             chkDynamicReplay.Checked = o.DynamicReplay;
             tbRackHeight.Text = r.ToLength(o.RackHeight).ToString("0.###", CultureInfo.CurrentCulture);
             tbItemGap.Text = r.ToLength(o.ItemGap).ToString("0.###", CultureInfo.CurrentCulture);
+            cbPlantLayout.SelectedIndex = (int)o.LayoutKind;
             chkRender.Checked = o.Render;
             cbResolution.Text = CadTools.SizeText(o.RenderWidth, o.RenderHeight);
             cbSamples.SelectedIndex = Math.Max(0, samples.FindIndex(s => s.Samples == o.RenderSamples));
@@ -320,6 +322,7 @@ namespace DWSIM.Extensions.SolidCraft
                 if (!TryRead(tbItemGap.Text, out var gap)) return "The gap between items is not a number.";
                 o.RackHeight = Math.Max(2.5, Math.Min(30, r.FromLength(rack)));
                 o.ItemGap = Math.Max(0.5, Math.Min(20, r.FromLength(gap)));
+                o.PlantLayout = CadTools.PlantLayouts[Math.Max(0, cbPlantLayout.SelectedIndex)];
                 o.Render = chkRender.Checked;
                 if (!CadTools.TryReadSize(cbResolution.Text, out var width, out var height)) return "The resolution is the width and the height in pixels, such as 2000 x 1250.";
                 o.RenderWidth = width;

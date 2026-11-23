@@ -308,8 +308,8 @@ namespace DWSIM.Extensions.SolidCraft
             var pts = new List<Vec3>();
             foreach (var e in model.Equipment.Where(e => e.Visible))
             {
-                pts.Add(e.Origin + new Vec3(-e.FootprintX, -e.FootprintY, 0));
-                pts.Add(e.Origin + new Vec3(e.FootprintX, e.FootprintY, e.Envelope.ZTop));
+                pts.Add(e.FootprintCentre + new Vec3(-e.FootprintX, -e.FootprintY, 0));
+                pts.Add(e.FootprintCentre + new Vec3(e.FootprintX, e.FootprintY, e.Envelope.ZTop));
                 if (model.Options.Labels && !string.IsNullOrEmpty(e.Label))
                 {
                     // the label over the item (see CreateLabels)

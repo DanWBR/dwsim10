@@ -336,27 +336,93 @@ namespace DWSIM.Extensions.SolidCraft
         }
 
         /// <summary>
-        /// A unit operation with no model of its own (Plus units, CAPE-OPEN, scripts): a vessel when
-        /// its dimensions give a diameter, a height or a volume, otherwise a block.
+        /// A unit operation with no model of its own (Plus units, CAPE-OPEN, scripts), drawn from the
+        /// dimensions it publishes: a horizontal drum when it gives a length and no height (a kiln, a
+        /// drum washer), a flat tank when its diameter is larger than its height (a thickener), a box
+        /// when it gives a plan area and a height without a diameter (a boiler), a vertical vessel when
+        /// it gives a diameter, a height or a volume, and otherwise a block. With a number of sections
+        /// above one, the item is a train of that many identical bodies.
         /// </summary>
         static EquipmentItem Generic(ISimulationObject obj, List<string> warnings)
         {
             var d = DimensionValue(obj, DimensionName.Diameter);
             var h = DimensionValue(obj, DimensionName.Height);
-            if (!(h > 0)) h = DimensionValue(obj, DimensionName.Length);
+            var l = DimensionValue(obj, DimensionName.Length);
             var v = DimensionValue(obj, DimensionName.Volume);
-            if (d > 0 && d < 20) d *= 1000;        // diameters come in m or mm
-            if (h > 0 && h < 100) h *= 1000;
-            if (!(d > 0) && v > 0) d = Math.Pow(4 * v / (3 * Math.PI), 1.0 / 3) * 1000;
-            if (d > 0)
+            var area = DimensionValue(obj, DimensionName.Area);
+            var n = (int)Math.Round(DimensionValue(obj, DimensionName.NumberOfSections));
+            // diameters, heights and lengths come in m (the DWSIM unit) or mm
+            if (d > 0 && d < 200) d *= 1000;
+            if (h > 0 && h < 500) h *= 1000;
+            if (l > 0 && l < 500) l *= 1000;
+
+            EquipmentItem item = null;
+            if (l > 0 && !(h > 0))
             {
-                if (!(h > 0)) h = v > 0 ? v / (Math.PI * Math.Pow(d / 1000, 2) / 4) * 1000 : 3 * d;
-                var item = EquipmentTemplates.VerticalVessel(Clamp(d, 300, 10000), Clamp(h, 500, 60000), 1000 + d / 4, EquipmentTemplates.Generic, 0.5);
+                if (!(d > 0)) d = v > 0 ? Math.Sqrt(4 * v / (Math.PI * l / 1000)) * 1000 : l / 4;
+                item = EquipmentTemplates.HorizontalVessel(Clamp(d, 300, 8000), Clamp(l, 500, 200000), 1000, EquipmentTemplates.Generic, 0.5);
                 Describe(item, "Diameter (mm)", d, false);
-                Describe(item, "Height (mm)", h, false);
-                return item;
+                Describe(item, "Length T/T (mm)", l, false);
             }
-            return EquipmentTemplates.Block(2000, 2000, 2500);
+            else if (!(d > 0) && area > 0 && h > 0)
+            {
+                var side = Math.Sqrt(area) * 1000;
+                item = EquipmentTemplates.Block(Clamp(side, 1000, 60000), Clamp(side, 1000, 60000), Clamp(h, 1000, 120000));
+                Describe(item, "Plan area (m2)", area, false);
+                Describe(item, "Height (mm)", h, false);
+            }
+            else
+            {
+                if (!(h > 0)) h = l;
+                if (!(d > 0) && v > 0) d = Math.Pow(4 * v / (3 * Math.PI), 1.0 / 3) * 1000;
+                if (d > 0)
+                {
+                    if (!(h > 0)) h = v > 0 ? v / (Math.PI * Math.Pow(d / 1000, 2) / 4) * 1000 : 3 * d;
+                    item = d > h
+                        ? EquipmentTemplates.StorageTank(Clamp(d, 1000, 120000), Clamp(h, 500, 30000))
+                        : EquipmentTemplates.VerticalVessel(Clamp(d, 300, 20000), Clamp(h, 500, 80000), 1000 + d / 4, EquipmentTemplates.Generic, 0.5);
+                    Describe(item, "Diameter (mm)", d, false);
+                    Describe(item, "Height (mm)", h, false);
+                }
+            }
+            if (item == null) return EquipmentTemplates.Block(2000, 2000, 2500);
+            if (v > 0) Describe(item, "Volume (m3)", v, false);
+            if (n > 1) Train(item, Math.Min(n, 64), Options?.LayoutKind == PlantLayoutKind.Compact);
+            return item;
+        }
+
+        /// <summary>
+        /// Repeats the body of an item: in the compact layout as a matrix of N x N bodies (the
+        /// closest arrangement), otherwise in a row towards the front of the plant (-Y). The first
+        /// body keeps the envelope and the nozzles and stands at the corner on the pipe rack side
+        /// (+Y) and the upstream side (-X); the footprint covers the whole train. The copies are
+        /// named "unit k ...", so the general arrangement drawing shows one body.
+        /// </summary>
+        static void Train(EquipmentItem item, int count, bool matrix)
+        {
+            var env = item.Envelope;
+            var body = item.Parts.ToList();
+            // whole millimetres: SolidCraft refuses some solids at fractional coordinates far from the origin
+            double Pitch(double half) => Math.Round(2 * half + Math.Max(2000, 0.5 * half));
+            var pitchX = Pitch(env.HalfX);
+            var pitchY = Pitch(env.HalfY);
+            var cols = matrix ? (int)Math.Ceiling(Math.Sqrt(count)) : 1;
+            var rows = (int)Math.Ceiling(count / (double)cols);
+            for (var k = 1; k < count; k++)
+            {
+                var offset = new Vec3((k % cols) * pitchX, -(k / cols) * pitchY, 0);
+                foreach (var p in body)
+                {
+                    var copy = p.Moved(offset);
+                    copy.Name = "unit " + (k + 1) + " " + p.Name;
+                    item.Parts.Add(copy);
+                }
+            }
+            item.FootprintX = Math.Max(item.FootprintX, env.HalfX) + (cols - 1) * pitchX / 2;
+            item.FootprintY = Math.Max(item.FootprintY, env.HalfY) + (rows - 1) * pitchY / 2;
+            item.FootprintOffsetX = (cols - 1) * pitchX / 2;
+            item.FootprintOffsetY = -(rows - 1) * pitchY / 2;
+            item.Properties["Number of units"] = count.ToString(CultureInfo.InvariantCulture);
         }
 
         static EquipmentItem CreateVessel(ISimulationObject obj, string tag, List<string> warnings)
@@ -744,8 +810,8 @@ namespace DWSIM.Extensions.SolidCraft
                 run.CanRack = true;
                 run.A = pa; run.A1 = a1; run.B = pb; run.B1 = b1;
                 // a top or bottom nozzle sits over the item: on the rack the line first steps clear of it
-                if (Math.Abs(da.Z) > 0.5) run.AClearY = from.Origin.Y + from.FootprintY + 800 + run.OuterDiameter / 2 + run.Insulation;
-                if (Math.Abs(db.Z) > 0.5) run.BClearY = to.Origin.Y + to.FootprintY + 800 + run.OuterDiameter / 2 + run.Insulation;
+                if (Math.Abs(da.Z) > 0.5) run.AClearY = from.FootprintCentre.Y + from.FootprintY + 800 + run.OuterDiameter / 2 + run.Insulation;
+                if (Math.Abs(db.Z) > 0.5) run.BClearY = to.FootprintCentre.Y + to.FootprintY + 800 + run.OuterDiameter / 2 + run.Insulation;
                 if (da.X > 0.5 && db.X < -0.5 && b1.X > a1.X + 1)
                 {
                     // facing nozzles, the common left-to-right flow: a Z-shaped run at nozzle height
@@ -822,7 +888,7 @@ namespace DWSIM.Extensions.SolidCraft
             const double gap = 150;
             var top = model.Options.RackHeight * 1000;
             var visible = model.Equipment.Where(e => e.Visible).ToList();
-            var y0 = (visible.Count > 0 ? visible.Max(e => e.Origin.Y + e.FootprintY) : 0) + 3000;
+            var y0 = (visible.Count > 0 ? visible.Max(e => e.FootprintCentre.Y + e.FootprintY) : 0) + 3000;
             // lanes as wide as the line with its insulation
             var width = Math.Max(2000, lines.Sum(r => r.OuterDiameter + 2 * r.Insulation + gap) + 2 * gap);
             var biggest = lines.Max(r => r.OuterDiameter + 2 * r.Insulation);
@@ -977,13 +1043,123 @@ namespace DWSIM.Extensions.SolidCraft
         #region Layout
 
         /// <summary>
-        /// Scales the canvas to the plot plan: the smallest scale that keeps every pair of items at
-        /// least the item gap of the options apart along X or Y, so the flowsheet arrangement is kept.
+        /// Places the items on the plot plan in the layout of the options: compact or medium (the
+        /// flowsheet's columns and rows, each as wide as its largest item), or sparse (the flowsheet
+        /// drawing scaled up).
         /// </summary>
         static void Layout(PlantModel model)
         {
-            var items = model.Equipment;
             var gap = model.Options.ItemGap * 1000;
+            switch (model.Options.LayoutKind)
+            {
+                case PlantLayoutKind.Compact: Packed(model, gap); break;
+                case PlantLayoutKind.Medium: Packed(model, 3 * gap + 3000); break;
+                default: Scaled(model, gap); break;
+            }
+        }
+
+        /// <summary>Canvas distance under which two items count as one column (or one row) of the flowsheet.</summary>
+        const double SameLine = 20;
+
+        /// <summary>
+        /// The flowsheet's arrangement without its empty space: the items are grouped into the
+        /// columns and rows they form on the canvas, in the same order, and each column (row) is as
+        /// wide as the largest item in it plus <paramref name="gap"/>. Items that share a column
+        /// and a row stand side by side. Stream icons map between the columns and rows.
+        /// </summary>
+        static void Packed(PlantModel model, double gap)
+        {
+            var items = model.Equipment.Where(e => !e.Placed).ToList();
+            if (items.Count == 0) { Scaled(model, gap); return; }
+
+            List<int> Lines(IEnumerable<double> positions, List<double> starts)
+            {
+                var sorted = positions.Select((p, i) => (p, i)).OrderBy(t => t.p).ToList();
+                var index = new int[sorted.Count];
+                foreach (var (p, i) in sorted)
+                {
+                    if (starts.Count == 0 || p - starts[starts.Count - 1] > SameLine) starts.Add(p);
+                    index[i] = starts.Count - 1;
+                }
+                return index.ToList();
+            }
+            var colStarts = new List<double>();
+            var rowStarts = new List<double>();
+            var col = Lines(items.Select(e => e.CanvasX), colStarts);
+            var row = Lines(items.Select(e => e.CanvasY), rowStarts);
+
+            // the items of each cell, left to right
+            var cells = items.Select((e, i) => (e, c: col[i], r: row[i])).GroupBy(t => (t.c, t.r))
+                .ToDictionary(g => g.Key, g => g.Select(t => t.e).OrderBy(e => e.CanvasX).ToList());
+            var colWidth = new double[colStarts.Count];
+            var rowHeight = new double[rowStarts.Count];
+            foreach (var kv in cells)
+            {
+                var w = kv.Value.Sum(e => 2 * e.FootprintX) + gap * (kv.Value.Count - 1);
+                colWidth[kv.Key.c] = Math.Max(colWidth[kv.Key.c], w);
+                rowHeight[kv.Key.r] = Math.Max(rowHeight[kv.Key.r], kv.Value.Max(e => 2 * e.FootprintY));
+            }
+
+            // the plant centred on the origin; canvas Y grows downwards, world Y towards the back
+            var totalX = colWidth.Sum() + gap * (colWidth.Length - 1);
+            var totalY = rowHeight.Sum() + gap * (rowHeight.Length - 1);
+            var colCentre = new double[colWidth.Length];
+            var rowCentre = new double[rowHeight.Length];
+            double x = -totalX / 2, y = totalY / 2;
+            for (var c = 0; c < colWidth.Length; c++) { colCentre[c] = x + colWidth[c] / 2; x += colWidth[c] + gap; }
+            for (var r = 0; r < rowHeight.Length; r++) { rowCentre[r] = y - rowHeight[r] / 2; y -= rowHeight[r] + gap; }
+
+            foreach (var kv in cells)
+            {
+                var w = kv.Value.Sum(e => 2 * e.FootprintX) + gap * (kv.Value.Count - 1);
+                var left = colCentre[kv.Key.c] - w / 2;
+                foreach (var e in kv.Value)
+                {
+                    e.Origin = new Vec3(Math.Round(left + e.FootprintX - e.FootprintOffsetX), Math.Round(rowCentre[kv.Key.r] - e.FootprintOffsetY), 0);
+                    left += 2 * e.FootprintX + gap;
+                }
+            }
+
+            // the canvas to plot plan map for the stream icons: through the column and row centres,
+            // and on past the outer ones
+            double Mean(List<int> index, IEnumerable<double> pos, int k) => pos.Where((p, i) => index[i] == k).Average();
+            model.MapCanvasX = Enumerable.Range(0, colCentre.Length).Select(k => Mean(col, items.Select(e => e.CanvasX), k)).ToArray();
+            model.MapWorldX = colCentre;
+            model.MapHalfX = colWidth.Select(w => w / 2 + gap).ToArray();
+            model.MapCanvasY = Enumerable.Range(0, rowCentre.Length).Select(k => Mean(row, items.Select(e => e.CanvasY), k)).ToArray();
+            model.MapWorldY = rowCentre.Select(v => -v).ToArray();
+            model.MapHalfY = rowHeight.Select(h => h / 2 + gap).ToArray();
+
+            var spanX = items.Max(e => e.CanvasX) - items.Min(e => e.CanvasX);
+            model.Scale = spanX > 1 ? totalX / spanX : 15;
+            model.CanvasOriginX = (items.Min(e => e.CanvasX) + items.Max(e => e.CanvasX)) / 2;
+            model.CanvasOriginY = (items.Min(e => e.CanvasY) + items.Max(e => e.CanvasY)) / 2;
+        }
+
+        /// <summary>A canvas coordinate on the plot plan, between the packed columns (rows) or past the outer ones.</summary>
+        static double Map(double[] canvas, double[] world, double[] half, double v)
+        {
+            const double beyond = 15; // mm per canvas unit past the outer columns
+            var n = canvas.Length;
+            if (v <= canvas[0]) return world[0] - half[0] - (canvas[0] - v) * beyond;
+            if (v >= canvas[n - 1]) return world[n - 1] + half[n - 1] + (v - canvas[n - 1]) * beyond;
+            for (var k = 1; k < n; k++)
+                if (v <= canvas[k])
+                {
+                    var t = (v - canvas[k - 1]) / (canvas[k] - canvas[k - 1]);
+                    return world[k - 1] + t * (world[k] - world[k - 1]);
+                }
+            return world[n - 1];
+        }
+
+        /// <summary>
+        /// Scales the canvas to the plot plan: the smallest scale that keeps every pair of items at
+        /// least the item gap of the options apart along X or Y, so the flowsheet arrangement is kept.
+        /// </summary>
+        static void Scaled(PlantModel model, double gap)
+        {
+            var items = model.Equipment;
+            model.MapCanvasX = model.MapCanvasY = null;
             double scale = 15;
             for (var i = 0; i < items.Count; i++)
             {
@@ -1007,11 +1183,16 @@ namespace DWSIM.Extensions.SolidCraft
             model.CanvasOriginY = items.Count > 0 ? (items.Min(e => e.CanvasY) + items.Max(e => e.CanvasY)) / 2 : 0;
 
             foreach (var item in items.Where(e => !e.Placed))
-                item.Origin = ToWorld(model, item.CanvasX, item.CanvasY);
+                item.Origin = ToWorld(model, item.CanvasX, item.CanvasY) - new Vec3(item.FootprintOffsetX, item.FootprintOffsetY, 0);
         }
 
         static Vec3 ToWorld(PlantModel model, double cx, double cy)
-            => new Vec3(Math.Round((cx - model.CanvasOriginX) * model.Scale), -Math.Round((cy - model.CanvasOriginY) * model.Scale), 0);
+        {
+            if (model.MapCanvasX != null && model.MapCanvasX.Length > 0)
+                return new Vec3(Math.Round(Map(model.MapCanvasX, model.MapWorldX, model.MapHalfX, cx)),
+                    -Math.Round(Map(model.MapCanvasY, model.MapWorldY, model.MapHalfY, cy)), 0);
+            return new Vec3(Math.Round((cx - model.CanvasOriginX) * model.Scale), -Math.Round((cy - model.CanvasOriginY) * model.Scale), 0);
+        }
 
         #endregion
 

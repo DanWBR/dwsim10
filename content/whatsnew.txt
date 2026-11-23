@@ -69,6 +69,7 @@
 - [NEW] Pipe Network designer: block palette grouped in sections that open and close (two columns in the Classic interface), rotation and flip of the blocks, and straight or orthogonal connection lines
 - [NEW] Flowsheet pictures for the 10.3 and refining unit operations, with the ports on the drawing; new icons for the logical blocks, the Extension Pack blocks and the Pipe Network block
 - [NEW] TEA and LCA of the 10.3 unit operations: the Contact Dryer, Alcoholic Fermenter, kraft mill and Bayer refinery blocks are sized and priced from their results and add their utilities and emissions to the inventory; the Lyophilizer, Recovery Boiler, Lime Kiln and Hydrate Calciner are listed with their size for an override price
+- [NEW] CAD Tools: Plant layout setting of the 3D model: Compact (the default; the columns and rows of the flowsheet packed together, and trains of identical equipment as a matrix), Medium (room for access) or Sparse (the flowsheet drawing scaled up)
 - [CHG] Flowsheet Check: warns when the streams of one fluid around a unit use different property packages
 - [CHG] Fail-safe flash with solids: a warning in the log names the stream, the specification and the original error
 - [CHG] Windows installers of final releases are signed with a code signing certificate
@@ -87,6 +88,7 @@
 - [CHG] TEA: a heater is billed as LP, MP or HP steam or fuel gas from its outlet temperature, and a cooler as cooling water, chilled water or refrigeration
 - [CHG] LCA: exhaust gases (flue gas, vents) are left out of the default functional unit
 - [CHG] Classic: the Tools, Utilities and Optimization menus are sorted alphabetically
+- [CHG] CAD Tools: a unit operation without its own 3D model is drawn from the dimensions it publishes (horizontal drum, flat tank, box or vertical vessel, or a train of identical bodies) and gets a general arrangement drawing; the 10.3 pharmaceutical, ethanol, pulp and alumina unit operations publish dimensions estimated from their process variables
 - [FIX] Pipe Segment and Pipe Network with Beggs and Brill: the two-phase friction factor used the wrong branch of the correlation in part of its range, with friction about 3.4 times too high in one band and jumps near another
 - [FIX] Pipe Network: the nodal solver could not raise its damping factor again once it fell below 0.3 and ran to the iteration limit
 - [FIX] Excess enthalpy of NRTL, UNIQUAC, UNIFAC, Modified UNIFAC, NIST-MFAC and Wilson (Excess and Experimental Liquid + Excess modes) was too large where the activity coefficients are far from one

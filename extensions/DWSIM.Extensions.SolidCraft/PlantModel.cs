@@ -285,6 +285,15 @@ namespace DWSIM.Extensions.SolidCraft
         /// <summary>Half the footprint along X and Y, for the layout. Defaults to the envelope.</summary>
         public double FootprintX, FootprintY;
 
+        /// <summary>
+        /// Centre of the footprint from the origin, when the item isn't centred on it (a train of
+        /// bodies that grows from the first one, which holds the nozzles).
+        /// </summary>
+        public double FootprintOffsetX, FootprintOffsetY;
+
+        /// <summary>Centre of the footprint on the plot plan.</summary>
+        public Vec3 FootprintCentre => Origin + new Vec3(FootprintOffsetX, FootprintOffsetY, 0);
+
         /// <summary>Turn about Z, in quarter turns (0, 90, 180, 270), and whether the place comes from a saved layout.</summary>
         public int Rotation;
         public bool Placed;
@@ -328,6 +337,9 @@ namespace DWSIM.Extensions.SolidCraft
                 FootprintX = FootprintY;
                 FootprintY = fx;
             }
+            var offset = new Vec3(FootprintOffsetX, FootprintOffsetY, 0).TurnedZ(Rotation);
+            FootprintOffsetX = offset.X;
+            FootprintOffsetY = offset.Y;
         }
     }
 
@@ -409,5 +421,12 @@ namespace DWSIM.Extensions.SolidCraft
 
         /// <summary>mm of plot plan per unit of canvas, and the canvas point placed at the world origin.</summary>
         public double Scale, CanvasOriginX, CanvasOriginY;
+
+        /// <summary>
+        /// A packed layout's map from the canvas to the plot plan (mm): the canvas positions of its
+        /// columns and rows, their places and the half width past which the outer ones extend.
+        /// Null for a scaled layout.
+        /// </summary>
+        public double[] MapCanvasX, MapWorldX, MapHalfX, MapCanvasY, MapWorldY, MapHalfY;
     }
 }

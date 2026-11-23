@@ -543,6 +543,9 @@ namespace DWSIM.Extensions.SolidCraft
 
         public static readonly string[] Standards = { "ISO", "ASME", "Petrobras" };
 
+        /// <summary>The plant layouts of the 3D model, in the order of <see cref="PlantLayoutKind"/>.</summary>
+        public static readonly string[] PlantLayouts = { "Compact", "Medium", "Sparse" };
+
         /// <summary>The document statuses offered for the title block (another can be typed).</summary>
         public static readonly string[] Statuses = { "PRELIMINARY", "FOR REVIEW", "FOR APPROVAL", "APPROVED", "FOR CONSTRUCTION", "AS BUILT" };
 

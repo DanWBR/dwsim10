@@ -310,7 +310,8 @@ namespace DWSIM.Extensions.SolidCraft
             general.Add("Item", item.Tag);
             general.Add("Type", kind);
             if (!string.IsNullOrWhiteSpace(item.Description) && item.Description != kind) general.Add("Service", item.Description);
-            general.Add("Quantity", type == ObjectType.Pump ? "2 (1 operating + 1 spare)" : "1");
+            general.Add("Quantity", type == ObjectType.Pump ? "2 (1 operating + 1 spare)" :
+                item.Properties.TryGetValue("Number of units", out var units) ? units : "1");
             general.Add("Simulation", flowsheetName);
             if (vessel) general.Add("Drawing", "GA-" + item.Tag);
             sheet.Sections.Add(general);
