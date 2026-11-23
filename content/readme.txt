@@ -60,7 +60,7 @@ Version 10.3.0
 - [NEW] Sugar Solutions property package (Patreon, Premium+): S-UNIFAC for water, sucrose, glucose and fructose fitted to the solubility of sucrose, the boiling point elevation of sugar solutions and the solubility coefficient of cane molasses; ethanol and the other non-sugar compounds by NRTL with distillation parameters for ethanol, water and the higher alcohols; cane ash and organic non-sugars dissolved, fibre and mud solids solid; ICUMSA density to 95 C and a 100-150 C correlation, viscosity with the purity term, heat capacity, thermal conductivity and surface tension of sugar solutions; Brix, purities, ART and ethanol degrees as stream properties; analytical derivatives for the flashes and the Naphtali-Sandholm column solver
 - [NEW] Additional compounds: sugarcane fibre, cane ash, cane organic non-sugars and cane mud solids
 - [NEW] Sugar Stream Analysis (Patreon, Premium+; Utilities): Brix, pol, purities, impurities, crystal content, saturation, supersaturation, solubility coefficient and boiling point elevation of a stream; sets a stream from its Brix, purity and impurity ratios; ART, ART flow, theoretical ethanol, INPM and GL degrees; presets for mixed juice, clarified juice, syrup, final molasses and fermentation must
-- [NEW] Welcome screen: details panel for the selected simulation (picture of the flowsheet, description, property packages, compounds, unit operations, process type and key compounds) with an Open button; the picture is saved in the .dwxmz file
+- [NEW] Welcome screen: details panel for the selected simulation (picture of the flowsheet, description, property packages, compounds, unit operations, process type and key compounds) with an Open button; a click on the picture opens it in a larger window; the picture is saved in the .dwxmz file
 - [NEW] Fluent API: Flowsheet.WithMetadata sets the process type, the process description and the key compounds, reactants and products
 - [NEW] Case Library: raw sugar mill (100 t/h of cane: diffuser, five-effect falling film evaporator, three-boiling pan house with the B and C sugars as seed, sugar dryer, bagasse boiler and back-pressure turbine; Sugar Solutions package)
 - [NEW] Three-phase column stages: Three-phase stages (VLLE) field in the column editors (all, or ranges such as 18-26, 30); the solvers test the stage liquid for a split and use the K-values of the total liquid, and in dynamic mode the holdup of those stages is flashed with two liquids
@@ -107,6 +107,9 @@ Version 10.3.0
 - [NEW] Tutorial: Bayer alumina, in English and Portuguese, with a Python script and a saved flowsheet
 - [NEW] Object palette: a search box, buttons that filter it by industry, and a badge with the Patreon level (L1, L2, L3) on the icons of Patreon unit operations
 - [NEW] Simulation wizard: a Process Type step that sets the simulation up for one of 28 typical processes, can build a starting flowsheet for 18 of them, and opens ready-made simulations from the samples and the Case Library
+- [NEW] Pipe Network designer: block palette grouped in sections that open and close (two columns in the Classic interface), rotation and flip of the blocks, and straight or orthogonal connection lines
+- [NEW] Flowsheet pictures for the 10.3 and refining unit operations, with the ports on the drawing; new icons for the logical blocks, the Extension Pack blocks and the Pipe Network block
+- [NEW] TEA and LCA of the 10.3 unit operations: the Contact Dryer, Alcoholic Fermenter, kraft mill and Bayer refinery blocks are sized and priced from their results and add their utilities and emissions to the inventory; the Lyophilizer, Recovery Boiler, Lime Kiln and Hydrate Calciner are listed with their size for an override price
 - [CHG] Flowsheet Check: warns when the streams of one fluid around a unit use different property packages
 - [CHG] Fail-safe flash with solids: a warning in the log names the stream, the specification and the original error
 - [CHG] Windows installers of final releases are signed with a code signing certificate
@@ -121,6 +124,10 @@ Version 10.3.0
 - [CHG] Operator Training: the numbers in the panels, faceplates, HMI views, alarm summary, interlocks, instructor station and server logs use JetBrains Mono, a monospaced font that comes with the extension
 - [CHG] Pipe Network designer: the flow arrows follow the direction of the solved flow
 - [CHG] Object palette: Patreon, refining and bioprocess unit operations moved from the Premium, Refining and Biochemical groups to the groups of their function
+- [CHG] Pipe Network designer: own icons for the relief device, choke, pressure control valve, ESP, gas lift, reservoir, separator and water pipe, with the ports on the nozzles of the drawing
+- [CHG] TEA: a heater is billed as LP, MP or HP steam or fuel gas from its outlet temperature, and a cooler as cooling water, chilled water or refrigeration
+- [CHG] LCA: exhaust gases (flue gas, vents) are left out of the default functional unit
+- [CHG] Classic: the Tools, Utilities and Optimization menus are sorted alphabetically
 - [FIX] Pipe Segment and Pipe Network with Beggs and Brill: the two-phase friction factor used the wrong branch of the correlation in part of its range, with friction about 3.4 times too high in one band and jumps near another
 - [FIX] Pipe Network: the nodal solver could not raise its damping factor again once it fell below 0.3 and ran to the iteration limit
 - [FIX] Excess enthalpy of NRTL, UNIQUAC, UNIFAC, Modified UNIFAC, NIST-MFAC and Wilson (Excess and Experimental Liquid + Excess modes) was too large where the activity coefficients are far from one
@@ -191,6 +198,9 @@ Version 10.3.0
 - [FIX] Solid salts of the electrolyte database had zero sensible heat, and compounds solid at 25 C lost their enthalpy of fusion (Na2SO4 23.6, Na2CO3 29.7, CaCO3 53.1 kJ/mol too low)
 - [FIX] Falling Film Evaporator in vapor fraction mode: a feed that already boiled above the outlet specification gave an outlet without vapor and no message; it now stops with a message
 - [FIX] Reactor editors (Classic): the energy stream of a conversion reactor connected to its inlet energy port wasn't shown, and choosing another energy stream for an equilibrium or Gibbs reactor stopped with an error
+- [FIX] LCA: the duty of a Cooler counted as heating, heat exchangers and pipes counted as utilities, and an Expander counted as electricity used
+- [FIX] Classic: an empty status bar sat above the supporter benefits bar when there was no Patreon key
+- [FIX] An object added or pasted with the tag of an existing object kept the same tag when that tag had no digits
 
 Version 10.2.16
 
