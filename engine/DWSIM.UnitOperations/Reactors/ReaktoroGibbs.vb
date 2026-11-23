@@ -385,6 +385,8 @@ Namespace Reactors
 
         ''' <summary>Draws the unit operation icon on the given SkiaSharp canvas.</summary>
         ''' <param name="g">The graphics canvas object.</param>
+        Private ImageKind As String = ""
+
         Public Sub Draw(g As Object) Implements IExternalUnitOperation.Draw
 
             Dim canvas As SKCanvas = DirectCast(g, SKCanvas)
@@ -406,9 +408,14 @@ Namespace Reactors
 
             Else
 
-                If Image Is Nothing Then
+                ' the picture of the draw mode: flat icon, black and white line drawing or photo
+                Dim kind = If(GraphicObject.DrawMode = 1, "_bw", If(GraphicObject.DrawMode = 2, "_photo", ""))
+                If Image Is Nothing OrElse kind <> ImageKind Then
 
-                    Using streamBG = New MemoryStream(GetBytesFromResource("DWSIM.UnitOperations.reactor_reaktoro.png"))
+                    ImageKind = kind
+                    Dim res = "DWSIM.UnitOperations.reactor_reaktoro" & kind & ".png"
+                    If Me.GetType().Assembly.GetManifestResourceInfo(res) Is Nothing Then res = "DWSIM.UnitOperations.reactor_reaktoro.png"
+                    Using streamBG = New MemoryStream(GetBytesFromResource(res))
                         Using bitmap = SKBitmap.Decode(streamBG)
                             Image = SKImage.FromBitmap(bitmap)
                         End Using

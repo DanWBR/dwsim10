@@ -93,6 +93,7 @@
 - [CHG] Flowsheet: a connection line that would cross the icon of another stream or unit operation goes around it, on the shortest orthogonal route with the fewest bends
 - [CHG] Flowsheet: the lines of the controllers, adjusts, specifications, gauges, inputs and switches leave the side of the block that faces the object and reach the middle of the object's facing side, and go around the icons of other objects
 - [CHG] Samples: descriptions in Markdown text blocks, tables of the feed, product and energy streams, and profile charts of columns, reactors, pipes and exchangers
+- [CHG] New flowsheet and palette pictures for the fired heater, the Operator Training process models and the Gibbs Reactor (Reaktoro); new photos for the hydroelectric turbine, chiller and ion exchange; black and white pictures for the chiller and the advanced shell-and-tube exchanger
 - [FIX] Pipe Segment and Pipe Network with Beggs and Brill: the two-phase friction factor used the wrong branch of the correlation in part of its range, with friction about 3.4 times too high in one band and jumps near another
 - [FIX] Pipe Network: the nodal solver could not raise its damping factor again once it fell below 0.3 and ran to the iteration limit
 - [FIX] Excess enthalpy of NRTL, UNIQUAC, UNIFAC, Modified UNIFAC, NIST-MFAC and Wilson (Excess and Experimental Liquid + Excess modes) was too large where the activity coefficients are far from one
