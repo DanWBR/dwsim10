@@ -106,6 +106,7 @@ Version 10.3.0
 - [NEW] Case Library: gibbsitic bauxite alumina refinery (about 0.95 Mt/y, digestion to calcined alumina with the liquor loop closed)
 - [NEW] Tutorial: Bayer alumina, in English and Portuguese, with a Python script and a saved flowsheet
 - [NEW] Object palette: a search box, buttons that filter it by industry, and a badge with the Patreon level (L1, L2, L3) on the icons of Patreon unit operations
+- [NEW] Simulation wizard: a Process Type step that sets the simulation up for one of 28 typical processes, can build a starting flowsheet for 18 of them, and opens ready-made simulations from the samples and the Case Library
 - [CHG] Flowsheet Check: warns when the streams of one fluid around a unit use different property packages
 - [CHG] Fail-safe flash with solids: a warning in the log names the stream, the specification and the original error
 - [CHG] Windows installers of final releases are signed with a code signing certificate
