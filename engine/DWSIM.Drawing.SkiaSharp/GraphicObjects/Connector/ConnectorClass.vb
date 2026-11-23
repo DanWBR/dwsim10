@@ -737,6 +737,9 @@ Namespace GraphicObjects
 
             PointList.Add(New Point(EndPos.X, EndPos.Y))
 
+            'around the icons of the other objects
+            If Not Straight Then AvoidObstacles(StartPos, StartDir, EndPos, EndDir)
+
         End Sub
 
         Public Overrides Sub Draw(ByVal g As Object)
