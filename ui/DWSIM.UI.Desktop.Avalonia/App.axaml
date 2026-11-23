@@ -189,6 +189,10 @@
     <Style Selector="TextBox">
       <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
     </Style>
+    <!-- Semi centres the text of a text box vertically; a multi-line box starts its text at the top. -->
+    <Style Selector="TextBox[AcceptsReturn=True]">
+      <Setter Property="VerticalContentAlignment" Value="Top" />
+    </Style>
 
     <!-- Combo boxes: keep Semi's natural height (forcing a short MinHeight squished them);
          only bring the font down to 11. -->
