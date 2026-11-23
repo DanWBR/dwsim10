@@ -201,7 +201,8 @@
           <StackPanel Spacing="14" Margin="20,52,20,20">
             <Border Name="DetailsPreviewCard" Classes="detailsCard" Padding="10" IsVisible="False">
               <Image Name="DetailsPreview" Stretch="Uniform" StretchDirection="DownOnly" MaxHeight="300"
-                     HorizontalAlignment="Center" />
+                     HorizontalAlignment="Center" Cursor="Hand"
+                     ToolTip.Tip="Click to see the picture in a larger window" />
             </Border>
             <StackPanel Spacing="4">
               <TextBlock Name="DetailsTitle" Text="Simulation Details" TextWrapping="Wrap"

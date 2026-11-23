@@ -254,6 +254,20 @@ public partial class MainWindow : Window
         LnkNewSolid.Click += (_, _) => new BiomassCompoundCreatorWindow().Show(this);
         LnkNewBlackOil.Click += (_, _) => new BlackOilCompoundCreatorWindow().Show(this);
         LnkNewCompoundWiz.Click += (_, _) => new CompoundCreatorWindow().Show(this);
+
+        // the preview in the details panel is small, so a click opens it in a window of its own
+        DetailsPreview.Tapped += async (_, _) =>
+        {
+            if (_detailsPreviewPng == null) return;
+            var screen = Screens.ScreenFromWindow(this);
+            var viewer = new ImageViewerWindow(_detailsPreviewPng, DetailsTitle.Text ?? "Image");
+            if (screen != null)
+            {
+                viewer.Width = screen.WorkingArea.Width / screen.Scaling * 0.8;
+                viewer.Height = screen.WorkingArea.Height / screen.Scaling * 0.85;
+            }
+            await viewer.ShowDialog(this);
+        };
         LnkDatabaseManager.Click += async (_, _) => await new DatabaseManagerWindow().ShowDialog(this);
 
         // Documentation
@@ -481,8 +495,11 @@ public partial class MainWindow : Window
         return panel;
     }
 
+    private byte[]? _detailsPreviewPng;
+
     private void SetDetailsPreview(byte[]? png)
     {
+        _detailsPreviewPng = null;
         var old = DetailsPreview.Source as IDisposable;
         DetailsPreview.Source = null;
         old?.Dispose();
@@ -493,6 +510,7 @@ public partial class MainWindow : Window
             using var ms = new MemoryStream(png);
             DetailsPreview.Source = new global::Avalonia.Media.Imaging.Bitmap(ms);
             DetailsPreviewCard.IsVisible = true;
+            _detailsPreviewPng = png;
         }
         catch { }
     }
