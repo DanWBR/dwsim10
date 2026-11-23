@@ -21,15 +21,15 @@ Namespace GraphicObjects
         Private _route As List(Of Point)
 
         ''' <summary>Clearance kept around an icon, px.</summary>
-        Private Const RouteMargin As Double = 6
+        Friend Const RouteMargin As Double = 6
         ''' <summary>Straight run out of a port before the first bend, px.</summary>
         Private Const RouteStub As Double = 12
         ''' <summary>Cost of a bend, as px of length.</summary>
         Private Const RouteBendCost As Double = 30
         ''' <summary>How far beyond the two ends the route may go, px.</summary>
-        Private Const RouteSearchPad As Double = 160
+        Friend Const RouteSearchPad As Double = 160
 
-        Private Structure Box
+        Friend Structure Box
             Public Left, Top, Right, Bottom As Double
             Public Sub New(l As Double, t As Double, r As Double, b As Double)
                 Left = l : Top = t : Right = r : Bottom = b
@@ -51,7 +51,7 @@ Namespace GraphicObjects
         Private Shared _snapshot As New List(Of KeyValuePair(Of IGraphicObject, Box))
         Private Shared ReadOnly _snapshotLock As New Object
 
-        Private Shared Function IconBox(go As IGraphicObject) As Box
+        Friend Shared Function IconBox(go As IGraphicObject) As Box
             Dim w As Double = go.Width, h As Double = go.Height
             Dim r = ((go.Rotation Mod 360) + 360) Mod 360
             If (r >= 45 AndAlso r < 135) OrElse (r >= 225 AndAlso r < 315) Then
@@ -70,7 +70,7 @@ Namespace GraphicObjects
             Return Not t.ToString().StartsWith("GO_")
         End Function
 
-        Private Shared Function Snapshot(fs As IFlowsheet) As List(Of KeyValuePair(Of IGraphicObject, Box))
+        Friend Shared Function Snapshot(fs As IFlowsheet) As List(Of KeyValuePair(Of IGraphicObject, Box))
             SyncLock _snapshotLock
                 Dim now = Environment.TickCount
                 If fs IsNot _snapshotOwner OrElse Math.Abs(now - _snapshotTick) > 40 Then
@@ -133,7 +133,7 @@ Namespace GraphicObjects
 
         End Sub
 
-        Private Shared Function RouteKey(s As Point, sd As ConDir, e As Point, ed As ConDir, others As List(Of Box), own As List(Of Box)) As Long
+        Friend Shared Function RouteKey(s As Point, sd As ConDir, e As Point, ed As ConDir, others As List(Of Box), own As List(Of Box)) As Long
             Dim h As Long = 17
             ' kept below 2^31 before each step, so the product can't overflow
             Dim Add = Sub(v As Double)
@@ -147,7 +147,7 @@ Namespace GraphicObjects
         End Function
 
         ''' <summary>Whether a path runs through one of the boxes (shrunk by <paramref name="slack"/> px).</summary>
-        Private Shared Function PathHits(path As List(Of Point), boxes As List(Of Box), slack As Double) As Boolean
+        Friend Shared Function PathHits(path As List(Of Point), boxes As List(Of Box), slack As Double) As Boolean
             For i = 1 To path.Count - 1
                 Dim a = path(i - 1), b = path(i)
                 For Each bx In boxes
@@ -180,7 +180,7 @@ Namespace GraphicObjects
         ''' The cheapest orthogonal route (length plus a cost per bend) from the start stub to the end
         ''' stub on the grid of the obstacle edges, or Nothing when there isn't one inside the area.
         ''' </summary>
-        Private Shared Function FindRoute(s As Point, sd As ConDir, e As Point, ed As ConDir,
+        Friend Shared Function FindRoute(s As Point, sd As ConDir, e As Point, ed As ConDir,
                                           others As List(Of Box), own As List(Of Box), area As Box) As List(Of Point)
 
             Dim sv = DirStep(sd), ev = DirStep(ed)

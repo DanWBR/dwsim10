@@ -111,13 +111,13 @@ Namespace GraphicObjects.Shapes
                         'the lines run in the flowsheet's coordinates: undo the object's flip, rotation and zoom
                         UnTransformCanvas(canvas)
                         If Not Me.ConnectedToMv Is Nothing Then
-                            canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_mvPT.X + Me.m_mvPT.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_mvPT.X + Me.m_mvPT.Width / 2, Me.m_mvPT.Y + Me.m_mvPT.Height / 2)}, aPen)
+                            LogicalLinks.Draw(canvas, Me, Me.m_mvPT, aPen)
                         End If
                         If Not Me.ConnectedToCv Is Nothing Then
-                            canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_cvPT.X + Me.m_cvPT.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_cvPT.X + Me.m_cvPT.Width / 2, Me.m_cvPT.Y + Me.m_cvPT.Height / 2)}, aPen)
+                            LogicalLinks.Draw(canvas, Me, Me.m_cvPT, aPen)
                         End If
                         If Not Me.ConnectedToRv Is Nothing Then
-                            canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_rvPT.X + Me.m_rvPT.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_rvPT.X + Me.m_rvPT.Width / 2, Me.m_rvPT.Y + Me.m_rvPT.Height / 2)}, aPen)
+                            LogicalLinks.Draw(canvas, Me, Me.m_rvPT, aPen)
                         End If
                     End Using
                     End Using
@@ -159,13 +159,13 @@ Namespace GraphicObjects.Shapes
                         'the lines run in the flowsheet's coordinates: undo the object's flip, rotation and zoom
                         UnTransformCanvas(canvas)
                         If Not Me.ConnectedToMv Is Nothing Then
-                            canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_mvPT.X + Me.m_mvPT.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_mvPT.X + Me.m_mvPT.Width / 2, Me.m_mvPT.Y + Me.m_mvPT.Height / 2)}, aPen)
+                            LogicalLinks.Draw(canvas, Me, Me.m_mvPT, aPen)
                         End If
                         If Not Me.ConnectedToCv Is Nothing Then
-                            canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_cvPT.X + Me.m_cvPT.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_cvPT.X + Me.m_cvPT.Width / 2, Me.m_cvPT.Y + Me.m_cvPT.Height / 2)}, aPen)
+                            LogicalLinks.Draw(canvas, Me, Me.m_cvPT, aPen)
                         End If
                         If Not Me.ConnectedToRv Is Nothing Then
-                            canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_rvPT.X + Me.m_rvPT.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_rvPT.X + Me.m_rvPT.Width / 2, Me.m_rvPT.Y + Me.m_rvPT.Height / 2)}, aPen)
+                            LogicalLinks.Draw(canvas, Me, Me.m_rvPT, aPen)
                         End If
                     End Using
                     End Using

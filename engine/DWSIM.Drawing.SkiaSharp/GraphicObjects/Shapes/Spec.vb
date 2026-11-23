@@ -102,10 +102,10 @@ Namespace GraphicObjects.Shapes
                         'the lines run in the flowsheet's coordinates: undo the object's flip, rotation and zoom
                         UnTransformCanvas(canvas)
                         If Not Me.ConnectedToSv Is Nothing Then
-                            canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_svPT.X + Me.m_svPT.Width / 2, Me.Y + Me.Height / 2), Me.m_svPT.GetCenterPosition}, aPen)
+                            LogicalLinks.Draw(canvas, Me, Me.m_svPT, aPen)
                         End If
                         If Not Me.ConnectedToTv Is Nothing Then
-                            canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_tvPT.X + Me.m_tvPT.Width / 2, Me.Y + Me.Height / 2), Me.m_tvPT.GetCenterPosition}, aPen)
+                            LogicalLinks.Draw(canvas, Me, Me.m_tvPT, aPen)
                         End If
                     End Using
                     End Using
@@ -147,10 +147,10 @@ Namespace GraphicObjects.Shapes
                         'the lines run in the flowsheet's coordinates: undo the object's flip, rotation and zoom
                         UnTransformCanvas(canvas)
                         If Not Me.ConnectedToSv Is Nothing Then
-                            canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_svPT.X + Me.m_svPT.Width / 2, Me.Y + Me.Height / 2), Me.m_svPT.GetCenterPosition}, aPen)
+                            LogicalLinks.Draw(canvas, Me, Me.m_svPT, aPen)
                         End If
                         If Not Me.ConnectedToTv Is Nothing Then
-                            canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_tvPT.X + Me.m_tvPT.Width / 2, Me.Y + Me.Height / 2), Me.m_tvPT.GetCenterPosition}, aPen)
+                            LogicalLinks.Draw(canvas, Me, Me.m_tvPT, aPen)
                         End If
                     End Using
                     End Using

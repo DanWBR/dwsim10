@@ -131,6 +131,7 @@ Version 10.3.0
 - [CHG] Classic: the Tools, Utilities and Optimization menus are sorted alphabetically
 - [CHG] CAD Tools: a unit operation without its own 3D model is drawn from the dimensions it publishes (horizontal drum, flat tank, box or vertical vessel, or a train of identical bodies) and gets a general arrangement drawing; the 10.3 pharmaceutical, ethanol, pulp and alumina unit operations publish dimensions estimated from their process variables
 - [CHG] Flowsheet: a connection line that would cross the icon of another stream or unit operation goes around it, on the shortest orthogonal route with the fewest bends
+- [CHG] Flowsheet: the lines of the controllers, adjusts, specifications, gauges, inputs and switches leave the side of the block that faces the object and reach the middle of the object's facing side, and go around the icons of other objects
 - [FIX] Pipe Segment and Pipe Network with Beggs and Brill: the two-phase friction factor used the wrong branch of the correlation in part of its range, with friction about 3.4 times too high in one band and jumps near another
 - [FIX] Pipe Network: the nodal solver could not raise its damping factor again once it fell below 0.3 and ran to the iteration limit
 - [FIX] Excess enthalpy of NRTL, UNIQUAC, UNIFAC, Modified UNIFAC, NIST-MFAC and Wilson (Excess and Experimental Liquid + Excess modes) was too large where the activity coefficients are far from one

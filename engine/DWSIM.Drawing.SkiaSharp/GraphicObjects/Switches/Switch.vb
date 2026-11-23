@@ -58,14 +58,10 @@ Namespace GraphicObjects
                         .IsStroke = True
                         .IsAntialias = GlobalSettings.Settings.DrawingAntiAlias
                     End With
-                    SetupPositioning(ConDir.Down, ConDir.Down)
-                    Using path As New SKPath()
-                        Dim points() As SKPoint = PointList.Select(Function(x) New SKPoint(x.X, x.Y)).ToArray
-                        path.MoveTo(points(0).X, points(0).Y)
-                        For i As Integer = 1 To points.Length - 1
-                            path.LineTo(points(i).X, points(i).Y)
-                        Next
-                        canvas.DrawPath(path, aPen)
+                    'the line runs in the flowsheet's coordinates: undo the object's flip, rotation and zoom
+                    Using New SKAutoCanvasRestore(canvas)
+                        UnTransformCanvas(canvas)
+                        LogicalLinks.Draw(canvas, Me, SelectedObject.GraphicObject, aPen)
                     End Using
                 End Using
             End If
