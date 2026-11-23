@@ -106,20 +106,7 @@
                 End Using
             End Using
 
-            If Image Is Nothing Then
-
-                Dim assm = Me.GetType.Assembly
-                Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIM.Drawing.SkiaSharp.typewriter.png")
-                    Using bitmap = SKBitmap.Decode(filestr)
-                        Image = SKImage.FromBitmap(bitmap)
-                    End Using
-                End Using
-
-            End If
-
-            Using p As New SKPaint With {.IsAntialias = GlobalSettings.Settings.DrawingAntiAlias, .FilterQuality = SKFilterQuality.High}
-                canvas.DrawImage(Image, New SKRect(X, Y, X + Width, Y + Height), p)
-            End Using
+            LogicArt.Draw(canvas, "python_controller", DrawMode, New SKRect(X, Y, X + Width, Y + Height), Active)
 
             Using paint As New SKPaint With {.TextSize = 10.0 * f, .Color = GetForeColor(), .IsAntialias = True}
                 Select Case GlobalSettings.Settings.RunningPlatform

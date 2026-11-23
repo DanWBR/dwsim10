@@ -104,29 +104,33 @@ Namespace GraphicObjects
                 End Using
             End If
 
-            Dim strx, stry As Single
+            If LogicArt.DrawDisplay(canvas, Me, "digital_gauge", valtext, Font) Then
+                w = Width
+            Else
+                Dim strx, stry As Single
 
-            Using paint As New SKPaint With {.TextSize = 30.0 * f, .Color = GetForeColor(), .IsAntialias = False}
-                paint.Typeface = Font
-                Dim trect As New SKRect(0, 0, 2, 2)
-                paint.GetTextPath(valtext, 0, 0).GetBounds(trect)
-                strx = (w - trect.Width) / 2
-                stry = (h + trect.Height) / 2
-                w = trect.Width + 30 * f
-                strx = (w - trect.Width) / 2
-                Width = w
-            End Using
+                Using paint As New SKPaint With {.TextSize = 30.0 * f, .Color = GetForeColor(), .IsAntialias = False}
+                    paint.Typeface = Font
+                    Dim trect As New SKRect(0, 0, 2, 2)
+                    paint.GetTextPath(valtext, 0, 0).GetBounds(trect)
+                    strx = (w - trect.Width) / 2
+                    stry = (h + trect.Height) / 2
+                    w = trect.Width + 30 * f
+                    strx = (w - trect.Width) / 2
+                    Width = w
+                End Using
 
-            Using paint As New SKPaint With {.TextSize = 30.0 * f, .Color = displaycolor, .IsAntialias = True}
-                paint.Typeface = Font
-                Using paint2 As New SKPaint With {.Color = SKColors.Gray, .IsStroke = False, .IsAntialias = True}
-                    canvas.DrawRect(X - 2 * f, Y - 2 * f, w + 4 * f, h + 4 * f, paint2)
+                Using paint As New SKPaint With {.TextSize = 30.0 * f, .Color = displaycolor, .IsAntialias = True}
+                    paint.Typeface = Font
+                    Using paint2 As New SKPaint With {.Color = SKColors.Gray, .IsStroke = False, .IsAntialias = True}
+                        canvas.DrawRect(X - 2 * f, Y - 2 * f, w + 4 * f, h + 4 * f, paint2)
+                    End Using
+                    Using paint2 As New SKPaint With {.Color = GetBackColor(), .IsStroke = False, .IsAntialias = True}
+                        canvas.DrawRect(X, Y, w, h, paint2)
+                    End Using
+                    canvas.DrawText(valtext, X + strx, Y + stry, paint)
                 End Using
-                Using paint2 As New SKPaint With {.Color = GetBackColor(), .IsStroke = False, .IsAntialias = True}
-                    canvas.DrawRect(X, Y, w, h, paint2)
-                End Using
-                canvas.DrawText(valtext, X + strx, Y + stry, paint)
-            End Using
+            End If
 
             Owner.Calculate()
 

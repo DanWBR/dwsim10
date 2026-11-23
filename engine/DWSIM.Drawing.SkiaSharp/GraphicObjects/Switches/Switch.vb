@@ -66,41 +66,7 @@ Namespace GraphicObjects
                 End Using
             End If
 
-            If owneri.IsOn Then
-
-                If ImageOn Is Nothing Then
-
-                    Dim assm = Me.GetType.Assembly
-                    Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIM.Drawing.SkiaSharp.switch_on.png")
-                        Using bitmap = SKBitmap.Decode(filestr)
-                            ImageOn = SKImage.FromBitmap(bitmap)
-                        End Using
-                    End Using
-
-                End If
-
-                Using p As New SKPaint With {.IsAntialias = GlobalSettings.Settings.DrawingAntiAlias, .FilterQuality = SKFilterQuality.High}
-                    canvas.DrawImage(ImageOn, New SKRect(X, Y, X + Width, Y + Height), p)
-                End Using
-
-            Else
-
-                If ImageOff Is Nothing Then
-
-                    Dim assm = Me.GetType.Assembly
-                    Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIM.Drawing.SkiaSharp.switch_off.png")
-                        Using bitmap = SKBitmap.Decode(filestr)
-                            ImageOff = SKImage.FromBitmap(bitmap)
-                        End Using
-                    End Using
-
-                End If
-
-                Using p As New SKPaint With {.IsAntialias = GlobalSettings.Settings.DrawingAntiAlias, .FilterQuality = SKFilterQuality.High}
-                    canvas.DrawImage(ImageOff, New SKRect(X, Y, X + Width, Y + Height), p)
-                End Using
-
-            End If
+            LogicArt.Draw(canvas, If(owneri.IsOn, "switch", "switch_off"), DrawMode, New SKRect(X, Y, X + Width, Y + Height), True)
 
         End Sub
 

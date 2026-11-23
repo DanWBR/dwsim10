@@ -399,7 +399,7 @@ Namespace SpecialOps
         ''' <returns>A byte array containing the PNG image data for the icon.</returns>
         Public Overrides Function GetIconBitmapBytes() As Byte()
 
-            Return GetBytesFromResource("DWSIM.UnitOperations.control_panel.png")
+            Return GetBytesFromResource("DWSIM.UnitOperations.mpc_controller.png")
 
         End Function
 

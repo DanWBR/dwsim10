@@ -111,21 +111,14 @@ Namespace GraphicObjects.Shapes
                     End If
                     Using New SKAutoCanvasRestore(canvas)
                         StraightCanvas(canvas)
-                        LogicalOpSphereHelper.DrawSphere(canvas, X, Y, Width, Height,
-                                                        centerC, edgeC, outlineC, textC,
-                                                        "R", 0.55F,
-                                                        GlobalSettings.Settings.DrawingAntiAlias,
-                                                        BoldTypeFace)
+                        LogicArt.Draw(canvas, "recycle", DrawMode, New SKRect(X, Y, X + Width, Y + Height), Active)
                     End Using
 
                 Case 1
 
                     Using New SKAutoCanvasRestore(canvas)
                         StraightCanvas(canvas)
-                        LogicalOpSphereHelper.DrawSphereMono(canvas, X, Y, Width, Height,
-                                                            "R", 0.55F,
-                                                            GlobalSettings.Settings.DrawingAntiAlias,
-                                                            BoldTypeFace)
+                        LogicArt.Draw(canvas, "recycle", DrawMode, New SKRect(X, Y, X + Width, Y + Height), Active)
                     End Using
 
                 Case 3

@@ -106,20 +106,7 @@
                 End Using
             End Using
 
-            If Image Is Nothing Then
-
-                Dim assm = Me.GetType.Assembly
-                Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIM.Drawing.SkiaSharp.control_panel.png")
-                    Using bitmap = SKBitmap.Decode(filestr)
-                        Image = SKImage.FromBitmap(bitmap)
-                    End Using
-                End Using
-
-            End If
-
-            Using p As New SKPaint With {.IsAntialias = GlobalSettings.Settings.DrawingAntiAlias, .FilterQuality = SKFilterQuality.High}
-                canvas.DrawImage(Image, New SKRect(X, Y, X + Width, Y + Height), p)
-            End Using
+            LogicArt.Draw(canvas, "pid_controller", DrawMode, New SKRect(X, Y, X + Width, Y + Height), Active)
 
             Using paint As New SKPaint With {.TextSize = 10.0 * f, .Color = GetForeColor(), .IsAntialias = True, .TextEncoding = SKTextEncoding.Utf8}
                 Select Case GlobalSettings.Settings.RunningPlatform
@@ -137,14 +124,6 @@
                 canvas.DrawText("PV " + Convert.ToDouble(Owner?.PVValue).ToString("G2"), X + Width + 3 * f, Y + Height * 0.8 + trect.Height + 2 * f, paint)
                 canvas.DrawText("MV " + Convert.ToDouble(Owner?.MVValueDisplay).ToString("G2"), X + Width + 3 * f, Y + Height * 0.8 + 2 * trect.Height + 4 * f, paint)
             End Using
-
-            If Not Owner?.Active Then
-                Using p As New SKPaint() With {.FilterQuality = SKFilterQuality.High}
-                    p.BlendMode = SKBlendMode.Color
-                    p.ColorFilter = SKColorFilter.CreateBlendMode(SKColors.Gray, SKBlendMode.SrcIn)
-                    canvas.DrawImage(Image, New SKRect(X, Y, X + Width, Y + Height), p)
-                End Using
-            End If
 
         End Sub
 

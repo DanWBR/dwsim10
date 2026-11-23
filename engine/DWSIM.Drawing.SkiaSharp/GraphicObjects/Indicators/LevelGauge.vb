@@ -97,20 +97,31 @@ Namespace GraphicObjects
             Dim maxvaltext = (owneri.MaximumValue * multiplier).ToString("N2")
             Dim valtext = (currentvalue * multiplier).ToString("N2")
 
-            Dim origin = X + w * 0.3
+            ' the artwork (the sight glass) at the left of the box, and the glass the level fills
+            Dim artBox As New SKRect(X, Y, X + Math.Min(Width, Height * LogicArt.Aspect("level_gauge")), Y + Height)
+            Dim hasArt = LogicArt.Draw(canvas, "level_gauge", DrawMode, artBox, True)
+            Dim glass = If(hasArt, LogicArt.ValueRegion("level_gauge", DrawMode, artBox), New SKRect(X + w * 0.3, Y, X + w * 0.3 + w / 2, Y + h))
+            Dim origin = glass.Left
+            Dim gw = glass.Width, gh = glass.Height, gy = glass.Top
 
             Using paint2 As New SKPaint With {.Color = SKColors.LightGray, .IsStroke = False, .IsAntialias = True}
-                canvas.DrawRect(origin, Y, w / 2, h, paint2)
+                If Not hasArt Then canvas.DrawRect(origin, gy, gw, gh, paint2)
             End Using
 
-            Dim currentlevel = (currentvalue - owneri.MinimumValue) / (owneri.MaximumValue - owneri.MinimumValue) * h
+            Dim currentlevel = (currentvalue - owneri.MinimumValue) / (owneri.MaximumValue - owneri.MinimumValue) * gh
 
-            Dim clx = origin + w / 2 + 6 * f
-            Dim cly = Y + (h - currentlevel)
+            Dim clx = If(hasArt, artBox.Right, origin + gw) + 6 * f
+            Dim cly = gy + (gh - currentlevel)
 
-            Using paint2 As New SKPaint With {.Color = SKColors.Blue, .IsStroke = False, .IsAntialias = True}
-                canvas.DrawRect(origin + 2 * f, cly + 2 * f, w / 2 - 4 * f, currentlevel - 4 * f, paint2)
-            End Using
+            If hasArt Then
+                Using paint2 As New SKPaint With {.Color = If(DrawMode = 1, SKColors.Gray, SKColors.DodgerBlue.WithAlpha(210)), .IsStroke = False, .IsAntialias = True}
+                    canvas.DrawRect(origin, cly, gw, Math.Max(0, Math.Min(gh, currentlevel)), paint2)
+                End Using
+            Else
+                Using paint2 As New SKPaint With {.Color = SKColors.Blue, .IsStroke = False, .IsAntialias = True}
+                    canvas.DrawRect(origin + 2 * f, cly + 2 * f, w / 2 - 4 * f, currentlevel - 4 * f, paint2)
+                End Using
+            End If
 
             canvas.Save()
 
@@ -118,7 +129,7 @@ Namespace GraphicObjects
 
             Using paint2 As New SKPaint With {.Color = SKColors.Black, .IsStroke = False, .IsAntialias = True}
                 Using triPath As New SKPath()
-                    Dim tx = CSng(origin + w / 2 + 6 * f)
+                    Dim tx = CSng(clx)
                     Dim ty = CSng(cly)
                     Dim ts = CSng(4 * f)
                     triPath.MoveTo(tx - ts, ty + ts)
@@ -148,9 +159,10 @@ Namespace GraphicObjects
                 Dim trect As New SKRect(0, 0, 2, 2)
                 paint.GetTextPath(valtext, 0, 0).GetBounds(trect)
                 Dim stry As Single = cly + trect.Height / 2
-                canvas.DrawText(minvaltext, origin + w / 2 + 10 * f, Y + h, paint)
-                canvas.DrawText(maxvaltext, origin + w / 2 + 10 * f, Y + trect.Height / 2, paint)
-                canvas.DrawText(valtext, origin + w / 2 + 10 * f, stry, paint)
+                ' the minimum and maximum labels give way to the value when they would overlap it
+                If gy + gh - stry > trect.Height * 1.2 Then canvas.DrawText(minvaltext, clx + 4 * f, gy + gh, paint)
+                If stry - (gy + trect.Height / 2) > trect.Height * 1.2 Then canvas.DrawText(maxvaltext, clx + 4 * f, gy + trect.Height / 2, paint)
+                canvas.DrawText(valtext, clx + 4 * f, stry, paint)
             End Using
 
             Owner.Calculate()
