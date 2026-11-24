@@ -10480,7 +10480,7 @@ Final3:
                         '<SolidHeatCapacityCp name="Solid heat capacity"  units="J/kmol/K" >
                         Dim numbered = Integer.TryParse(eqno, New Integer)
                         Dim cpAt As Func(Of Double, Double) = Function(tt) If(numbered, CalcCSTDepProp(eqno, A, B, C, D, E, tt, 0), ParseEquation(eqno, A, B, C, D, E, tt)) / 1000 / mw 'kJ/kg.K
-                        If cprops(i).TemperatureOfFusion < 298.15 Then
+                        If cprops(i).TemperatureOfFusion > 0.0 AndAlso cprops(i).TemperatureOfFusion < 298.15 Then
                             HS += VMF(i) * Me.AUX_INT_CPDTi_L(298.15, cprops(i).TemperatureOfFusion, cprops(i).Name)
                             HS -= VMF(i) * cprops(i).EnthalpyOfFusionAtTf * 1000 / mw
                             HS -= VMF(i) * SolidCpIntegral(cpAt, T, cprops(i).TemperatureOfFusion)
@@ -10498,7 +10498,7 @@ Final3:
                         D = cprops(i).Solid_Heat_Capacity_Const_D
                         E = cprops(i).Solid_Heat_Capacity_Const_E
                         Dim cpAt As Func(Of Double, Double) = Function(tt) CalcCSTDepProp(eqno, A, B, C, D, E, tt, 0) 'kJ/kg.K
-                        If cprops(i).TemperatureOfFusion < 298.15 Then
+                        If cprops(i).TemperatureOfFusion > 0.0 AndAlso cprops(i).TemperatureOfFusion < 298.15 Then
                             HS += VMF(i) * Me.AUX_INT_CPDTi_L(298.15, cprops(i).TemperatureOfFusion, cprops(i).Name)
                             HS -= VMF(i) * cprops(i).EnthalpyOfFusionAtTf * 1000 / mw
                             HS -= VMF(i) * SolidCpIntegral(cpAt, T, cprops(i).TemperatureOfFusion)
@@ -10554,7 +10554,7 @@ Final3:
                     Dim sfus = If(tf > 0.0, cprops(i).EnthalpyOfFusionAtTf * 1000 / mw / tf, 0.0)
                     Dim atReference = IsSolidAtReference(cprops(i))
                     If cpAt IsNot Nothing Then
-                        If tf < 298.15 Then
+                        If tf > 0.0 AndAlso tf < 298.15 Then
                             SS += VMF(i) * AUX_INT_CPDT_Ti_L(298.15, tf, i)
                             SS -= VMF(i) * sfus
                             SS -= VMF(i) * SolidCpIntegral(Function(tt) cpAt(tt) / tt, T, tf)
