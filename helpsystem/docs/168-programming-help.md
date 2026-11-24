@@ -1,6 +1,6 @@
 # Programming Help
 
-- API Documentation: [Link](https://dwsim.org/api_help/html/G_DWSIM.htm)
+- API Documentation: [Link](https://dwsim.org/help/api/)
 
 - IronPython Script Snippets: [Link](https://dwsim.org/wiki/index.php?title=IronPython_Script_Snippets)
 

@@ -664,7 +664,7 @@ public partial class ScriptEditorWindow : Window
         {
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
             {
-                FileName = "https://dwsim.org/api_help/html/R_Project_DWSIM_Class_Library_Documentation.htm",
+                FileName = "https://dwsim.org/help/api/",
                 UseShellExecute = true
             });
         }
