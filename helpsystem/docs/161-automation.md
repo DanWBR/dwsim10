@@ -28,17 +28,17 @@ Introduction to Interfaces Before proceeding, read this text to get used to Inte
 
 #### API Reference Documentation
 
-Automation Class: [http://dwsim.inforside.com.br/api_help60/html/N_DWSIM_Automation.htm ](http://dwsim.inforside.com.br/api_help60/html/N_DWSIM_Automation.htm ){.uri}
+Automation Class: [https://dwsim.org/help/api/](https://dwsim.org/help/api/){.uri}
 
-Interface Definitions: [http://dwsim.inforside.com.br/api_help60/html/G_DWSIM_Interfaces.htm ](http://dwsim.inforside.com.br/api_help60/html/G_DWSIM_Interfaces.htm ){.uri}
+Interface Definitions: [https://dwsim.org/help/api/](https://dwsim.org/help/api/){.uri}
 
-Unit Operations: [http://dwsim.inforside.com.br/api_help60/html/G_DWSIM_UnitOperations.htm ](http://dwsim.inforside.com.br/api_help60/html/G_DWSIM_UnitOperations.htm ){.uri}
+Unit Operations: [https://dwsim.org/help/api/](https://dwsim.org/help/api/){.uri}
 
-Thermodynamics: [http://dwsim.inforside.com.br/api_help60/html/G_DWSIM_Thermodynamics.htm ](http://dwsim.inforside.com.br/api_help60/html/G_DWSIM_Thermodynamics.htm ){.uri}
+Thermodynamics: [https://dwsim.org/help/api/](https://dwsim.org/help/api/){.uri}
 
-Base Class Shared Library: [http://dwsim.inforside.com.br/api_help60/html/G_DWSIM_SharedClasses.htm ](http://dwsim.inforside.com.br/api_help60/html/G_DWSIM_SharedClasses.htm ){.uri}
+Base Class Shared Library: [https://dwsim.org/help/api/](https://dwsim.org/help/api/){.uri}
 
-Flowsheet GUI and DWSIM main executable: [http://dwsim.inforside.com.br/api_help60/html/N_DWSIM.htm ](http://dwsim.inforside.com.br/api_help60/html/N_DWSIM.htm ){.uri}
+Flowsheet GUI and DWSIM main executable: [https://dwsim.org/help/api/](https://dwsim.org/help/api/){.uri}
 
 CAPE-OPEN Reference: <http://www.colan.org/specifications/>
 
@@ -63,9 +63,9 @@ The Flowsheet class in DWSIM provides access to all objects in the simulation:
 
 The Flowsheet object in DWSIM implements various interfaces, including **IFlowsheet** and **IFlowsheetOptions**.
 
-- **IFlowsheet:** this is the main interface implemented by the Flowsheet class. It provides direct access to the various flowsheet components and helper functions to manipulate objects. <http://dwsim.inforside.com.br/api_help60/html/T_DWSIM_Interfaces_IFlowsheet.htm>
+- **IFlowsheet:** this is the main interface implemented by the Flowsheet class. It provides direct access to the various flowsheet components and helper functions to manipulate objects. <https://dwsim.org/help/api/>
 
-- **IFlowsheetOptions:** this interface defines the flowsheet settings and other properties. <http://dwsim.inforside.com.br/api_help60/html/T_DWSIM_Interfaces_IFlowsheetOptions.htm>
+- **IFlowsheetOptions:** this interface defines the flowsheet settings and other properties. <https://dwsim.org/help/api/>
 
 When you use the Automation class to load a simulation, an IFlowsheet object is returned, which is actually an instance of the Flowsheet class. You can cast the returned object to any of the interfaces implemented by the Flowsheet class to access all available functions, properties and procedures.
 
