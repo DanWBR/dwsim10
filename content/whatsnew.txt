@@ -71,6 +71,9 @@
 - [NEW] TEA and LCA of the 10.3 unit operations: the Contact Dryer, Alcoholic Fermenter, kraft mill and Bayer refinery blocks are sized and priced from their results and add their utilities and emissions to the inventory; the Lyophilizer, Recovery Boiler, Lime Kiln and Hydrate Calciner are listed with their size for an override price
 - [NEW] CAD Tools: Plant layout setting of the 3D model: Compact (the default; the columns and rows of the flowsheet packed together, and trains of identical equipment as a matrix), Medium (room for access) or Sparse (the flowsheet drawing scaled up)
 - [NEW] Markdown text block (Insert > Markdown Text): headings, emphasis, lists, task lists, quotes, code, rules and tables, wraps at the block width, shows Watch panel values ({1:V} {1:U}); Classic editor with a live preview drawn like the flowsheet, Cross-Platform editor panel with formatting buttons
+- [NEW] Heater and Cooler: outlet vapor fraction on a mass basis, with a mol/mol or kg/kg selector next to the field
+- [NEW] Fire Protection: PIPENET Standard project import (the .sdf file with its .slf library)
+- [NEW] Fire Protection: Amazonas fire requirement profile (BR-AM-2019, CBMAM)
 - [CHG] Flowsheet Check: warns when the streams of one fluid around a unit use different property packages
 - [CHG] Fail-safe flash with solids: a warning in the log names the stream, the specification and the original error
 - [CHG] Windows installers of final releases are signed with a code signing certificate
@@ -172,3 +175,9 @@
 - [FIX] Cross-Platform: option buttons used a larger font than the check boxes and the rest of the window
 - [FIX] Cross-Platform: the text of multi-line text boxes sat in the middle of the box instead of at the top
 - [FIX] Flowsheet: rotated objects placed their ports as if mirrored, and flipped objects kept the line direction at their ports
+- [FIX] Forced solid without a melting point: the solid enthalpy from Cp gave an infinite entropy and stopped the flowsheet
+- [FIX] Fire network at rest held by a jockey pump stopped with an error about a supply running backwards
+- [FIX] Fire pump pressure switch with a separate check valve read the pressure before the valve in dynamic runs
+- [FIX] Pipe Network node without a composition after loading solved with wrong pressures
+- [FIX] Offline help: the chapters on pulp and paper, alumina, the Contact Dryer and the Lyophilizer were missing
+- [FIX] API documentation links of the script editors point to dwsim.org/help/api
