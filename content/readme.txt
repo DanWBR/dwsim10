@@ -212,6 +212,7 @@ Version 10.3.0
 - [FIX] Connection editors: after a simulation was opened, inlet ports with a stream showed an internal identifier instead of their name
 - [FIX] Cross-Platform: option buttons used a larger font than the check boxes and the rest of the window
 - [FIX] Cross-Platform: the text of multi-line text boxes sat in the middle of the box instead of at the top
+- [FIX] Flowsheet: rotated objects placed their ports as if mirrored, and flipped objects kept the line direction at their ports
 
 Version 10.2.16
 
