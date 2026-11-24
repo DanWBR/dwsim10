@@ -12,7 +12,9 @@ namespace DWSIM.Automation.FluentAPI.Builders
         /// <summary>Sets <c>Outlet Temperature</c> (SI) and returns this builder for chaining.</summary>
         public HeaterBuilder WithOutletTemperature(Quantity t) { Object.OutletTemperature = t.SI; Object.CalcMode = Heater.CalculationMode.OutletTemperature; return this; }
         /// <summary>Sets <c>Outlet Vapor Fraction</c> and returns this builder for chaining.</summary>
-        public HeaterBuilder WithOutletVaporFraction(double frac) { Object.OutletVaporFraction = frac; Object.CalcMode = Heater.CalculationMode.OutletVaporFraction; return this; }
+        public HeaterBuilder WithOutletVaporFraction(double frac) { Object.OutletVaporFraction = frac; Object.OutletVaporFractionMassBasis = false; Object.CalcMode = Heater.CalculationMode.OutletVaporFraction; return this; }
+        /// <summary>Sets the outlet vapor mass fraction (kg of vapor per kg of outlet) and returns this builder for chaining.</summary>
+        public HeaterBuilder WithOutletVaporMassFraction(double frac) { Object.OutletVaporFraction = frac; Object.OutletVaporFractionMassBasis = true; Object.CalcMode = Heater.CalculationMode.OutletVaporFraction; return this; }
         /// <summary>Sets <c>Heat Added</c> (SI) and returns this builder for chaining.</summary>
         public HeaterBuilder WithHeatAdded(Quantity power) { Object.DeltaQ = power.SI; Object.CalcMode = Heater.CalculationMode.HeatAdded; return this; }
         /// <summary>Sets <c>Temperature Change</c> (SI) and returns this builder for chaining.</summary>

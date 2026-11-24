@@ -151,7 +151,7 @@ Namespace UnitOperations
         Public Overrides ReadOnly Property EOHasEquations As Boolean
             Get
                 Return CalcMode = CalculationMode.OutletTemperature OrElse CalcMode = CalculationMode.TemperatureChange OrElse CalcMode = CalculationMode.HeatAdded OrElse
-                    CalcMode = CalculationMode.OutletVaporFraction
+                    (CalcMode = CalculationMode.OutletVaporFraction AndAlso Not OutletVaporFractionMassBasis)
             End Get
         End Property
 
@@ -161,7 +161,7 @@ Namespace UnitOperations
         ''' </summary>
         Public Overrides ReadOnly Property EOTakesSaturatedStreams As Boolean
             Get
-                Return CalcMode = CalculationMode.OutletVaporFraction OrElse CalcMode = CalculationMode.HeatAdded
+                Return (CalcMode = CalculationMode.OutletVaporFraction AndAlso Not OutletVaporFractionMassBasis) OrElse CalcMode = CalculationMode.HeatAdded
             End Get
         End Property
 
@@ -250,7 +250,7 @@ Namespace UnitOperations
         Public Overrides ReadOnly Property EOHasEquations As Boolean
             Get
                 Return CalcMode = CalculationMode.OutletTemperature OrElse CalcMode = CalculationMode.TemperatureChange OrElse CalcMode = CalculationMode.HeatRemoved OrElse
-                    CalcMode = CalculationMode.OutletVaporFraction
+                    (CalcMode = CalculationMode.OutletVaporFraction AndAlso Not OutletVaporFractionMassBasis)
             End Get
         End Property
 
@@ -260,7 +260,7 @@ Namespace UnitOperations
         ''' </summary>
         Public Overrides ReadOnly Property EOTakesSaturatedStreams As Boolean
             Get
-                Return CalcMode = CalculationMode.OutletVaporFraction OrElse CalcMode = CalculationMode.HeatRemoved
+                Return (CalcMode = CalculationMode.OutletVaporFraction AndAlso Not OutletVaporFractionMassBasis) OrElse CalcMode = CalculationMode.HeatRemoved
             End Get
         End Property
 

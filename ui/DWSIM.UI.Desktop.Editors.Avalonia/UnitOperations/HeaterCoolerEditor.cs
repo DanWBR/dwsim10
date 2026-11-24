@@ -59,6 +59,7 @@ namespace DWSIM.UI.Desktop.Editors
                 outletT: () => heater.OutletTemperature.GetValueOrDefault(), setOutletT: v => heater.OutletTemperature = v,
                 deltaT: () => heater.DeltaT.GetValueOrDefault(), setDeltaT: v => heater.DeltaT = v,
                 vaporFraction: () => heater.OutletVaporFraction.GetValueOrDefault(), setVaporFraction: v => heater.OutletVaporFraction = v,
+                massBasis: () => heater.OutletVaporFractionMassBasis, setMassBasis: v => heater.OutletVaporFractionMassBasis = v,
                 deltaP: () => heater.DeltaP.GetValueOrDefault(), setDeltaP: v => heater.DeltaP = v));
         }
 
@@ -77,6 +78,7 @@ namespace DWSIM.UI.Desktop.Editors
                 outletT: () => cooler.OutletTemperature.GetValueOrDefault(), setOutletT: v => cooler.OutletTemperature = v,
                 deltaT: () => cooler.DeltaT.GetValueOrDefault(), setDeltaT: v => cooler.DeltaT = v,
                 vaporFraction: () => cooler.OutletVaporFraction.GetValueOrDefault(), setVaporFraction: v => cooler.OutletVaporFraction = v,
+                massBasis: () => cooler.OutletVaporFractionMassBasis, setMassBasis: v => cooler.OutletVaporFractionMassBasis = v,
                 deltaP: () => cooler.DeltaP.GetValueOrDefault(), setDeltaP: v => cooler.DeltaP = v));
         }
 
@@ -87,12 +89,14 @@ namespace DWSIM.UI.Desktop.Editors
             Func<double> outletT, Action<double> setOutletT,
             Func<double> deltaT, Action<double> setDeltaT,
             Func<double> vaporFraction, Action<double> setVaporFraction,
+            Func<bool> massBasis, Action<bool> setMassBasis,
             Func<double> deltaP, Action<double> setDeltaP)
         {
             var nf = simobj.GetFlowsheet().FlowsheetOptions.NumberFormat;
 
             UnitOpEditorRows.ValueRow dutyRow = null, outletTRow = null, deltaTRow = null;
             TextBox vaporFractionBox = null;
+            ComboBox basisBox = null;
             var selected = modeIndex;
 
             // every mode but the energy stream one reads a single specification; the rest of the
@@ -103,6 +107,7 @@ namespace DWSIM.UI.Desktop.Editors
                 if (deltaTRow != null) deltaTRow.IsEnabled = selected == 1;
                 if (outletTRow != null) outletTRow.IsEnabled = selected == 2;
                 if (vaporFractionBox != null) vaporFractionBox.IsEnabled = selected == 3;
+                if (basisBox != null) basisBox.IsEnabled = selected == 3;
             }
 
             panel.CreateAndAddDropDownRow("Calculation Type", modes, modeIndex, (dd, e) =>
@@ -128,6 +133,15 @@ namespace DWSIM.UI.Desktop.Editors
 
             vaporFractionBox = panel.CreateAndAddTextBoxRow(nf, "Outlet Vapor Fraction", vaporFraction(),
                 (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v)) setVaporFraction(v); });
+
+            // the outlet vapor fraction as a mole fraction or as a mass fraction
+            var bases = new List<string> { "Mole (mol/mol)", "Mass (kg/kg)" };
+            basisBox = panel.CreateAndAddDropDownRow("Vapor Fraction Basis", bases, massBasis() ? 1 : 0, (dd, e) =>
+            {
+                if (dd.SelectedIndex < 0) return;
+                setMassBasis(dd.SelectedIndex == 1);
+                panel.OnAfterEdit?.Invoke();
+            });
 
             panel.CreateAndAddValueUnitRow(simobj, "Pressure Drop", UnitOfMeasure.deltaP,
                 deltaP(), setDeltaP);

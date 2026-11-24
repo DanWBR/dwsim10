@@ -12,7 +12,9 @@ namespace DWSIM.Automation.FluentAPI.Builders
         /// <summary>Sets <c>Outlet Temperature</c> (SI) and returns this builder for chaining.</summary>
         public CoolerBuilder WithOutletTemperature(Quantity t) { Object.OutletTemperature = t.SI; Object.CalcMode = Cooler.CalculationMode.OutletTemperature; return this; }
         /// <summary>Sets <c>Outlet Vapor Fraction</c> and returns this builder for chaining.</summary>
-        public CoolerBuilder WithOutletVaporFraction(double frac) { Object.OutletVaporFraction = frac; Object.CalcMode = Cooler.CalculationMode.OutletVaporFraction; return this; }
+        public CoolerBuilder WithOutletVaporFraction(double frac) { Object.OutletVaporFraction = frac; Object.OutletVaporFractionMassBasis = false; Object.CalcMode = Cooler.CalculationMode.OutletVaporFraction; return this; }
+        /// <summary>Sets the outlet vapor mass fraction (kg of vapor per kg of outlet) and returns this builder for chaining.</summary>
+        public CoolerBuilder WithOutletVaporMassFraction(double frac) { Object.OutletVaporFraction = frac; Object.OutletVaporFractionMassBasis = true; Object.CalcMode = Cooler.CalculationMode.OutletVaporFraction; return this; }
         /// <summary>Sets <c>Heat Removed</c> (SI) and returns this builder for chaining.</summary>
         public CoolerBuilder WithHeatRemoved(Quantity power) { Object.DeltaQ = power.SI; Object.CalcMode = Cooler.CalculationMode.HeatRemoved; return this; }
         /// <summary>Sets <c>Temperature Change</c> (SI) and returns this builder for chaining.</summary>

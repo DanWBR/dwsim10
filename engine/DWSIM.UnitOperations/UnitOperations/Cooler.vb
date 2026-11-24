@@ -111,6 +111,41 @@ Namespace UnitOperations
             End Set
         End Property
 
+        ''' <summary>When true, <see cref="OutletVaporFraction"/> is the vapor mass fraction of the outlet (the mass of vapor over the
+        ''' outlet mass flow) instead of the vapor mole fraction. False keeps the molar basis of files saved before it existed.</summary>
+        Public Property OutletVaporFractionMassBasis As Boolean = False
+
+        ''' <summary>
+        ''' A pressure-vapor fraction flash that reaches a vapor mass fraction <paramref name="wv"/>: the molar vapor fraction is
+        ''' updated from the vapor to liquid molar mass ratio of the last flash, inside a bracket that bisects when the update
+        ''' leaves it.
+        ''' </summary>
+        Protected Function FlashAtVaporMassFraction(P As Double, wv As Double) As IFlashCalculationResult
+            If wv <= 0.0 OrElse wv >= 1.0 Then
+                Return PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureVaporFraction, P, Math.Min(1.0, Math.Max(0.0, wv)), 0.0)
+            End If
+            Dim lo As Double = 0.0, hi As Double = 1.0, vf As Double = wv
+            Dim best As IFlashCalculationResult = Nothing, bestErr As Double = Double.MaxValue
+            For iter As Integer = 1 To 100
+                Dim res = PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureVaporFraction, P, vf, 0.0)
+                Dim w = res.GetVaporPhaseMassFraction()
+                If Math.Abs(w - wv) < bestErr Then best = res : bestErr = Math.Abs(w - wv)
+                If Math.Abs(w - wv) < 0.000001 Then Return res
+                ' the flash resolves the vapor fraction only to its own tolerance: once the bracket is that narrow, the best point is the answer
+                If hi - lo < 0.0000001 AndAlso bestErr < 0.001 Then Return best
+                If w < wv Then lo = vf Else hi = vf
+                Dim nxt As Double = (lo + hi) / 2
+                If w > 0.0 AndAlso w < 1.0 AndAlso vf > 0.0 AndAlso vf < 1.0 Then
+                    Dim r = w * (1.0 - vf) / (vf * (1.0 - w))
+                    Dim fp = wv / (wv + (1.0 - wv) * r)
+                    If fp > lo AndAlso fp < hi Then nxt = fp
+                End If
+                vf = nxt
+            Next
+            If bestErr < 0.001 Then Return best
+            Throw New Exception(String.Format("{0}: the outlet vapor mass fraction of {1} could not be reached at {2} Pa.", GraphicObject.Tag, wv, P))
+        End Function
+
         ''' <summary>Gets or sets the active calculation mode that determines which variables are specified and which are calculated.</summary>
         Public Property CalcMode() As CalculationMode
             Get
@@ -585,7 +620,7 @@ Namespace UnitOperations
 
                     OutletTemperature = T2
 
-                    OutletVaporFraction = tmp.GetVaporPhaseMoleFraction
+                    OutletVaporFraction = If(OutletVaporFractionMassBasis, tmp.GetVaporPhaseMassFraction, tmp.GetVaporPhaseMoleFraction)
 
                     If DebugMode Then AppendDebugLine(String.Format("Calculated outlet temperature T2 = {0} K", T2))
 
@@ -621,7 +656,7 @@ Namespace UnitOperations
                     Me.DeltaT = T2 - Ti
                     OutletTemperature = T2
 
-                    OutletVaporFraction = tmp.GetVaporPhaseMoleFraction
+                    OutletVaporFraction = If(OutletVaporFractionMassBasis, tmp.GetVaporPhaseMassFraction, tmp.GetVaporPhaseMoleFraction)
 
                     IObj?.Paragraphs.Add(String.Format("<mi>T_2</mi>: {0} K", T2))
                     IObj?.Paragraphs.Add(String.Format("<mi>\Delta T</mi>: {0} K", DeltaT))
@@ -662,7 +697,7 @@ Namespace UnitOperations
                     Me.DeltaT = T2 - Ti
                     Me.DeltaQ = -(H2 - Hi) / (Me.Eficiencia.GetValueOrDefault / 100) * Wi
 
-                    OutletVaporFraction = tmp.GetVaporPhaseMoleFraction
+                    OutletVaporFraction = If(OutletVaporFractionMassBasis, tmp.GetVaporPhaseMassFraction, tmp.GetVaporPhaseMoleFraction)
 
                     IObj?.Paragraphs.Add(String.Format("<mi>\Delta T</mi>: {0} K", DeltaT))
                     IObj?.Paragraphs.Add(String.Format("<mi>H_2</mi>: {0} kJ/kg", H2))
@@ -709,7 +744,7 @@ Namespace UnitOperations
 
                     OutletTemperature = T2
 
-                    OutletVaporFraction = tmp.GetVaporPhaseMoleFraction
+                    OutletVaporFraction = If(OutletVaporFractionMassBasis, tmp.GetVaporPhaseMassFraction, tmp.GetVaporPhaseMoleFraction)
 
                     IObj?.Paragraphs.Add(String.Format("<mi>T_2</mi>: {0} K", T2))
                     IObj?.Paragraphs.Add(String.Format("<mi>H_2</mi>: {0} kJ/kg", H2))
@@ -745,7 +780,12 @@ Namespace UnitOperations
 
                     IObj?.SetCurrent()
                     Dim tmp As IFlashCalculationResult
-                    tmp = Me.PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureVaporFraction, P2, m_VFout.GetValueOrDefault, 0.0)
+                    If OutletVaporFractionMassBasis Then
+                        tmp = FlashAtVaporMassFraction(P2, m_VFout.GetValueOrDefault)
+                        V2 = tmp.GetVaporPhaseMoleFraction
+                    Else
+                        tmp = Me.PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureVaporFraction, P2, m_VFout.GetValueOrDefault, 0.0)
+                    End If
 
                     H2 = tmp.CalculatedEnthalpy
                     CheckSpec(H2, False, "outlet enthalpy")
@@ -756,7 +796,7 @@ Namespace UnitOperations
 
                     OutletTemperature = T2
 
-                    OutletVaporFraction = tmp.GetVaporPhaseMoleFraction
+                    OutletVaporFraction = If(OutletVaporFractionMassBasis, tmp.GetVaporPhaseMassFraction, tmp.GetVaporPhaseMoleFraction)
 
                     IObj?.Paragraphs.Add("<h3>Results</h3>")
 
@@ -1082,7 +1122,7 @@ Namespace UnitOperations
                 Case CalculationMode.OutletTemperature
                     str.AppendLine("    Outlet temperature: " & SystemsOfUnits.Converter.ConvertFromSI(su.temperature, Me.OutletTemperature.GetValueOrDefault).ToString(numberformat, ci) & " " & su.temperature)
                 Case CalculationMode.OutletVaporFraction
-                    str.AppendLine("    Outlet vapor mole fraction: " & Me.OutletVaporFraction.GetValueOrDefault.ToString(numberformat, ci))
+                    str.AppendLine("    Outlet vapor " & If(OutletVaporFractionMassBasis, "mass", "mole") & " fraction: " & Me.OutletVaporFraction.GetValueOrDefault.ToString(numberformat, ci))
             End Select
             str.AppendLine("    Efficiency: " & Me.Eficiencia.GetValueOrDefault.ToString(numberformat, ci))
             str.AppendLine("    Pressure drop: " & SystemsOfUnits.Converter.ConvertFromSI(su.pressure, Me.DeltaP.GetValueOrDefault).ToString(numberformat, ci) & " " & su.deltaP)
@@ -1092,9 +1132,9 @@ Namespace UnitOperations
             Select Case Me.CalcMode
                 Case CalculationMode.HeatRemoved
                     str.AppendLine("    Outlet temperature: " & SystemsOfUnits.Converter.ConvertFromSI(su.temperature, Me.OutletTemperature.GetValueOrDefault).ToString(numberformat, ci) & " " & su.temperature)
-                    str.AppendLine("    Outlet vapor mole fraction: " & Me.OutletVaporFraction.GetValueOrDefault.ToString(numberformat, ci))
+                    str.AppendLine("    Outlet vapor " & If(OutletVaporFractionMassBasis, "mass", "mole") & " fraction: " & Me.OutletVaporFraction.GetValueOrDefault.ToString(numberformat, ci))
                 Case CalculationMode.OutletTemperature
-                    str.AppendLine("    Outlet vapor mole fraction: " & Me.OutletVaporFraction.GetValueOrDefault.ToString(numberformat, ci))
+                    str.AppendLine("    Outlet vapor " & If(OutletVaporFractionMassBasis, "mass", "mole") & " fraction: " & Me.OutletVaporFraction.GetValueOrDefault.ToString(numberformat, ci))
                     str.AppendLine("    Heat removed: " & SystemsOfUnits.Converter.ConvertFromSI(su.heatflow, Me.DeltaQ.GetValueOrDefault).ToString(numberformat, ci) & " " & su.heatflow)
                 Case CalculationMode.OutletVaporFraction
                     str.AppendLine("    Outlet temperature: " & SystemsOfUnits.Converter.ConvertFromSI(su.temperature, Me.OutletTemperature).ToString(numberformat, ci) & " " & su.temperature)
