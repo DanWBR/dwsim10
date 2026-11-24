@@ -10,23 +10,30 @@ The wizard has nine steps, listed down its left-hand side: Introduction, Process
 
 The **Process Type** step lets DWSIM set the simulation up for a typical process. Everything on it is optional: **Blank Simulation** is selected when the step opens, and with it the wizard goes on as it always has, with the compounds, the property package and the reactions chosen by hand on the next steps.
 
-To use it, pick an industry on the left (or keep **All industries**) and a process in the middle list. The search box above the list finds a process by its name, its description, its compounds or its industry, and Enter selects the first one found. The panel on the right describes the process and lists its compounds, property package, reactions and system of units. A process that needs a Patreon unit operation or property package shows the same level badge (L1, L2 or L3) as the object palette, with a lock when the current membership doesn't include that level.
+To use it, pick an industry on the left (or keep **All industries**) and a process in the middle list. The search box above the list finds a process by its name, its description, its compounds or its industry, and Enter selects the first one found. The panel on the right describes the process and lists its compounds, property package, reactions and system of units. A process that needs a Patreon unit operation or property package shows the same level badge (L1, L2 or L3) as the object palette, with a lock when the current membership doesn’t include that level.
 
 When you leave the step, DWSIM adds the compounds, the property package and the reactions of the process to the simulation, sets its system of units, and records the process type and the key compounds in the simulation metadata. The next steps show what was added, and you can change any of it. If you go back and pick another process, what the first one added is taken out again.
 
 At the bottom of the panel, **When you click Finish** chooses what happens at the end of the wizard:
 
 - **Start with an empty flowsheet** (the default) leaves the flowsheet empty.
+
 - **Build the starting flowsheet of this process** adds the feed streams, the main unit operations and their connections, with specifications that let the flowsheet solve as it is, and lays them out. The feed compositions and the specifications are only a starting point: check them against your own process before you use the results.
+
 - **Ask the AI Assistant for a starting flowsheet** sends the process to the DWSIM Assistant, which builds one. It is shown when the Assistant is installed.
 
 **Or open a ready-made simulation** lists the simulations of the process in the samples folder and in the Case Library. **Open** opens the selected one in place of the new simulation (a Case Library case is downloaded first), and the new, empty simulation is closed without asking to save it. Some processes, such as the kraft pulp mill or the Bayer alumina refinery, are offered only this way.
 
-The processes come from catalog files built into DWSIM. You can add processes of your own, or replace a built-in one with the same id, by placing catalog files (JSON) in the *Process Catalog* folder of *DWSIM Application Data* in your Documents folder.
+The processes come from catalog files built into DWSIM. You can add processes of your own, or replace a built-in one with the same id, by placing catalog files (JSON) in the Process Catalog folder of DWSIM Application Data in your Documents folder.
+
+
+
 
 ![The Process Type step of the Simulation Setup Wizard.](images/screens103/process_type.png)
 
 *The Process Type step of the Simulation Setup Wizard.*
+
+
 
 #### Components/Compounds
 

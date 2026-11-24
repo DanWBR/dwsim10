@@ -631,6 +631,23 @@ C_{sat}(T)=A+B\,(T-298)+C\,(T-298)^{2}\quad[\mathrm{g\,solute/g\,solvent}]
 
 The crystallized mass is $\max(0,\,\dot{m}_{solute,in}-C_{sat}\cdot\dot{m}_{solvent,eff})$ where $\dot{m}_{solvent,eff}$ reflects evaporation if applicable. Mean crystal size is reported as an input for downstream equipment sizing but is not used in the yield calculation.
 
+###### Solubility from the Property Package {#solubility-from-the-property-package-.unnumbered}
+
+With Solubility Source set to Property Package the correlation above is not used. The saturation comes from the solid-liquid equilibrium of the property package in the liquor as it is, with every compound of the feed and of the antisolvent:
+
+
+
+\[
+\ln\left(x_{1}\gamma_{1}\right)=-\frac{\Delta H_{fus}}{R\,T}\left(1-\frac{T}{T_{f}}\right)-\frac{\Delta C_{p}}{R}\left(\frac{T-T_{f}}{T}+\ln\frac{T_{f}}{T}\right)
+\]
+
+
+where $x_{1}$ and $\gamma_{1}$ are the mole fraction and the activity coefficient of the solute in the saturated liquor, $T_{f}$ its melting point, $\Delta H_{fus}$ its enthalpy of fusion and $\Delta C_{p}$ the difference between the heat capacities of the liquid and of the solid at the melting point. The solute needs a melting point and an enthalpy of fusion.
+
+In this option the three modes run at the Operating Temperature, the Antisolvent Solubility Reduction factor is not read, and the Solvent Compound is only needed in the Evaporative mode. Only the selected solute crystallizes; a warning is shown when another compound is above its own solubility in the mother liquor. The Crystals outlet is written as a solid phase, so the Heat Duty includes the heat of crystallization. The Solubility and Solvent Screening tool uses the same calculation.
+
+When the solute carries a list of solid forms (polymorphs), entered in the solid group of the compound editor, the Crystal Form field selects the form that crystallizes, which can be a metastable one. Left empty, the fusion data of the compound are used. The results name the form that is stable at the operating temperature. The Heat Duty uses the fusion data of the compound in either case.
+
 ###### Ports {#ports-7-.unnumbered}
 
 - **Feed (inlet)**: supersaturated or saturable solution.
@@ -643,11 +660,11 @@ The crystallized mass is $\max(0,\,\dot{m}_{solute,in}-C_{sat}\cdot\dot{m}_{solv
 
 ###### Input Parameters {#input-parameters-21-.unnumbered}
 
-- Mode, Solute Compound, Solvent Compound, Operating Temperature, Apelblat constants A/B/C, Evaporation Fraction, Antisolvent Solubility Reduction, Mean Crystal Size.
+- Mode, Solubility Source (Correlation or Property Package), Crystal Form, Solute Compound, Solvent Compound, Operating Temperature, Apelblat constants A/B/C, Evaporation Fraction, Antisolvent Solubility Reduction, Mean Crystal Size.
 
 ###### Results {#results-15-.unnumbered}
 
-- C $_{sat}$ at operating T, Solute in Feed, Crystallized mass, Mother Liquor mass, Crystallization Yield (%).
+- C $_{sat}$ at operating T, Solute in Feed, Crystallized mass, Mother Liquor mass, Crystallization Yield (%), Supersaturation ratio of the feed, Crystals in the slurry (wt %), Heat Duty and, with the property package as the solubility source, the mole fraction and the activity coefficient of the solute at saturation and the saturation temperature of the liquor.
 
 #### Biogas Upgrader
 

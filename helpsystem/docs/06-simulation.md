@@ -29,6 +29,8 @@ The "Create a new steady-state simulation" button in the welcome window can be u
 
 Since DWSIM 3.3, a new Simulation Configuration Wizard (Figure [1](#fig:figura-config-1)) is opened as soon as a new simulation is created, and will display the interfaces described in the following sections in a more streamlined way. The older simulation configuration window can be accessed anytime during the simulation or through a button located in the first page of the config wizard.
 
+The second page of the wizard, **Process Type**, can set the simulation up for a typical process (its compounds, property package, reactions and units, and optionally a starting flowsheet) or open a ready-made simulation of it from the samples or the Case Library. It works as described in the Process Type subsection of Configuring a Simulation, and it is optional: with Blank Simulation selected, the wizard goes on as before.
+
 
 
 <a id="fig:figura-config"></a>
@@ -783,7 +785,7 @@ Added/Attached Utilities will be visible on the context menu located on the obje
 
 
 
-- ***Distillation Curves*** - the TBP, ASTM D86, D1160, D2887 and EFV curves of a stream, with the properties of a petroleum product (flash point, densities, viscosities, cold flow points and cetane index). See Section [Distillation Curves and Petroleum Product Properties](60-other-properties.md#sec:distillation-curves).
+- ***Distillation Curves*** - the TBP, ASTM D86, D1160, D2887 and EFV curves of a stream, with the properties of a petroleum product (flash point, densities, viscosities, cold flow points and cetane index). See Section [Distillation Curves and Petroleum Product Properties](150-other-properties.md#sec:distillation-curves).
 
 - ***Petroleum Cold Flow Properties*** - special properties of petroleum fractions, like cetane index, flash point, refraction index, etc. (Figure [37](#fig:figura-utDB-1)).
 

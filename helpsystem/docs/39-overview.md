@@ -19,6 +19,7 @@ The importer reads the files themselves. It was built without the programming in
 | Aspen Plus | `.bkp` | In Aspen Plus, save the case as a backup file. The document format (`.apw`) is binary and has to be exported as a backup first. |
 | Aspen HYSYS | `.xml` | In HYSYS, save the case as XML. The case format (`.hsc`) is binary and has to be saved as XML first. |
 | AVEVA Process Simulation | `.simx` | The simulation file as it is. |
+| CHEMCAD | `.cc7`, `.xlsx` | The simulation file of CHEMCAD 7 as it is. For CHEMCAD 8 and NXT, whose simulation file (`.ccsim`) cannot be read, send the report of the simulation to Excel with the topology, the thermodynamics, the equipment summaries and the stream compositions, and import the workbook. |
 | COCO (COFE) | `.fsd` | The flowsheet document as it is. |
 | PRO/II | `.prz`, `.inp` | The archive of the case, which carries its keyword file, or the keyword file exported from PRO/II. |
 

@@ -91,6 +91,30 @@ The tables list the units of each simulator that have an equivalent set. Anythin
 
 
 
+###### CHEMCAD
+
+
+
+
+
+
+
+| **CHEMCAD unit** | **DWSIM object** |
+|:---|:---|
+| Mixer (MIXE), Divider (DIVI) | Mixer, Splitter |
+| Flash (FLAS) | Separator Vessel |
+| Valve (VALV), Pump (PUMP) | the same object |
+| Compressor (COMP), Expander (EXPN) | Compressor or Expander |
+| Heat Exchanger (HTXR) | Heater, Cooler or Heat Exchanger |
+| Fired Heater (FIRE) | Heater |
+| SCDS and Tower (TOWR) columns | Distillation Column or Absorption Column |
+| Equilibrium Reactor (EREA) | Conversion Reactor or Equilibrium Reactor |
+| Gibbs Reactor (GIBS) | Gibbs Reactor |
+
+
+
+A CHEMCAD simulation is saved with its results, so the streams of the imported flowsheet are compared with them. Controllers and stream references are listed as not converted.
+
 ###### PRO/II
 
 

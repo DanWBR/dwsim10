@@ -104,51 +104,141 @@ nav:
     - The Import Wizard: 40-the-import-wizard.md
     - What Is Converted: 41-what-is-converted.md
     - Limitations: 42-limitations.md
-  - "CAD Tools: 3D Plant Model and Drawings":
+  - Reservoir Coupling:
     - Overview: 44-overview.md
-    - The 3D Plant Model: 45-the-3d-plant-model.md
-    - Drawings with CADCraft: 46-drawings-with-cadcraft.md
-    - Importing Documents with the AI Assistant: 47-importing-documents-with-the-ai-assistant.md
-    - DEXPI Models: 48-dexpi-models.md
-    - CAD Tools from Scripts: 49-cad-tools-from-scripts.md
-    - Notes and Limitations: 50-notes-and-limitations.md
+    - The window: 45-the-window.md
+    - Limits: 46-limits.md
+  - PVT Analysis:
+    - Overview: 48-overview.md
+    - The window: 49-the-window.md
+    - Characterization of the heavy end: 50-characterization-of-the-heavy-end.md
+    - Phase equilibrium: 51-phase-equilibrium.md
+    - Viscosity: 52-viscosity.md
+    - Minimum miscibility pressure: 53-minimum-miscibility-pressure.md
+    - Regression: 54-regression.md
+    - Sending the fluid to the flowsheet: 55-sending-the-fluid-to-the-flowsheet.md
+    - Exports: 56-exports.md
+    - Verification: 57-verification.md
+    - Limitations: 58-limitations.md
+    - References: 59-references.md
+  - Solubility and Solvent Screening:
+    - Overview: 61-overview.md
+    - How the solubility is calculated: 62-how-the-solubility-is-calculated.md
+    - The window: 63-the-window.md
+    - Results: 64-results.md
+    - ICH Q3C classes: 65-ich-q3c-classes.md
+    - Measured solubilities: 66-measured-solubilities.md
+    - Fitting NRTL to the measured points: 67-fitting-nrtl-to-the-measured-points.md
+    - Solid forms: 68-solid-forms.md
+    - Notes and limitations: 69-notes-and-limitations.md
+  - COSMO-SAC Property Package:
+    - Overview: 71-overview.md
+    - Model and data: 72-model-and-data.md
+    - Compounds and profiles: 73-compounds-and-profiles.md
+    - What to expect: 74-what-to-expect.md
+    - Notes and limitations: 75-notes-and-limitations.md
+    - References: 76-references.md
+  - Sugar Solutions Property Package:
+    - Overview: 78-overview.md
+    - Compounds: 79-compounds.md
+    - Activity model: 80-activity-model.md
+    - Physical properties: 81-physical-properties.md
+    - What to expect: 82-what-to-expect.md
+    - Sugar Stream Analysis: 83-sugar-stream-analysis.md
+    - Building a sugar mill: 84-building-a-sugar-mill.md
+    - Notes and limitations: 85-notes-and-limitations.md
+    - References: 86-references.md
+  - "Pulp and Paper: Kraft Liquors Package and Kraft Mill Unit Operations":
+    - Overview: 88-overview.md
+    - Compounds: 89-compounds.md
+    - Kraft Liquors property package: 90-kraft-liquors-property-package.md
+    - Pulp Stream Analysis: 91-pulp-stream-analysis.md
+    - Kraft Digester: 92-kraft-digester.md
+    - Pulp Washer: 93-pulp-washer.md
+    - Bleaching Stage: 94-bleaching-stage.md
+    - Evaporator Train: 95-evaporator-train.md
+    - Recovery Boiler: 96-recovery-boiler.md
+    - Causticizer and Lime Kiln: 97-causticizer-and-lime-kiln.md
+    - Building a kraft mill: 98-building-a-kraft-mill.md
+    - Notes and limitations: 99-notes-and-limitations.md
+    - References: 100-references.md
+  - "Alumina: Bayer Liquors Package and Bayer Refinery Unit Operations":
+    - Overview: 102-overview.md
+    - Compounds: 103-compounds.md
+    - Bayer Liquors property package: 104-bayer-liquors-property-package.md
+    - Bayer Stream Analysis: 105-bayer-stream-analysis.md
+    - Bauxite Digester: 106-bauxite-digester.md
+    - Mud Settler and Mud Washer Train: 107-mud-settler-and-mud-washer-train.md
+    - Precipitator Train: 108-precipitator-train.md
+    - Hydrate Calciner: 109-hydrate-calciner.md
+    - "Liquor Evaporator, Bayer Causticizer and Oxalate Removal": 110-liquor-evaporator-bayer-causticizer-and-oxalate-re.md
+    - Building a refinery: 111-building-a-refinery.md
+    - Notes and limitations: 112-notes-and-limitations.md
+    - References: 113-references.md
+  - Lyophilizer:
+    - Overview: 115-overview.md
+    - Connections: 116-connections.md
+    - Model: 117-model.md
+    - Parameters: 118-parameters.md
+    - Results: 119-results.md
+    - Verification: 120-verification.md
+    - Limits of the model: 121-limits-of-the-model.md
+    - References: 122-references.md
+  - Contact Dryer:
+    - Overview: 124-overview.md
+    - Connections: 125-connections.md
+    - Solvents and solid: 126-solvents-and-solid.md
+    - Model: 127-model.md
+    - Parameters: 128-parameters.md
+    - Results: 129-results.md
+    - Verification: 130-verification.md
+    - Limits of the model: 131-limits-of-the-model.md
+    - References: 132-references.md
+  - "CAD Tools: 3D Plant Model and Drawings":
+    - Overview: 134-overview.md
+    - The 3D Plant Model: 135-the-3d-plant-model.md
+    - Drawings with CADCraft: 136-drawings-with-cadcraft.md
+    - Importing Documents with the AI Assistant: 137-importing-documents-with-the-ai-assistant.md
+    - DEXPI Models: 138-dexpi-models.md
+    - CAD Tools from Scripts: 139-cad-tools-from-scripts.md
+    - Notes and Limitations: 140-notes-and-limitations.md
   - "Technical Basis: Methods and Procedures":
-    - Introduction: 52-introduction.md
-    - Thermodynamic Properties: 53-thermodynamic-properties.md
-    - Transport Properties: 54-transport-properties.md
-    - Thermal Properties: 55-thermal-properties.md
-    - Aqueous Solution Properties: 56-aqueous-solution-properties.md
-    - Specialized Models / Property Packages: 57-specialized-models-property-packages.md
-    - Reactions: 58-reactions.md
-    - Property Estimation Methods: 59-property-estimation-methods.md
-    - Other Properties: 60-other-properties.md
-    - "Corrosion & Scaling Monitor": 61-corrosion-scaling-monitor.md
+    - Introduction: 142-introduction.md
+    - Thermodynamic Properties: 143-thermodynamic-properties.md
+    - Transport Properties: 144-transport-properties.md
+    - Thermal Properties: 145-thermal-properties.md
+    - Aqueous Solution Properties: 146-aqueous-solution-properties.md
+    - Specialized Models / Property Packages: 147-specialized-models-property-packages.md
+    - Reactions: 148-reactions.md
+    - Property Estimation Methods: 149-property-estimation-methods.md
+    - Other Properties: 150-other-properties.md
+    - "Corrosion & Scaling Monitor": 151-corrosion-scaling-monitor.md
   - How-To Tutorials:
-    - Methane Steam Reforming: 63-methane-steam-reforming.md
-    - Pressure-Swing Distillation: 64-pressure-swing-distillation.md
-    - Flowsheet Control with Python Scripts: 65-flowsheet-control-with-python-scripts.md
-    - Basic Dynamic Simulation Tutorial: 66-basic-dynamic-simulation-tutorial.md
+    - Methane Steam Reforming: 153-methane-steam-reforming.md
+    - Pressure-Swing Distillation: 154-pressure-swing-distillation.md
+    - Flowsheet Control with Python Scripts: 155-flowsheet-control-with-python-scripts.md
+    - Basic Dynamic Simulation Tutorial: 156-basic-dynamic-simulation-tutorial.md
   - Advanced Topics:
-    - Python Scripting: 68-python-scripting.md
-    - Model Customization: 69-model-customization.md
-    - Overriding Calculated Properties: 70-overriding-calculated-properties.md
-    - Automation: 71-automation.md
-    - Excel Add-In for Thermo Calculations: 72-excel-add-in-for-thermo-calculations.md
-    - Property Package Methods and Correlation Profiles: 73-property-package-methods-and-correlation-profiles.md
-    - CAPE-OPEN Subsystem: 74-cape-open-subsystem.md
+    - Python Scripting: 158-python-scripting.md
+    - Model Customization: 159-model-customization.md
+    - Overriding Calculated Properties: 160-overriding-calculated-properties.md
+    - Automation: 161-automation.md
+    - Excel Add-In for Thermo Calculations: 162-excel-add-in-for-thermo-calculations.md
+    - Property Package Methods and Correlation Profiles: 163-property-package-methods-and-correlation-profiles.md
+    - CAPE-OPEN Subsystem: 164-cape-open-subsystem.md
   - Additional Resources:
-    - Online Courses and Videos: 76-online-courses-and-videos.md
-    - Learning Resources: 77-learning-resources.md
-    - Programming Help: 78-programming-help.md
+    - Online Courses and Videos: 166-online-courses-and-videos.md
+    - Learning Resources: 167-learning-resources.md
+    - Programming Help: 168-programming-help.md
   - "Appendix: Analytical Thermodynamic Derivatives":
-    - Overview: 79-appendix-analytical-thermodynamic-derivatives.md
-    - Scope and Notation: 80-scope-and-notation.md
-    - "Cubic Equations of State (PR, SRK, PR78)": 81-cubic-equations-of-state-pr-srk-pr78.md
-    - Peng-Robinson-Stryjek-Vera 2 (PRSV2 and PRSV2-VL): 82-peng-robinson-stryjek-vera-2-prsv2-and-prsv2-vl.md
-    - Chao-Seader and Grayson-Streed: 83-chao-seader-and-grayson-streed.md
-    - Lee-Kesler-Plocker: 84-lee-kesler-plocker.md
-    - Activity-Coefficient Models: 85-activity-coefficient-models.md
-    - Electrolyte Activity Models: 86-electrolyte-activity-models.md
-    - Add-on Activity Models: 87-add-on-activity-models.md
-    - Advanced Equation-of-State Packages: 88-advanced-equation-of-state-packages.md
-    - Use in the Flash and Column Solvers: 89-use-in-the-flash-and-column-solvers.md
+    - Overview: 169-appendix-analytical-thermodynamic-derivatives.md
+    - Scope and Notation: 170-scope-and-notation.md
+    - "Cubic Equations of State (PR, SRK, PR78)": 171-cubic-equations-of-state-pr-srk-pr78.md
+    - Peng-Robinson-Stryjek-Vera 2 (PRSV2 and PRSV2-VL): 172-peng-robinson-stryjek-vera-2-prsv2-and-prsv2-vl.md
+    - Chao-Seader and Grayson-Streed: 173-chao-seader-and-grayson-streed.md
+    - Lee-Kesler-Plocker: 174-lee-kesler-plocker.md
+    - Activity-Coefficient Models: 175-activity-coefficient-models.md
+    - Electrolyte Activity Models: 176-electrolyte-activity-models.md
+    - Add-on Activity Models: 177-add-on-activity-models.md
+    - Advanced Equation-of-State Packages: 178-advanced-equation-of-state-packages.md
+    - Use in the Flash and Column Solvers: 179-use-in-the-flash-and-column-solvers.md
