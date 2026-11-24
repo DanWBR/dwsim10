@@ -39,6 +39,11 @@ VERSION HISTORY / CHANGELOG
 
 The full changelog including souce code changes can be viewed at https://github.com/DanWBR/dwsim10/commits/windows
 
+Version 10.3.1
+
+- [NEW] Download and install of new versions (Options in the classic interface, Preferences in the cross-platform one): when the startup check finds a newer version, DWSIM offers to download the installer of its edition and platform, checks it against the checksum of the release and installs it when DWSIM closes; the installer wizard on Windows, the new DWSIM.app over the installed one on macOS, the Debian package with the system password dialog on Linux, and DWSIM starts again on macOS and Linux; a portable copy opens the release page
+- [CHG] Update check at startup: reads the latest published release of the running edition on GitHub (open edition or Patreon Edition), skips release candidates and shows its list of changes; opens the release page when download and install is off
+
 Version 10.3.0
 
 - [NEW] Reservoir Coupling (Patreon, Premium+; Tools > Reservoir Coupling (OPM Flow)): runs a reservoir simulation model with OPM Flow together with the Pipe Network and the plant of the flowsheet; each report step the reservoir gives the well rates and the network the wellhead pressures, and streams of the flowsheet can set injection rates, group production limits and lift gas; the window installs OPM Flow (through WSL on Windows) and generates the black-oil PVT and the lift tables of the reservoir model from the fluid of the flowsheet
