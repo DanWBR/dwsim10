@@ -35,6 +35,9 @@ class Program
         PrepareTextEncodings();
 
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+
+        // an update downloaded in this session is installed now that the windows are closed
+        DWSIM.SharedClasses.UpdateCheck.RunPendingInstaller();
     }
 
     [System.Runtime.CompilerServices.MethodImpl(

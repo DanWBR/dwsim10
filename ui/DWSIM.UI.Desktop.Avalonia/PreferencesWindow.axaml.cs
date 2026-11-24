@@ -75,6 +75,7 @@ public partial class PreferencesWindow : Window
 
     // other
     private CheckBox _checkUpdates = null!;
+    private CheckBox _autoUpdates = null!;
     private CheckBox _hideSolidPhaseCO = null!;
     private CheckBox _loadExtensions = null!;
     private NumericUpDown _debugLevel = null!;
@@ -469,6 +470,7 @@ public partial class PreferencesWindow : Window
         page.CreateAndAddLabelRow("Updates");
 
         _checkUpdates = page.CreateAndAddCheckBoxRow("Check for Updates", S.CheckForUpdates, null);
+        _autoUpdates = page.CreateAndAddCheckBoxRow("Offer to Download and Install New Versions", S.AutomaticUpdates, null);
 
         page.CreateAndAddLabelRow("CAPE-OPEN");
 
@@ -640,6 +642,7 @@ public partial class PreferencesWindow : Window
 
         // other
         S.CheckForUpdates = _checkUpdates.IsChecked.GetValueOrDefault();
+        S.AutomaticUpdates = _autoUpdates.IsChecked.GetValueOrDefault();
         S.HideSolidPhaseFromCAPEOPENComponents = _hideSolidPhaseCO.IsChecked.GetValueOrDefault();
         S.LoadExtensionsAndPlugins = _loadExtensions.IsChecked.GetValueOrDefault();
         S.DebugLevel = (int)(_debugLevel.Value ?? 0);

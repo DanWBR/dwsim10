@@ -172,6 +172,8 @@ Public Class Settings
     Public Shared Property OldUI As Boolean = True
 
 
+    ''' <summary>When an update check finds a newer release, offer to download and install it (otherwise
+    ''' only point to the release page).</summary>
     Public Shared AutomaticUpdates As Boolean = True
 
 
@@ -808,6 +810,8 @@ Public Class Settings
 
         CheckForUpdates = source.Configs("Misc").GetBoolean("CheckForUpdates", True)
 
+        AutomaticUpdates = source.Configs("Misc").GetBoolean("AutoUpdate", True)
+
         'CloseFormsOnDeselecting = source.Configs("Misc").GetBoolean("CloseFormsOnDeselecting", True)
 
         'autom = source.Configs("Misc").GetBoolean("AutoUpdate", True)
@@ -965,7 +969,7 @@ Public Class Settings
         source.Configs("Misc").Set("UndoRedoRecalculateFlowsheet", UndoRedoRecalculateFlowsheet)
 
         'source.Configs("Misc").Set("CloseFormsOnDeselecting", CloseFormsOnDeselecting)
-        'source.Configs("Misc").Set("AutoUpdate", AutomaticUpdates)
+        source.Configs("Misc").Set("AutoUpdate", AutomaticUpdates)
 
         'source.Configs("Misc").Set("DefaultEditorLocation", DefaultEditorLocation)
         'source.Configs("Misc").Set("EnableMultipleObjectEditors", EnableMultipleObjectEditors)

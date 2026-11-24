@@ -89,34 +89,38 @@ public partial class MainWindow : Window
         _ = CheckForUpdatesAsync();
     }
 
-    /// <summary>Startup update check, as the WinForms UI did: if enabled, ask dwsim.org whether a
-    /// newer version exists and, if so, offer to open the downloads page.</summary>
+    /// <summary>Startup update check: if enabled, ask GitHub whether the running edition has a newer
+    /// release. With automatic updates on and an installer for this installation type, offer to
+    /// download it and install it when DWSIM closes; otherwise offer the release page.</summary>
     private async Task CheckForUpdatesAsync()
     {
         if (!DWSIM.GlobalSettings.Settings.CheckForUpdates) return;
         try
         {
-            var (available, whatsnew) = await Task.Run(() =>
-            {
-                DWSIM.GlobalSettings.Settings.CurrentRunningVersion =
-                    Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "";
-                bool av = DWSIM.SharedClasses.UpdateCheck.CheckForUpdates();
-                return (av, av ? DWSIM.SharedClasses.UpdateCheck.GetWhatsNew() : "");
-            });
+            var current = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "";
+            DWSIM.GlobalSettings.Settings.CurrentRunningVersion = current;
+            var info = await Task.Run(() => DWSIM.SharedClasses.UpdateCheck.CheckForUpdate(current, false));
+            if (info == null) return;
 
-            if (!available) return;
+            bool install = DWSIM.GlobalSettings.Settings.AutomaticUpdates && info.CanInstall;
+            var text = DWSIM.SharedClasses.UpdateCheck.Describe(info, current);
+            if (DWSIM.GlobalSettings.Settings.AutomaticUpdates && !info.CanInstall)
+                text += "\n\nThis copy of DWSIM is portable, so it is updated by hand from the release page.";
 
             var body = new TextBlock
             {
-                Text = "A newer version of DWSIM is available." +
-                       (string.IsNullOrWhiteSpace(whatsnew) ? "" : "\n\n" + whatsnew),
+                Text = text,
                 TextWrapping = global::Avalonia.Media.TextWrapping.Wrap,
                 Margin = new Thickness(14)
             };
 
             var later = new Button { Content = "Later", IsCancel = true, Width = 90, Margin = new Thickness(6) };
-            var download = new Button { Content = "Open Downloads", IsDefault = true, Width = 150, Margin = new Thickness(6) };
-            download.Classes.Add("dialog");
+            var action = new Button
+            {
+                Content = install ? "Download and Install" : "Open Release Page",
+                IsDefault = true, Width = 180, Margin = new Thickness(6)
+            };
+            action.Classes.Add("dialog");
 
             var buttons = new StackPanel
             {
@@ -125,7 +129,7 @@ public partial class MainWindow : Window
                 Margin = new Thickness(8)
             };
             buttons.Children.Add(later);
-            buttons.Children.Add(download);
+            buttons.Children.Add(action);
 
             var root = new DockPanel();
             DockPanel.SetDock(buttons, global::Avalonia.Controls.Dock.Bottom);
@@ -135,17 +139,88 @@ public partial class MainWindow : Window
             var dlg = new Window
             {
                 Title = "Update Available",
-                Width = 520,
-                Height = 360,
+                Width = 560,
+                Height = 420,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 Content = root
             };
             IconHelper.ApplyWindowIcon(dlg);
+            bool accepted = false;
             later.Click += (_, _) => dlg.Close();
-            download.Click += (_, _) => { OpenUrl("https://dwsim.org/downloads"); dlg.Close(); };
+            action.Click += (_, _) => { accepted = true; dlg.Close(); };
             await dlg.ShowDialog(this);
+            if (!accepted) return;
+
+            if (!install) { OpenUrl(info.ReleaseUrl); return; }
+
+            var installer = await DownloadUpdateAsync(info);
+            if (installer == null) return;
+
+            DWSIM.SharedClasses.UpdateCheck.PendingInstaller = installer;
+            if (await ConfirmAsync("Install Update",
+                    DWSIM.SharedClasses.UpdateCheck.InstallDescription() +
+                    "\n\nClose DWSIM now? If you choose No, the update is installed when you close DWSIM."))
+                Close();
         }
         catch { }
+    }
+
+    /// <summary>Downloads the installer of <paramref name="info"/> with a progress window, and returns its
+    /// path, or null when the user cancels or the download fails.</summary>
+    private async Task<string?> DownloadUpdateAsync(DWSIM.SharedClasses.UpdateInfo info)
+    {
+        var cts = new System.Threading.CancellationTokenSource();
+        var label = new TextBlock { Text = "Downloading " + info.AssetName + "...", TextWrapping = TextWrapping.Wrap };
+        var bar = new ProgressBar { Minimum = 0, Maximum = 100, Height = 18, Margin = new Thickness(0, 10, 0, 0) };
+        var cancel = new Button { Content = "Cancel", IsCancel = true, Width = 90, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 14, 0, 0) };
+        cancel.Classes.Add("dialog");
+
+        var panel = new StackPanel { Margin = new Thickness(20) };
+        panel.Children.Add(label);
+        panel.Children.Add(bar);
+        panel.Children.Add(cancel);
+
+        var dlg = new Window
+        {
+            Title = "Downloading Update",
+            Width = 480,
+            SizeToContent = SizeToContent.Height,
+            CanResize = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Content = panel
+        };
+        IconHelper.ApplyWindowIcon(dlg);
+
+        string? result = null;
+        string? error = null;
+        bool finished = false;
+        cancel.Click += (_, _) => { cts.Cancel(); dlg.Close(); };
+        dlg.Closing += (_, _) => { if (!finished) cts.Cancel(); };
+        dlg.Opened += async (_, _) =>
+        {
+            try
+            {
+                result = await Task.Run(() => DWSIM.SharedClasses.UpdateCheck.DownloadUpdate(info, (read, total) =>
+                    global::Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    {
+                        if (total > 0) bar.Value = 100.0 * read / total;
+                        label.Text = string.Format("Downloading {0} ({1:N0} of {2:N0} MB)...", info.AssetName, read / 1048576.0, total / 1048576.0);
+                    }), cts.Token));
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex) { if (!cts.IsCancellationRequested) error = ex.Message; }
+            finished = true;
+            dlg.Close();
+        };
+        await dlg.ShowDialog(this);
+
+        if (error != null)
+        {
+            await ConfirmAsync("Update", "The update couldn't be downloaded: " + error +
+                               "\n\nYou can download it from the release page.", okOnly: true);
+            OpenUrl(info.ReleaseUrl);
+        }
+        return cts.IsCancellationRequested && !finished ? null : result;
     }
 
     private bool _exitConfirmed;
