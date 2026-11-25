@@ -23,7 +23,7 @@ namespace DWSIM.UI.Desktop.Editors
             "Heat Added/Removed",
             "Temperature Change",
             "Outlet Temperature",
-            "Outlet Vapor Mole Fraction",
+            "Outlet Vapor Fraction",
             "Energy Stream"
         };
 
