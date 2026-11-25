@@ -88,7 +88,7 @@ Public Class FlowsheetFileInfo
         info.PatreonComponents.AddRange(item.PatreonComponents)
         Dim missing = item.MissingComponents
         If missing.Count > 0 Then
-            info.Warning = "This case needs DWSIM Patreon Edition (" & String.Join(", ", missing) & ") and doesn't open here."
+            info.Warning = "This case needs " & CaseLibraryFlowsheet.RequirementText & " (" & String.Join(", ", missing) & ") and doesn't open here."
         End If
 
         Try

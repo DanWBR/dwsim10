@@ -41,6 +41,17 @@ Public Class CaseLibraryFlowsheet
         End Get
     End Property
 
+    ''' <summary>
+    ''' What this DWSIM needs to open the case, for the list and the details panel. If DWSIM is already the
+    ''' Patreon Edition (DWSIM.Support is there) and still lacks a component, the case came with a newer version.
+    ''' </summary>
+    Public Shared ReadOnly Property RequirementText As String
+        Get
+            If CaseLibraryFlowsheets.HasAssembly("DWSIM.Support") Then Return "a newer DWSIM Patreon Edition"
+            Return "DWSIM Patreon Edition"
+        End Get
+    End Property
+
 End Class
 
 ''' <summary>
@@ -280,7 +291,7 @@ Public Class CaseLibraryFlowsheets
                 Next
             End If
             ' this DWSIM lacks what the case needs: say so in the list
-            If fs.MissingComponents.Count > 0 Then fs.DisplayName &= "  [needs DWSIM Patreon Edition]"
+            If fs.MissingComponents.Count > 0 Then fs.DisplayName &= "  [needs " & CaseLibraryFlowsheet.RequirementText & "]"
 
             list.Add(fs)
 
