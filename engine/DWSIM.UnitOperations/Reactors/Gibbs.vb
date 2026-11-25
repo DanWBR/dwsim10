@@ -1310,8 +1310,8 @@ Namespace Reactors
             els = e
             comps = c
 
-            If e < 0 Then Throw New Exception("The Element Matrix is not defined.")
-            If c < 0 Then Throw New Exception("The list of reacting compounds is not defined.")
+            If c < 0 Then Throw New Exception("The list of reacting compounds is empty. Open the reactor's editor, go to the Compounds tab and check the compounds that take part in the equilibrium, so that DWSIM can build the element matrix from their formulas.")
+            If e < 0 Then Throw New Exception("The element matrix is empty because the reacting compounds don't have any elements in their formulas. Check the formulas of the compounds checked on the Compounds tab.")
 
             tms = ims.Clone()
             tms.DefinedFlow = FlowSpec.Mass
@@ -2051,8 +2051,8 @@ Namespace Reactors
             els = e
             comps = c
 
-            If e < 0 Then Throw New Exception("The Element Matrix is not defined.")
-            If c < 0 Then Throw New Exception("The list of reacting compounds is not defined.")
+            If c < 0 Then Throw New Exception("The list of reacting compounds is empty. Open the reactor's editor, go to the Compounds tab and check the compounds that take part in the equilibrium, so that DWSIM can build the element matrix from their formulas.")
+            If e < 0 Then Throw New Exception("The element matrix is empty because the reacting compounds don't have any elements in their formulas. Check the formulas of the compounds checked on the Compounds tab.")
 
             tms = ims.Clone()
             tms.DefinedFlow = FlowSpec.Mass

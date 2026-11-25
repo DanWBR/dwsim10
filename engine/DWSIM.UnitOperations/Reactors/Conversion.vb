@@ -483,9 +483,7 @@ Namespace Reactors
                 IObj2?.Paragraphs.Add(String.Format("Compounds: {0}", N00.Keys.ToArray.ToMathArrayString))
                 IObj2?.Paragraphs.Add(String.Format("Initial Mole Flows: {0} mol/s", N00.Values.ToArray.ToMathArrayString))
 
-                IObj2?.Paragraphs.Add("Solving Parallel Reactions with Simplex solver...")
-
-                ' solve parallel reactions with Simplex NL solver
+                IObj2?.Paragraphs.Add("Solving Parallel Reactions...")
 
                 IObj2?.Paragraphs.Add("Problem Setup: minimize the difference between defined and calculated (final) conversions, subject to all mole flows being equal to or higher than zero.")
 
@@ -497,12 +495,6 @@ Namespace Reactors
                 ' conversion values aren't reached due to limited reactant amounts.
 
                 Dim xref(ar.Count - 1), xf(ar.Count - 1), dni(N00.Count - 1) As Double
-
-                Dim splex As New Simplex()
-                Dim vars As New List(Of OptSimplexBoundVariable)
-
-                splex.MaxFunEvaluations = 100000
-                splex.Tolerance = 1.0E-20
 
                 i = 0
                 Do
@@ -523,13 +515,9 @@ Namespace Reactors
 
                     If X < 0.0# Or X > 1.0# Then Throw New ArgumentOutOfRangeException("Conversion Expression", "The conversion expression for reaction " & rxn.Name & " results in a value that is out of the valid range (0 to 100%).")
 
-                    'store defined (reference) conversions for simplex solver
+                    'store defined (reference) conversions
 
                     xref(i) = X
-
-                    'create simplex vars
-
-                    vars.Add(New OptSimplexBoundVariable(xref(i), 0.0000000001, xref(i)))
 
                     i += 1
 
@@ -538,88 +526,96 @@ Namespace Reactors
                 'solve parallel reactions 
                 'xf = final conversion values
 
-                Dim pen_val As Double = 0.0#
-                Dim fval As Double
+                ' overall mole flows entering this reaction group, the ones the final mole balance below starts from
+                Dim nall = ims.PropertyPackage.RET_VMOL(PropertyPackages.Phase.Mixture).MultiplyConstY(ims.Phases(0).Properties.molarflow.GetValueOrDefault)
 
-                xf = splex.ComputeMin(Function(xi)
+                ' change of the mole flow of each compound per unit conversion of each reaction. The base reactant
+                ' amount comes from the reacting phase and stays fixed, so the final mole flows are linear in the conversions.
+                Dim nrx As Integer = ar.Count
+                Dim ncp As Integer = cnames.Count
+                Dim dnx(nrx - 1, ncp - 1) As Double
+                For irx As Integer = 0 To nrx - 1
+                    rxn = FlowSheet.Reactions(ar(irx))
+                    BC = rxn.BaseReactant
+                    scBC = rxn.Components(BC).StoichCoeff
+                    Select Case rxn.ReactionPhase
+                        Case ReactionPhase.Liquid
+                            nBC = ims.Phases(1).Compounds(BC).MolarFlow.GetValueOrDefault()
+                        Case ReactionPhase.Vapor
+                            nBC = ims.Phases(2).Compounds(BC).MolarFlow.GetValueOrDefault()
+                        Case ReactionPhase.Solid
+                            nBC = ims.Phases(7).Compounds(BC).MolarFlow.GetValueOrDefault()
+                        Case ReactionPhase.Liquid_Solid
+                            nBC = ims.Phases(1).Compounds(BC).MolarFlow.GetValueOrDefault() + ims.Phases(7).Compounds(BC).MolarFlow.GetValueOrDefault()
+                        Case ReactionPhase.Vapor_Solid
+                            nBC = ims.Phases(2).Compounds(BC).MolarFlow.GetValueOrDefault() + ims.Phases(7).Compounds(BC).MolarFlow.GetValueOrDefault()
+                        Case Else
+                            nBC = ims.Phases(0).Compounds(BC).MolarFlow.GetValueOrDefault()
+                    End Select
+                    For Each sb As ReactionStoichBase In rxn.Components.Values
+                        dnx(irx, cnames.IndexOf(sb.CompName)) += -sb.StoichCoeff / scBC * nBC
+                    Next
+                Next
 
-                                          Dim i2, j2, n2 As Integer, m0 As Double
+                ' The final conversions are the ones closest to the defined conversions (least squares) that keep every
+                ' overall mole flow at zero or above, with each conversion between zero and its defined value. That is the
+                ' Euclidean projection of the defined conversions on a polytope, found here with Dykstra's alternating
+                ' projections. If the defined conversions are feasible, they come back unchanged.
 
-                                          n2 = xi.Length - 1
+                Dim consumedIdx As New List(Of Integer)
+                For jcp As Integer = 0 To ncp - 1
+                    For irx As Integer = 0 To nrx - 1
+                        If dnx(irx, jcp) < 0.0 Then consumedIdx.Add(jcp) : Exit For
+                    Next
+                Next
 
-                                          dni = ims.PropertyPackage.RET_NullVector()
+                Dim nsets As Integer = consumedIdx.Count + 1
+                Dim incr(nsets - 1)() As Double
+                For iset As Integer = 0 To nsets - 1
+                    incr(iset) = New Double(nrx - 1) {}
+                Next
+                For irx As Integer = 0 To nrx - 1
+                    xf(irx) = xref(irx)
+                Next
 
-                                          For i2 = 0 To n2
-
-                                              'process reaction i2
-
-                                              rxn = FlowSheet.Reactions(ar(i2))
-                                              BC = rxn.BaseReactant
-                                              scBC = rxn.Components(BC).StoichCoeff
-
-                                              Select Case rxn.ReactionPhase
-                                                  Case ReactionPhase.Liquid
-                                                      m0 = ims.Phases(1).Properties.molarflow.GetValueOrDefault
-                                                      nif = ims.PropertyPackage.RET_VMOL(PropertyPackages.Phase.Liquid).MultiplyConstY(m0)
-                                                      nBC = ims.Phases(1).Compounds(rxn.BaseReactant).MolarFlow.GetValueOrDefault()
-                                                  Case ReactionPhase.Vapor
-                                                      m0 = ims.Phases(2).Properties.molarflow.GetValueOrDefault
-                                                      nif = ims.PropertyPackage.RET_VMOL(PropertyPackages.Phase.Vapor).MultiplyConstY(m0)
-                                                      nBC = ims.Phases(2).Compounds(rxn.BaseReactant).MolarFlow.GetValueOrDefault()
-                                                  Case ReactionPhase.Mixture
-                                                      m0 = ims.Phases(0).Properties.molarflow.GetValueOrDefault
-                                                      nif = ims.PropertyPackage.RET_VMOL(PropertyPackages.Phase.Mixture).MultiplyConstY(m0)
-                                                      nBC = ims.Phases(0).Compounds(rxn.BaseReactant).MolarFlow.GetValueOrDefault()
-                                                  Case ReactionPhase.Solid
-                                                      m0 = ims.Phases(7).Properties.molarflow.GetValueOrDefault
-                                                      nif = ims.PropertyPackage.RET_VMOL(PropertyPackages.Phase.Solid).MultiplyConstY(m0)
-                                                      nBC = ims.Phases(7).Compounds(rxn.BaseReactant).MolarFlow.GetValueOrDefault()
-                                                  Case ReactionPhase.Liquid_Solid
-                                                      m0 = ims.Phases(1).Properties.molarflow.GetValueOrDefault + ims.Phases(7).Properties.molarflow.GetValueOrDefault
-                                                      nif = ims.PropertyPackage.RET_VMOL(PropertyPackages.Phase.Liquid).MultiplyConstY(m0).AddY(ims.PropertyPackage.RET_VMOL(PropertyPackages.Phase.Solid).MultiplyConstY(m0))
-                                                      nBC = ims.Phases(1).Compounds(rxn.BaseReactant).MolarFlow.GetValueOrDefault() + ims.Phases(7).Compounds(rxn.BaseReactant).MolarFlow.GetValueOrDefault()
-                                                  Case ReactionPhase.Vapor_Solid
-                                                      m0 = ims.Phases(2).Properties.molarflow.GetValueOrDefault + ims.Phases(7).Properties.molarflow.GetValueOrDefault
-                                                      nif = ims.PropertyPackage.RET_VMOL(PropertyPackages.Phase.Vapor).MultiplyConstY(m0).AddY(ims.PropertyPackage.RET_VMOL(PropertyPackages.Phase.Solid).MultiplyConstY(m0))
-                                                      nBC = ims.Phases(2).Compounds(rxn.BaseReactant).MolarFlow.GetValueOrDefault() + ims.Phases(7).Compounds(rxn.BaseReactant).MolarFlow.GetValueOrDefault()
-                                              End Select
-
-                                              'delta mole flows
-
-                                              For Each sb As ReactionStoichBase In rxn.Components.Values
-                                                  j2 = cnames.IndexOf(sb.CompName)
-                                                  dni(j2) += -xi(i2) * rxn.Components(sb.CompName).StoichCoeff / scBC * nBC
-                                              Next
-
-                                              'calculate final mole amounts
-
-                                              For Each sb As ReactionStoichBase In rxn.Components.Values
-                                                  j2 = cnames.IndexOf(sb.CompName)
-                                                  nif(j2) += dni(j2)
-                                              Next
-
-                                          Next
-
-                                          'calculate a penalty value for the objective function due to negative mole flows
-
-                                          pen_val = 0.0
-                                          For Each d In nif
-                                              If d < 0.0 Then
-                                                  pen_val += Math.Abs(d) * 10000000000.0
-                                              End If
-                                          Next
-
-                                          fval = xref.SubtractY(xi).AbsSqrSumY
-
-                                          Return fval + pen_val
-
-                                      End Function, vars.ToArray)
+                Dim yproj(nrx - 1), pproj(nrx - 1) As Double
+                For iterd As Integer = 1 To 100000
+                    Dim maxchange As Double = 0.0
+                    For iset As Integer = 0 To nsets - 1
+                        For irx As Integer = 0 To nrx - 1
+                            yproj(irx) = xf(irx) + incr(iset)(irx)
+                        Next
+                        If iset < consumedIdx.Count Then
+                            ' half-space of one compound: nall + sum of dnx * x >= 0
+                            Dim jcp = consumedIdx(iset)
+                            Dim gy As Double = nall(jcp), gg As Double = 0.0
+                            For irx As Integer = 0 To nrx - 1
+                                gy += dnx(irx, jcp) * yproj(irx)
+                                gg += dnx(irx, jcp) * dnx(irx, jcp)
+                            Next
+                            For irx As Integer = 0 To nrx - 1
+                                pproj(irx) = If(gy < 0.0 AndAlso gg > 0.0, yproj(irx) - gy / gg * dnx(irx, jcp), yproj(irx))
+                            Next
+                        Else
+                            ' box: each conversion between zero and its defined value
+                            For irx As Integer = 0 To nrx - 1
+                                pproj(irx) = Math.Min(Math.Max(yproj(irx), 0.0), xref(irx))
+                            Next
+                        End If
+                        For irx As Integer = 0 To nrx - 1
+                            incr(iset)(irx) = yproj(irx) - pproj(irx)
+                            maxchange = Math.Max(maxchange, Math.Abs(pproj(irx) - xf(irx)))
+                            xf(irx) = pproj(irx)
+                        Next
+                    Next
+                    If maxchange < 0.000000000001 Then Exit For
+                Next
 
                 IObj2?.Paragraphs.Add(String.Format("Specified Reaction Conversions: {0}", xref.ToMathArrayString))
                 IObj2?.Paragraphs.Add(String.Format("Final Reaction Conversions: {0}", xf.ToMathArrayString))
 
-                ' at this point, the xf vector holds the final conversion values as calculated 
-                ' by the simplex solver, and the energy balance can be calculated (again). 
+                ' at this point, the xf vector holds the final conversion values, and the energy balance can be
+                ' calculated (again).
 
                 DHr = 0.0
 
