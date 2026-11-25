@@ -84,6 +84,26 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
 
         End Sub
 
+        ''' <summary>
+        ''' Largest difference between the feed and the phases of a PT flash result put back together (mole
+        ''' fractions), the measure of the balance check of the property package. NaN for a broken result.
+        ''' </summary>
+        Private Shared Function PTResultBalanceError(Vz As Double(), result As Object()) As Double
+            If result Is Nothing OrElse result.Length < 9 Then Return 0.0
+            Dim maxdev As Double = 0.0
+            For i As Integer = 0 To Vz.Length - 1
+                Dim s As Double = 0.0
+                For Each ph In {New Integer() {0, 2}, New Integer() {1, 3}, New Integer() {5, 6}, New Integer() {7, 8}}
+                    Dim f As Double = Convert.ToDouble(result(ph(0)))
+                    Dim w As Double() = TryCast(result(ph(1)), Double())
+                    If f <> 0.0 AndAlso w IsNot Nothing AndAlso w.Length = Vz.Length Then s += f * w(i)
+                Next
+                If Double.IsNaN(s) Then Return Double.NaN
+                maxdev = Math.Max(maxdev, Math.Abs(s - Vz(i)))
+            Next
+            Return maxdev
+        End Function
+
         Public Overrides Function Flash_PT(Vz() As Double, P As Double, T As Double, PP As PropertyPackage, Optional ReuseKI As Boolean = False, Optional PrevKi() As Double = Nothing) As Object
 
             If Vz.HasNaN() Or Vz.HasInf() Then
@@ -209,6 +229,25 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                 ex1 = ex
                 haderror = True
             End Try
+
+            'The vapour-liquid flash can stop on a split whose phases do not add up to the feed when a second liquid
+            'moves between the phases from one iteration to the next (two carbon pseudo-compounds with different
+            'equation-of-state parameters beside O2, CO and CO2 at 1366 K), a liquid split that the name-based
+            'heuristics above do not recognise. Such a result fails the balance check of the property package, so
+            'the three-phase flash, which starts from that split, is tried first and kept when its phases add up.
+            If Not haderror AndAlso Flashtype = "VLE" AndAlso Not UseIO AndAlso
+                (PP.PackageType = PackageType.EOS OrElse PP.PackageType = PackageType.CorrespondingStates OrElse PP.PackageType = PackageType.ChaoSeader OrElse
+                 PP.PackageType = PackageType.ActivityCoefficient OrElse PP.PackageType = PackageType.VaporPressure) AndAlso
+                Not PTResultBalanceError(Vz, result) <= 0.001 Then
+                Try
+                    IObj?.Paragraphs.Add("The VLE result does not add up to the feed. Trying VLLE.")
+                    Dim nl3 = New NestedLoops3PV3
+                    nl3.FlashSettings = FlashSettings
+                    Dim result3 As Object() = nl3.Flash_PT(Vz, P, T, PP, False, Nothing)
+                    If PTResultBalanceError(Vz, result3) <= 0.001 Then result = result3
+                Catch ex3 As Exception
+                End Try
+            End If
 
             If haderror Then
 
