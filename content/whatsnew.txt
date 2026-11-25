@@ -1,4 +1,16 @@
 ﻿Version 10.3.1
 
 - [NEW] Download and install of new versions (Options in the classic interface, Preferences in the cross-platform one): when the startup check finds a newer version, DWSIM offers to download the installer of its edition and platform, checks it against the checksum of the release and installs it when DWSIM closes; the installer wizard on Windows, the new DWSIM.app over the installed one on macOS, the Debian package with the system password dialog on Linux, and DWSIM starts again on macOS and Linux; a portable copy opens the release page
+- [NEW] Sulfuric Acid (H2O-H2SO4-SO3) property package: water, sulfuric acid and sulfur trioxide from dilute acid to oleum, with H2SO4, H2O and SO3 in the vapour at their equilibrium and the heats of absorption and dilution in the enthalpy
+- [NEW] Strong Acid Tower (Plus): drying tower and SO3 absorbers on theoretical stages with adiabatic flashes, reporting the SO3 absorbed, the acid strengths, the acid cooler duty and the dew point of the gas
+- [NEW] SO2 Converter Bed (Plus): adiabatic vanadium catalyst bed that converts SO2 to SO3 up to a set approach to equilibrium
+- [NEW] Sulfur-burning double contact sulfuric acid plant in the Case Library, tutorial A13 and a User Guide part on the sulfuric acid tools
 - [CHG] Update check at startup: reads the latest published release of the running edition on GitHub (open edition or Patreon Edition), skips release candidates and shows its list of changes; opens the release page when download and install is off
+- [CHG] Help and Tutorials site: the forum links point to the GitHub Discussions
+- [FIX] SRK and the Peng-Robinson family: a fugacity coefficient that overflowed came back as infinity and failed the flash or the Gibbs reactor
+- [FIX] PT flash: a two-phase split that didn't add up to the feed was returned with a mass balance error; it is now solved again with three phases
+- [FIX] Conversion reactor: parallel reactions that asked for more of a compound than the feed had gave it a negative outlet flow
+- [FIX] Gibbs reactor: a failed minimization could finish without an error
+- [FIX] Heater and Cooler editors: with the vapor fraction basis set to kg/kg the calculation type still read Outlet Vapor Mole Fraction
+- [FIX] Pipe Network: a source or sink block without its stream stopped the solve with a missing key error
+- [FIX] Case Library: in the Patreon Edition, a case that needs a newer Patreon Edition was marked as needing the Patreon Edition
