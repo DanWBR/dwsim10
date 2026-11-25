@@ -905,6 +905,22 @@ Namespace PropertyPackages
 
         End Function
 
+        ''' <summary>ln phi of the equation of state, the exponent that DW_CalcFugCoeff returns exp of.</summary>
+        Protected Overrides Function CalcLnFugCoeffDirect(ByVal Vx As Array, ByVal T As Double, ByVal P As Double, ByVal st As State) As Double()
+            Dim lnfug As Object
+            If st = State.Liquid Then
+                lnfug = m_pr.CalcLnFug(T, P, Vx, Me.RET_VKij, Me.RET_VKij2, RET_KAPPA1, RET_KAPPA2, RET_KAPPA3, Me.RET_VTC, Me.RET_VPC, Me.RET_VW, Nothing, "L")
+            Else
+                lnfug = m_pr.CalcLnFug(T, P, Vx, Me.RET_VKij, Me.RET_VKij2, RET_KAPPA1, RET_KAPPA2, RET_KAPPA3, Me.RET_VTC, Me.RET_VPC, Me.RET_VW, Nothing, "V")
+            End If
+            Dim n As Integer = UBound(lnfug)
+            Dim ln(n) As Double
+            For i As Integer = 0 To n
+                ln(i) = lnfug(i)
+            Next
+            Return ln
+        End Function
+
         Public Overrides Function DW_CalcFugCoeff(ByVal Vx As System.Array, ByVal T As Double, ByVal P As Double, ByVal st As State) As Double()
 
             Calculator.WriteToConsole(Me.ComponentName & " fugacity coefficient calculation for phase '" & st.ToString & "' requested at T = " & T & " K and P = " & P & " Pa.", 2)

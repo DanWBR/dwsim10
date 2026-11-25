@@ -1052,6 +1052,16 @@ Namespace PropertyPackages
             Return val
         End Function
 
+        ''' <summary>ln phi of the equation of state, the exponent that DW_CalcFugCoeff returns exp of.</summary>
+        Protected Overrides Function CalcLnFugCoeffDirect(ByVal Vx As Array, ByVal T As Double, ByVal P As Double, ByVal st As State) As Double()
+            Dim srkn As New PropertyPackages.ThermoPlugs.SRK
+            If st = State.Liquid Then
+                Return srkn.CalcLnFug(T, P, Vx, Me.RET_VKij, Me.RET_VTC, Me.RET_VPC, Me.RET_VW, Nothing, 0)
+            Else
+                Return srkn.CalcLnFug(T, P, Vx, Me.RET_VKij, Me.RET_VTC, Me.RET_VPC, Me.RET_VW, Nothing, 1)
+            End If
+        End Function
+
         Public Overrides Function DW_CalcFugCoeff(ByVal Vx As System.Array, ByVal T As Double, ByVal P As Double, ByVal st As State) As Double()
 
             Dim IObj As Inspector.InspectorItem = Inspector.Host.GetNewInspectorItem()

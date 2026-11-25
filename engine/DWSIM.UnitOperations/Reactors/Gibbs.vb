@@ -429,6 +429,7 @@ Namespace Reactors
                     xv = tms.GetOverallComposition()
                 End If
                 Dim fugc = pp.DW_CalcFugCoeff(xv, T, P, PropertyPackages.State.Vapor)
+                Dim lnfugc As Double() = Nothing
                 For i = 0 To xv.Length - 1
                     t1 = DelGF(i)
                     If xv(i) > 0 Then
@@ -437,6 +438,12 @@ Namespace Reactors
                         t2 = Log(1.0E-20)
                     End If
                     t3 = Log(fugc(i) * P / P0)
+                    'exp(ln phi) overflows above ln phi = 709.8 (a compound near infinite dilution in an unlike liquid):
+                    'the logarithm then comes from the package
+                    If Double.IsInfinity(t3) Then
+                        If lnfugc Is Nothing Then lnfugc = pp.DW_CalcLnFugCoeff(xv, T, P, PropertyPackages.State.Vapor)
+                        t3 = lnfugc(i) + Log(P / P0)
+                    End If
                     gf += vfrac * xv(i) * (t1 + t2 + t3) * 8.314 * T
                 Next
             End If
@@ -446,6 +453,7 @@ Namespace Reactors
                     xv = tms.GetOverallComposition()
                 End If
                 Dim fugc = pp.DW_CalcFugCoeff(xv, T, P, PropertyPackages.State.Liquid)
+                Dim lnfugc As Double() = Nothing
                 For i = 0 To xv.Length - 1
                     t1 = DelGF(i)
                     If xv(i) > 0 Then
@@ -454,12 +462,19 @@ Namespace Reactors
                         t2 = Log(1.0E-20)
                     End If
                     t3 = Log(fugc(i) * P / P0)
+                    'exp(ln phi) overflows above ln phi = 709.8 (a compound near infinite dilution in an unlike liquid):
+                    'the logarithm then comes from the package
+                    If Double.IsInfinity(t3) Then
+                        If lnfugc Is Nothing Then lnfugc = pp.DW_CalcLnFugCoeff(xv, T, P, PropertyPackages.State.Liquid)
+                        t3 = lnfugc(i) + Log(P / P0)
+                    End If
                     gf += l1frac * xv(i) * (t1 + t2 + t3) * 8.314 * T
                 Next
             End If
             If l2frac > 0.0 Then
                 Dim xv = tms.GetPhaseComposition(4)
                 Dim fugc = pp.DW_CalcFugCoeff(xv, T, P, PropertyPackages.State.Liquid)
+                Dim lnfugc As Double() = Nothing
                 For i = 0 To xv.Length - 1
                     t1 = DelGF(i)
                     If xv(i) > 0 Then
@@ -468,6 +483,12 @@ Namespace Reactors
                         t2 = Log(1.0E-20)
                     End If
                     t3 = Log(fugc(i) * P / P0)
+                    'exp(ln phi) overflows above ln phi = 709.8 (a compound near infinite dilution in an unlike liquid):
+                    'the logarithm then comes from the package
+                    If Double.IsInfinity(t3) Then
+                        If lnfugc Is Nothing Then lnfugc = pp.DW_CalcLnFugCoeff(xv, T, P, PropertyPackages.State.Liquid)
+                        t3 = lnfugc(i) + Log(P / P0)
+                    End If
                     gf += l2frac * xv(i) * (t1 + t2 + t3) * 8.314 * T
                 Next
             End If

@@ -1816,10 +1816,30 @@ Namespace PropertyPackages
         ''' whose ln is on the order of -1e3) must override this to return the log directly, so the
         ''' stability test and phase-split estimates keep the true chemical potential.
         ''' </summary>
+        ''' <summary>
+        ''' Logarithms of the fugacity coefficients straight from the model, for the packages whose
+        ''' DW_CalcFugCoeff returns exp(ln phi), so that DW_CalcLnFugCoeff does not take them back from an overflowed
+        ''' exponential. Nothing (the default) when the package does not provide them.
+        ''' </summary>
+        Protected Overridable Function CalcLnFugCoeffDirect(ByVal Vx As Array, ByVal T As Double, ByVal P As Double, ByVal st As State) As Double()
+            Return Nothing
+        End Function
+
         Public Overridable Function DW_CalcLnFugCoeff(ByVal Vx As Array, ByVal T As Double, ByVal P As Double, ByVal st As State) As Double()
             Dim fc = DW_CalcFugCoeff(Vx, T, P, st)
             Dim ln(fc.Length - 1) As Double
+            Dim lndirect As Double() = Nothing
             For i As Integer = 0 To fc.Length - 1
+                'a coefficient that came back as infinity is exp(ln phi) above ln phi = 709.8 (a compound near infinite
+                'dilution in an unlike liquid: carbon pseudo-compounds with different critical constants, SRK, 1366 K);
+                'its logarithm comes from the model when the package gives it (CalcLnFugCoeffDirect)
+                If Double.IsPositiveInfinity(fc(i)) Then
+                    If lndirect Is Nothing Then lndirect = CalcLnFugCoeffDirect(Vx, T, P, st)
+                    If lndirect IsNot Nothing AndAlso i < lndirect.Length AndAlso Not Double.IsNaN(lndirect(i)) Then
+                        ln(i) = lndirect(i)
+                        Continue For
+                    End If
+                End If
                 If fc(i) > 0.0# Then
                     ln(i) = Math.Log(fc(i))
                 ElseIf fc(i) < 0.0# Then

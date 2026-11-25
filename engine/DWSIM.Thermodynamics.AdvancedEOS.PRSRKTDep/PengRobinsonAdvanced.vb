@@ -236,6 +236,11 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             Return MyBase.DW_CalcEntropy(Vx, T, P, st)
         End Function
 
+        Protected Overrides Function CalcLnFugCoeffDirect(Vx As Array, T As Double, P As Double, st As State) As Double()
+            SetTP(T, P)
+            Return MyBase.CalcLnFugCoeffDirect(Vx, T, P, st)
+        End Function
+
         Public Overrides Function DW_CalcFugCoeff(Vx As Array, T As Double, P As Double, st As State) As Double()
             SetTP(T, P)
             Return MyBase.DW_CalcFugCoeff(Vx, T, P, st)
