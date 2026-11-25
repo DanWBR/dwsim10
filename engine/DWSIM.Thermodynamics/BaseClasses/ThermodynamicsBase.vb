@@ -2479,7 +2479,7 @@ Namespace BaseClasses
                     result = A * (1 - Tr) ^ (B + C * Tr + D * Tr ^ 2)
                     Return result / Molar_Weight / 1000 'kJ/kg
                 End If
-            ElseIf OriginalDB = "CheResources" Or OriginalDB = "CoolProp" Or OriginalDB = "User" Or OriginalDB = "KDB" Then
+            ElseIf OriginalDB = "CheResources" Or OriginalDB = "CoolProp" Or OriginalDB = "KDB" Then
                 Dim tr1 As Double
                 If OriginalDB = "KDB" Then
                     tr1 = HVap_B / Critical_Temperature
@@ -2493,11 +2493,27 @@ Namespace BaseClasses
                 End If
                 result = HVap_A * ((1 - Tr) / (1 - tr1)) ^ 0.375
                 Return result 'kJ/kg
-            ElseIf OriginalDB = "ChemSep" Then
+            ElseIf OriginalDB = "ChemSep" Or OriginalDB = "User" Then
+                'same rule as PropertyPackage.AUX_HVAPi: a numbered equation is the ChemSep form (J/kmol); without one,
+                'HVap_A is the heat of vaporization at the normal boiling point (kJ/kg), carried by Watson, or the
+                'Vetere estimate when it is zero
                 Dim eqno As String = VaporizationEnthalpyEquation
-                message = "Calculated using Experimental/Regressed data."
-                result = PropertyPackages.PropertyPackage.CalcCSTDepProp(eqno, A, B, C, D, E, T, T / Tr) / Molar_Weight / 1000 'kJ/kg
-                Return result
+                If eqno <> "" AndAlso Integer.TryParse(eqno, New Integer) Then
+                    message = "Calculated using Experimental/Regressed data."
+                    result = PropertyPackages.PropertyPackage.CalcCSTDepProp(eqno, A, B, C, D, E, T, T / Tr) / Molar_Weight / 1000 'kJ/kg
+                Else
+                    Dim tr1 = Normal_Boiling_Point / Critical_Temperature
+                    If HVap_A = 0.0# OrElse Double.IsNaN(HVap_A) OrElse Double.IsInfinity(HVap_A) Then
+                        message = "Estimated using Vetere correlation."
+                        HVap_A = New Utilities.Hypos.Methods.HYP().DHvb_Vetere(Critical_Temperature, Critical_Pressure, Normal_Boiling_Point)
+                        HVap_A /= Molar_Weight
+                    Else
+                        message = "Calculated using Experimental/Regressed data."
+                    End If
+                    result = HVap_A * ((1 - Tr) / (1 - tr1)) ^ 0.375
+                End If
+                If Double.IsNaN(result) OrElse Double.IsInfinity(result) OrElse result < 0.0 Then result = 0.0
+                Return result 'kJ/kg
             ElseIf OriginalDB = "ChEDL Thermo" Then
                 Dim eqno As String = VaporizationEnthalpyEquation
                 message = "Calculated using Experimental/Regressed data."

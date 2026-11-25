@@ -91,112 +91,139 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
             fi = Vz.Clone
 
             Dim nwm As Double = 0
-            Dim wid As Integer = 0
+            Dim wid As Integer = -1
 
-            If Me.FlashSettings(Interfaces.Enums.FlashSetting.NL_FastMode) = True Then
+            For i = 0 To n
+                If CompoundProperties(i).Name = keycomps(0) Then
+                    wid = i
+                    nwm = fi(i)
+                End If
+            Next
 
+            'the organic part of the feed, per mole of organics
+            If wid >= 0 Then fi(wid) = 0.0#
+            If nwm > 0.0# And nwm < 1.0# Then
                 For i = 0 To n
-                    If CompoundProperties(i).Name = keycomps(0) Then
-                        wid = i
-                        nwm = fi(i)
-                        fi(i) = 0
-                    End If
+                    If i <> wid Then fi(i) = fi(i) / (1 - nwm)
                 Next
+            End If
 
-                If nwm <> 0 Then
-                    For i = 0 To n
-                        If i <> wid And nwm <> 1.0# Then fi(i) = fi(i) / (1 - nwm)
-                    Next
-                End If
+            Dim xl1, xl2, Vx1(n), Vx2(n), Vn1(n), nHCy, nWy, nWx As Double
 
-                Dim results As Object
-                If fi.Sum() = 0.0# Then
-                    If PP.AUX_PVAPi(wid, T) / P > 1.0# Then
-                        L = 0.0#
-                        V = 1.0#
-                    Else
-                        L = 1.0#
-                        V = 0.0#
-                    End If
-                    Vx = PP.RET_NullVector()
-                    Vy = PP.RET_NullVector()
-                    ecount = 0.0#
+            Vx2 = PP.RET_NullVector
+            If wid >= 0 Then Vx2(wid) = 1.0#
+
+            If fi.Sum() = 0.0# Then
+
+                'water alone
+                If wid >= 0 AndAlso PP.AUX_PVAPi(wid, T) / P > 1.0# Then
+                    nWy = nwm
+                    nWx = 0.0#
                 Else
-                    results = _nl.Flash_PT(fi, P, T, PP, ReuseKI, PrevKi)
-                    L = results(0)
-                    V = results(1)
-                    Vx = results(2)
-                    Vy = results(3)
-                    ecount = results(4)
+                    nWy = 0.0#
+                    nWx = nwm
                 End If
+                nHCy = 0.0#
+                xl1 = 0.0#
+                Vx1 = PP.RET_NullVector()
+                Vy = PP.RET_NullVector()
+                If nWy > 0.0# Then Vy(wid) = 1.0#
+                ecount = 0
 
             Else
 
-                For i = 0 To n
-                    If CompoundProperties(i).Name = keycomps(0) Then
-                        wid = i
-                        nwm = fi(i)
-                    End If
-                Next
+                'The vapor is an ideal mixture of the organics and of the water. While free water is left, water
+                'has its vapor pressure in the vapor, so the organics are in equilibrium at the rest of the
+                'pressure, P - Psat(water). When the vapor takes all the water, the organic partial pressure
+                'Porg solves Porg = P nHC/(nHC + nW), with nHC the organic vapor of a flash at Porg.
+                Dim no As Double = 1.0# - nwm
+                Dim Psw As Double = If(wid >= 0 AndAlso nwm > 0.0#, PP.AUX_PVAPi(wid, T), 0.0#)
 
-                If nwm <> 0 Then
-                    For i = 0 To n
-                        If i <> wid Then fi(i) = fi(i) / (1 - nwm) Else fi(i) = 0.0#
-                    Next
+                Dim orgflash = Function(pOrganic As Double) As Object
+                                   Return _nl.Flash_PT(fi, pOrganic, T, PP, ReuseKI, PrevKi)
+                               End Function
+
+                Dim results As Object = Nothing
+                Dim saturated As Boolean = False
+
+                If nwm = 0.0# Then
+                    results = orgflash(P)
+                    nWy = 0.0#
+                    saturated = True
+                ElseIf Psw < P Then
+                    results = orgflash(P - Psw)
+                    nHCy = results(1) * no
+                    nWy = nHCy * Psw / (P - Psw)
+                    saturated = nWy <= nwm
                 End If
 
-                Dim results As Object
-                results = _nl.Flash_PT(fi, P, T, PP, ReuseKI, PrevKi)
+                If Not saturated Then
+                    'all the water is vapor: find Porg
+                    Dim gfun = Function(pOrganic As Double) As Double
+                                   Dim r As Object = orgflash(pOrganic)
+                                   Dim nv As Double = r(1) * no
+                                   Return pOrganic - P * nv / (nv + nwm)
+                               End Function
+                    Dim lo As Double = P * 0.000001, hi As Double = P
+                    Dim glo As Double = gfun(lo), ghi As Double = gfun(hi)
+                    Dim Porg As Double = hi
+                    If glo < 0.0# And ghi > 0.0# Then
+                        For k As Integer = 0 To 100
+                            'regula falsi with the Illinois step, then bisection when it stalls
+                            Dim pm As Double = (lo * ghi - hi * glo) / (ghi - glo)
+                            If Not (pm > lo And pm < hi) Then pm = 0.5 * (lo + hi)
+                            Dim gm As Double = gfun(pm)
+                            Porg = pm
+                            If Math.Abs(gm) < 0.000001 * P OrElse (hi - lo) < 0.000000001 * P Then Exit For
+                            If gm < 0.0# Then
+                                lo = pm : glo = gm : ghi *= 0.5
+                            Else
+                                hi = pm : ghi = gm : glo *= 0.5
+                            End If
+                        Next
+                    End If
+                    results = orgflash(Porg)
+                    nWy = nwm
+                    'A single organic compound vaporizes all at once at its vapor pressure, so the root sits on that
+                    'step and the flash at Porg lands on one side of it. The organic vapor is then the amount that the
+                    'partial pressures need, nHC = nW Porg/(P - Porg), and the rest of the organic stays liquid.
+                    Dim nvneed As Double = If(P > Porg, nwm * Porg / (P - Porg) / no, 1.0#)
+                    If fi.Where(Function(fz) fz > 0.0#).Count() = 1 AndAlso nvneed > 0.0# AndAlso nvneed < 1.0# AndAlso
+                        Math.Abs(results(1) - nvneed) > 0.000001 Then
+                        results = New Object() {1.0# - nvneed, nvneed, fi.Clone(), fi.Clone(), results(4)}
+                    End If
+                End If
+
                 L = results(0)
                 V = results(1)
                 Vx = results(2)
                 Vy = results(3)
                 ecount = results(4)
 
+                nHCy = V * no
+                xl1 = L * no
+                Vx1 = Vx.Clone
+
+                If saturated Then
+                    nWx = nwm - nWy
+                Else
+                    nWx = 0.0#
+                End If
+
+                Dim Vtot As Double = nHCy + nWy
+                Dim Vy2(n) As Double
+                If Vtot > 0.0# Then
+                    For i = 0 To n
+                        If i <> wid Then Vy2(i) = Vy(i) * nHCy / Vtot
+                    Next
+                    If wid >= 0 Then Vy2(wid) = nWy / Vtot
+                End If
+                Vy = Vy2
+
             End If
-
-            Dim xl1, xl2, Vx1(n), Vx2(n), Vn1(n), nHCy, nWy, nWx As Double
-
-            V = V * (1 - nwm)
-            xl1 = L * (1 - nwm)
-            xl2 = nwm
-            Vx1 = Vx.Clone
-            Vx2 = PP.RET_NullVector
-            Vx2(wid) = 1.0#
-
-            Vy(wid) = PP.AUX_PVAPi(wid, T) / P
-
-            nHCy = V
-
-            ' Water saturates the vapor (y = Psat/P) only while a free-water phase is left. When the
-            ' vapor can take all of it, or Psat >= P, all the water is vapor and its fraction follows
-            ' from the amounts (issue 112: y kept at Psat/P gave sum(y) > 1).
-            Dim unsaturated As Boolean = Vy(wid) >= 1.0
-            If Not unsaturated Then
-                nWy = nHCy * Vy(wid) / (1 - Vy(wid))
-                nWx = nwm - nWy
-                unsaturated = nWx < 0.0
-            End If
-
-            If unsaturated Then
-                nWy = nwm
-                nWx = 0.0
-            End If
-
-            xl2 -= nWy
 
             V = nHCy + nWy
             xl2 = nWx
-
-            If unsaturated Then Vy(wid) = If(V > 0, nWy / V, 0.0)
-
-            For i = 0 To n
-                If i <> wid Then
-                    If V > 0 Then
-                        Vy(i) = Vy(i) * nHCy / V
-                    End If
-                End If
-            Next
 
             'supercritical gases solubility
 

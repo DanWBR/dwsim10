@@ -12446,7 +12446,7 @@ Final3:
                             Case "normalfreezingpoint"
                                 vals.Add(c.ConstantProperties.TemperatureOfFusion)
                             Case "heatofvaporizationatnormalboilingpoint"
-                                vals.Add(c.ConstantProperties.GetEnthalpyOfVaporization(c.ConstantProperties.Normal_Boiling_Point * c.ConstantProperties.Molar_Weight))
+                                vals.Add(c.ConstantProperties.GetEnthalpyOfVaporization(c.ConstantProperties.Normal_Boiling_Point) * c.ConstantProperties.Molar_Weight)
                             Case "diffusionvolume"
                                 vals.Add(c.ConstantProperties.FullerDiffusionVolume)
                             Case "energylennardjones"

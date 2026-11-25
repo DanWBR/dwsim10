@@ -272,6 +272,21 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
             Return r
         End Function
 
+        ''' <summary>Largest |L1 x1 + V y + L2 x2 - z| over the compounds of a PT result.</summary>
+        Private Shared Function BalanceError(Vz As Double(), r As Object) As Double
+            Dim e As Double = 0.0
+            Dim x1 As Double() = r(2), y As Double() = r(3), x2 As Double() = r(6)
+            For i As Integer = 0 To Vz.Length - 1
+                Dim s As Double = 0.0
+                If r(0) > 0.0 Then s += r(0) * x1(i)
+                If r(1) > 0.0 Then s += r(1) * y(i)
+                If r(5) > 0.0 Then s += r(5) * x2(i)
+                e = Math.Max(e, Math.Abs(s - Vz(i)))
+            Next
+            If Double.IsNaN(e) Then Return Double.MaxValue
+            Return e
+        End Function
+
         Private Shared Function IsThreePhase(r As Object) As Boolean
             Return r(1) > 0.0 AndAlso r(0) > 0.0 AndAlso r(5) > 0.0
         End Function
@@ -471,7 +486,12 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                 If tm < -0.000001 Then cands.Add(Tuple.Create(tm, w))
             Next
 
+            'A seed can also converge to a different pair of phases (vapor + water seeded with a hydrocarbon liquid
+            'ends as two liquids when the vapor goes away, as water + n-hexane at 373 K and 5 bar). Such an answer is
+            'kept when its phases add up to the feed, and WithThirdPhase takes it only if its Gibbs energy is lower.
             Const Ve As Double = 0.01
+            Dim other As Object = Nothing
+            Dim gother As Double = Double.MaxValue
             For Each cand In cands.OrderBy(Function(q) q.Item1)
                 Dim w As Double() = cand.Item2
                 Try
@@ -483,11 +503,15 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                         r3 = Flash_PT_3P(Vz, Ve, L1r * (1.0 - Ve), L2r * (1.0 - Ve), w, x1, x2, P, T, PP)
                     End If
                     If IsThreePhase(r3) Then Return r3
+                    If BalanceError(Vz, r3) < 0.0001 Then
+                        Dim g3 As Double = PhaseGibbs(r3, T, P, PP)
+                        If g3 < gother Then gother = g3 : other = r3
+                    End If
                 Catch ex As Exception
                 End Try
             Next
 
-            Return Nothing
+            Return other
 
         End Function
 
