@@ -43,9 +43,6 @@ namespace DWSIM.Extensions.SolidCraft
             public string Subject;
         }
 
-        // thickness of the 3D label lettering, mm
-        const double LabelDepth = 15;
-
         public static string LineComponent(PipeRun run) => "Line " + run.Tag;
 
         public static List<Command> Create(PlantModel model)
@@ -558,7 +555,9 @@ namespace DWSIM.Extensions.SolidCraft
                 ["align"] = "center"
             });
             Add(cmds, "sketch.finish", subject, new JObject());
-            Add(cmds, "solid.extrude", subject, new JObject { ["sketch"] = sketch, ["distance"] = LabelDepth, ["body_name"] = body });
+            // flat letters: a planar face per letter is a fraction of the work of an extruded solid
+            // and of its size in the design, and it reads the same in the pictures
+            Add(cmds, "surface.patch", subject, new JObject { ["sketch"] = sketch, ["body_name"] = body });
         }
 
         /// <summary>Approximate width of the longest line of a text, for a sans-serif face.</summary>
