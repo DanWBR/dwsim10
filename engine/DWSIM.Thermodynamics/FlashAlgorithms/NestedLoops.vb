@@ -2177,11 +2177,20 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                 ecount = 0
                 Dim hres = PerformHeuristicsTest(Vz, Tref, P, PP)
                 If hres.SolidPhase Then
+                    'the error at the start temperature: Hb belongs to the bubble point
                     T = Tref
+                    IObj?.SetCurrent()
+                    H1 = Herror("PT", T, P, Vz, PP, False, Nothing)(0)
                 Else
                     T = Tb
+                    H1 = Hb
                 End If
-                H1 = Hb
+                'The temperatures where the error is positive (too cold) and negative (too hot). The answer can sit
+                'a few hundredths of a kelvin below the bubble point, where the enthalpy jumps: a secant step over
+                'the jump lands on the two-phase side and the next one comes back, so the steps that leave the
+                'bracket bisect it instead.
+                Dim Tlo As Double = Double.NaN, Thi As Double = Double.NaN
+                If H1 > 0 Then Tlo = T Else Thi = T
                 Do
                     ecount += 1
                     T1 = T
@@ -2192,7 +2201,16 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                     Vy = herrfunc(4)
                     Vx1 = herrfunc(5)
                     Ki = Vy.DivideY(Vx1)
+                    If H2 > 0 Then
+                        If Double.IsNaN(Tlo) OrElse T2 > Tlo Then Tlo = T2
+                    ElseIf H2 < 0 Then
+                        If Double.IsNaN(Thi) OrElse T2 < Thi Then Thi = T2
+                    End If
                     T = T1 + (T2 - T1) * (0 - H1) / (H2 - H1)
+                    If Not Double.IsNaN(Tlo) AndAlso Not Double.IsNaN(Thi) AndAlso Tlo < Thi AndAlso
+                        (Double.IsNaN(T) OrElse T <= Tlo OrElse T >= Thi) Then
+                        T = 0.5 * (Tlo + Thi)
+                    End If
                     If T < 0 Then
                         Throw New Exception("PH Flash [NL]: Invalid result: Temperature did not converge." & String.Format(" (T = {0} K, P = {1} Pa, MoleFracs = {2})", T.ToString("N2"), P.ToString("N2"), Vz.ToArrayString()))
                     End If
@@ -2200,6 +2218,11 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                     IObj?.SetCurrent()
                     resultFlash = Herror("PT", T, P, Vz, PP, True, Ki)
                     H1 = resultFlash(0)
+                    If H1 > 0 Then
+                        If Double.IsNaN(Tlo) OrElse T > Tlo Then Tlo = T
+                    ElseIf H1 < 0 Then
+                        If Double.IsNaN(Thi) OrElse T < Thi Then Thi = T
+                    End If
                     IObj?.Paragraphs.Add(String.Format("Enthalpy Error (Spec - Calculated): {0}", H1))
                 Loop Until Abs(H1) < itol Or ecount > maxitEXT
 
