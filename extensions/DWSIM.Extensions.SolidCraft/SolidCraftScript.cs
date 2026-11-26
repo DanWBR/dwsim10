@@ -276,7 +276,7 @@ namespace DWSIM.Extensions.SolidCraft
         public const string RenderSetup = "DWSIM Plant";
 
         /// <summary>
-        /// A render setup for a picture of the whole plant: path tracing on the GPU in a plant HDR
+        /// A render setup for a picture of the whole plant: path tracing on the GPU under a sky
         /// environment, the camera at the view chosen in the options, fitted to the model.
         /// </summary>
         public static List<Command> CreateRenderSetup(PlantModel model) => CreateRenderSetup(model, model.Options?.RenderSamples ?? 0);
@@ -287,15 +287,30 @@ namespace DWSIM.Extensions.SolidCraft
             var cmds = new List<Command>();
             var camera = RenderCamera(model, model.Options?.RenderView);
             if (camera == null) return cmds;
-            // the samples belong to the saved setup: the render command refuses --samples next to --setup
-            var job = new JObject { ["method"] = "gpu_path" };
-            if (samples > 0) job["options"] = new JObject { ["samples"] = samples };
+            // the samples belong to the saved setup: the render command refuses --samples next to --setup.
+            // The light comes from SolidCraft's procedural sky, so the metals have something to reflect
+            // even when the build doesn't carry the HDR environments of the render library.
+            var jobOptions = new JObject
+            {
+                ["environment"] = new JObject
+                {
+                    ["kind"] = "sky",
+                    ["gradient"] = new JObject
+                    {
+                        ["zenith"] = new JArray(0.16, 0.32, 0.7),
+                        ["horizon"] = new JArray(0.8, 0.9, 1.0),
+                        ["ground"] = new JArray(0.12, 0.1, 0.08)
+                    },
+                    ["rotation_rad"] = 0,
+                    ["intensity"] = 1
+                }
+            };
+            if (samples > 0) jobOptions["samples"] = samples;
             Add(cmds, "render.settings.set", "the render", new JObject
             {
                 ["name"] = RenderSetup,
-                ["set"] = new JObject { ["job"] = job, ["camera"] = camera }
+                ["set"] = new JObject { ["job"] = new JObject { ["method"] = "gpu_path", ["options"] = jobOptions }, ["camera"] = camera }
             });
-            Add(cmds, "render.library.environment.apply", "the render", new JObject { ["id"] = "HDR-008", ["name"] = RenderSetup });
             return cmds;
         }
 
