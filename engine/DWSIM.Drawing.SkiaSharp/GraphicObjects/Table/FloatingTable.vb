@@ -107,7 +107,8 @@ Namespace GraphicObjects.Tables
 
                     With bpaint
                         .IsAntialias = GlobalSettings.Settings.DrawingAntiAlias
-                        .Color = SKColors.White.WithAlpha(240)
+                        'the text is light on a dark canvas, so the panel behind it has to be dark too
+                        .Color = If(GraphicsSurface.DarkCanvas, New SKColor(45, 45, 48, 240), SKColors.White.WithAlpha(240))
                         .IsStroke = False
                         .StrokeWidth = LineWidth / zoom
                     End With

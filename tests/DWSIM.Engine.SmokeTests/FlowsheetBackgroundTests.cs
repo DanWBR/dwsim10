@@ -153,6 +153,54 @@ namespace DWSIM.Engine.SmokeTests
             Assert.That(old.FlowsheetBackgroundColor2, Is.Empty);
         }
 
+        // When the pointer rests on a calculated stream, the surface shows a floating table of its properties.
+        // On a dark canvas the table writes in light text, so its panel has to be dark as well, or the text
+        // disappears on the white panel (dark theme, issue #149).
+        // https://github.com/DanWBR/dwsim10/issues/149
+        [Test]
+        public void TheHoverTableIsDarkOnADarkCanvas()
+        {
+            var (fs, surface) = Build();
+            var feed = fs.Inner.SimulationObjects.Values.Single(o => o.GraphicObject.Tag == "FEED");
+            fs.Solve();
+            Assert.That(feed.GraphicObject.Calculated, Is.True);
+            // the interface fills this list for every object type; a flowsheet built in code starts without it
+            fs.Inner.FlowsheetOptions.VisibleProperties[feed.GetType().Name] =
+                feed.GetProperties(DWSIM.Interfaces.Enums.PropertyType.ALL).Take(8).ToList();
+
+            FlowsheetBackground.SetColor(fs.Inner.FlowsheetOptions, new SKColor(0x1E, 0x1E, 0x1E));
+
+            using var without = new SKBitmap(800, 900);
+            using (var canvas = new SKCanvas(without)) surface.UpdateCanvas(canvas);
+
+            DWSIM.Interfaces.ISimulationObject owner = feed;
+            var table = new DWSIM.Drawing.SkiaSharp.GraphicObjects.Tables.FloatingTableGraphic(ref owner, 40, 220);
+            table.Owner = feed;
+            table.Tag = feed.Name;
+            table.HeaderText = feed.GraphicObject.Tag;
+            table.AdditionalInfo = surface.Zoom;
+            surface.DrawingObjects.Add(table);
+
+            using var with = new SKBitmap(800, 900);
+            using (var canvas = new SKCanvas(with)) surface.UpdateCanvas(canvas);
+            surface.DrawingObjects.Remove(table);
+            Assert.That(GraphicsSurface.DarkCanvas, Is.True);
+            Assert.That(table.Width, Is.GreaterThan(20), "the table was drawn");
+
+            // the pixels the table changed are its panel, border and text; the panel is most of them
+            int dark = 0, changed = 0;
+            for (int x = 0; x < with.Width; x++)
+                for (int y = 0; y < with.Height; y++)
+                {
+                    var c = with.GetPixel(x, y);
+                    if (c == without.GetPixel(x, y)) continue;
+                    changed++;
+                    if (c.Red + c.Green + c.Blue < 3 * 128) dark++;
+                }
+            Assert.That(changed, Is.GreaterThan(table.Width * table.Height / 2), "the table covers its area");
+            Assert.That((double)dark / changed, Is.GreaterThan(0.7), "the panel behind the light text is dark");
+        }
+
         [Test]
         public void TheContrastSwitchesWhereBlackAndWhiteReadEqually()
         {
