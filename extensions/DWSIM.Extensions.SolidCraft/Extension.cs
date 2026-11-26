@@ -24,6 +24,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using DWSIM.Interfaces;
 using DWSIM.Interfaces.Enums;
+using Newtonsoft.Json.Linq;
 
 namespace DWSIM.Extensions.SolidCraft
 {
@@ -424,11 +425,18 @@ namespace DWSIM.Extensions.SolidCraft
             }
             catch (Exception) { }
 
+            // the labels the model has, and what to say about the ones the design rewrote
+            var allLabels = (cmds.FirstOrDefault(c => c.Subject == SolidCraftScript.LabelsSubject)?.Params["changes"] as JObject)?.Count ?? 0;
+            string Labels(int rewritten) => rewritten > 0
+                ? "; " + rewritten + " labels show the new values"
+                : allLabels > 0 ? "; the labels keep the values the model was exported with: export it again to have labels that follow the data" : "";
+
             CadJob.Report("Sending the data to SolidCraft");
-            if (LiveLink.TryRun(folder, name, cmds, out var failed, out var why))
+            var items = cmds.Count(c => c.Subject != SolidCraftScript.LabelsSubject);
+            if (LiveLink.TryRun(folder, name, cmds, out var failed, out var why, out var labels))
             {
-                fs.ShowMessage("3D plant model: the operating data of " + (cmds.Count - failed) + " items and lines were sent to the model open in SolidCraft" +
-                    (failed > 0 ? " (" + failed + " not in the model: export it again)" : "") + ".", IFlowsheet.MessageType.Information);
+                fs.ShowMessage("3D plant model: the operating data of " + (items - failed) + " items and lines were sent to the model open in SolidCraft" +
+                    (failed > 0 ? " (" + failed + " not in the model: export it again)" : "") + Labels(labels) + ".", IFlowsheet.MessageType.Information);
                 return null;
             }
             if (!File.Exists(outputBase + ".sc"))
@@ -439,11 +447,18 @@ namespace DWSIM.Extensions.SolidCraft
             CadJob.Report("SolidCraft: writing the data into the saved design");
             // the update rewrites the design: it stays read only if it was read before
             var wasRead = !PlantLayout.DesignChanged(fs, outputBase + ".sc");
+            // the live link may have trimmed the labels to another design: start again from the model
+            cmds = SolidCraftScript.DataCommands(model);
+            var present = SolidCraftRunner.Query(folder, outputBase + ".sc", new JArray { new JObject { ["command"] = "parameters.list", ["params"] = new JObject { ["filter"] = "user" } } });
+            var savedLabels = SolidCraftScript.KeepLabels(cmds, SolidCraftScript.TextParameters(present?.FirstOrDefault()));
             var skipped = new List<string>();
             var error = SolidCraftRunner.UpdateDesign(folder, cmds, outputBase, skipped);
             if (error == null && wasRead) PlantLayout.MarkRead(fs, outputBase + ".sc");
+            if (skipped.Any(s => s.StartsWith(SolidCraftScript.LabelsSubject))) savedLabels = 0;
+            var missing = skipped.Count(s => !s.StartsWith(SolidCraftScript.LabelsSubject));
             fs.ShowMessage(error == null
-                ? "3D plant model: " + why + "; the data were written into the saved model (" + outputBase + ".sc)" + (skipped.Count > 0 ? ", " + skipped.Count + " items not in it" : "") + "."
+                ? "3D plant model: " + why + "; the data were written into the saved model (" + outputBase + ".sc)" +
+                    (missing > 0 ? ", " + missing + " items not in it" : "") + Labels(savedLabels) + "."
                 : "3D plant model: the data could not be written (" + error + ").", error == null ? IFlowsheet.MessageType.Information : IFlowsheet.MessageType.Warning);
             return error == null ? null : "The data could not be written: " + error;
         }

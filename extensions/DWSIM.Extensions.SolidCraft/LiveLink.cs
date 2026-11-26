@@ -54,14 +54,35 @@ namespace DWSIM.Extensions.SolidCraft
         }
 
         /// <summary>
+        /// The JSON a tool call answered with: the first of its text parts that is JSON (a part after
+        /// it can be a note in words), or null.
+        /// </summary>
+        static JToken Reply(JObject response)
+        {
+            foreach (var part in (response?["result"]?["content"] as JArray ?? new JArray()))
+            {
+                var text = part["text"]?.ToString()?.Trim() ?? "";
+                if (!text.StartsWith("{") && !text.StartsWith("[")) continue;
+                try { return JToken.Parse(text); }
+                catch (Exception) { }
+            }
+            return null;
+        }
+
+        /// <summary>
         /// Runs each command in the open application, one by one, so a component that is not there
         /// does not stop the rest. Returns false (with the reason) when the application cannot be
         /// reached or does not hold the design of this flowsheet; otherwise the commands that failed.
         /// </summary>
-        public static bool TryRun(string folder, string modelName, List<SolidCraftScript.Command> cmds, out int failed, out string error)
+        public static bool TryRun(string folder, string modelName, List<SolidCraftScript.Command> cmds, out int failed, out string error) =>
+            TryRun(folder, modelName, cmds, out failed, out error, out _);
+
+        /// <summary>As <see cref="TryRun(string, string, List{SolidCraftScript.Command}, out int, out string)"/>; <paramref name="labels"/> is how many labels were rewritten.</summary>
+        public static bool TryRun(string folder, string modelName, List<SolidCraftScript.Command> cmds, out int failed, out string error, out int labels)
         {
             failed = 0;
             error = null;
+            labels = 0;
             var cli = Path.Combine(folder, RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "solidcraft-cli.exe" : "solidcraft-cli");
             Endpoint(out var address, out var token);
             var psi = new ProcessStartInfo(cli, "mcp --connect " + address + (string.IsNullOrEmpty(token) ? "" : " --token " + token))
@@ -114,6 +135,10 @@ namespace DWSIM.Extensions.SolidCraft
                     error = "the design open in SolidCraft is not this flowsheet's 3D model";
                     return false;
                 }
+
+                // only the labels the design has a text parameter for
+                var list = Call("tools/call", new JObject { ["name"] = "execute", ["arguments"] = new JObject { ["command"] = "parameters.list", ["params"] = new JObject { ["filter"] = "user" } } });
+                labels = SolidCraftScript.KeepLabels(cmds, SolidCraftScript.TextParameters(Reply(list)));
 
                 foreach (var c in cmds)
                 {

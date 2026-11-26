@@ -18,6 +18,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using Newtonsoft.Json.Linq;
 
 namespace DWSIM.Extensions.SolidCraft
@@ -270,7 +271,70 @@ namespace DWSIM.Extensions.SolidCraft
                     ["properties"] = props
                 });
             }
+
+            // the labels' words, all in one change so the model rebuilds once; the design may hold
+            // only some of them (see KeepLabels)
+            var parameters = LabelParameters(model);
+            var changes = new JObject();
+            foreach (var item in model.Equipment.Where(e => e.Visible && !string.IsNullOrEmpty(e.Label)))
+                changes[parameters[ItemKey(item)]] = item.Label;
+            foreach (var run in model.Pipes.Where(r => !string.IsNullOrEmpty(r.Label)))
+                changes[parameters[LineKey(run)]] = run.Label;
+            if (changes.Count > 0) Add(cmds, "parameters.change", LabelsSubject, new JObject { ["changes"] = changes });
             return cmds;
+        }
+
+        /// <summary>The subject of the data update's command that rewrites the labels.</summary>
+        public const string LabelsSubject = "the labels";
+
+        static string ItemKey(EquipmentItem item) => "item " + item.Tag;
+
+        static string LineKey(PipeRun run) => "line " + run.Tag;
+
+        /// <summary>
+        /// The text parameter that holds each label's words, by item and by line: "label_" and the
+        /// tag with what a parameter name can't hold turned into underscores, numbered when two tags
+        /// come out the same. The export and the data update both take the names from here.
+        /// </summary>
+        static Dictionary<string, string> LabelParameters(PlantModel model)
+        {
+            var names = new Dictionary<string, string>();
+            var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            void Name(string key, string prefix, string tag)
+            {
+                var stem = prefix + Regex.Replace(tag ?? "", "[^A-Za-z0-9_]", "_");
+                var name = stem;
+                for (var i = 2; !used.Add(name); i++) name = stem + "_" + i;
+                names[key] = name;
+            }
+            foreach (var item in model.Equipment.Where(e => e.Visible)) Name(ItemKey(item), "label_", item.Tag);
+            foreach (var run in model.Pipes) Name(LineKey(run), "label_line_", run.Tag);
+            return names;
+        }
+
+        /// <summary>
+        /// Keeps in the data update only the labels the design has a parameter for: a design exported
+        /// before the labels followed parameters has none, and a line whose label did not fit has none
+        /// either. Returns how many labels are left to rewrite.
+        /// </summary>
+        public static int KeepLabels(List<Command> cmds, ICollection<string> parameters)
+        {
+            var c = cmds.FirstOrDefault(x => x.Subject == LabelsSubject);
+            if (c == null) return 0;
+            var changes = (JObject)c.Params["changes"];
+            foreach (var p in changes.Properties().ToList())
+                if (!parameters.Contains(p.Name)) p.Remove();
+            if (changes.Count == 0) cmds.Remove(c);
+            return changes.Count;
+        }
+
+        /// <summary>The names of the text parameters among a parameters.list reply.</summary>
+        public static HashSet<string> TextParameters(JToken list)
+        {
+            var names = new HashSet<string>();
+            foreach (var p in (list?["parameters"] as JArray) ?? new JArray())
+                if ((string)p["unit"] == "text" && (string)p["name"] is string n) names.Add(n);
+            return names;
         }
 
         public const string RenderSetup = "DWSIM Plant";
@@ -408,6 +472,7 @@ namespace DWSIM.Extensions.SolidCraft
         {
             var cmds = new List<Command>();
             var sketches = new List<string>();
+            var parameters = LabelParameters(model);
 
             foreach (var item in model.Equipment.Where(e => e.Visible && !string.IsNullOrEmpty(e.Label)))
             {
@@ -419,7 +484,7 @@ namespace DWSIM.Extensions.SolidCraft
                 var origin = item.Origin + new Vec3(0, 0, item.Envelope.ZTop + (item.IsInstrument ? 250 : 1500) + (lines - 1) * 1.6 * height);
                 var name = "Label " + item.Tag;
                 Add(cmds, "component.activate", subject, new JObject { ["component"] = item.Tag });
-                AddLabel(cmds, subject, name, item.Label, origin, Vec3.PlusX, height, item.Tag + " label");
+                AddLabel(cmds, subject, name, parameters[ItemKey(item)], item.Label, origin, Vec3.PlusX, height, item.Tag + " label");
                 sketches.Add(name);
             }
 
@@ -427,7 +492,7 @@ namespace DWSIM.Extensions.SolidCraft
             foreach (var run in model.Pipes)
             {
                 n++;
-                var label = LineLabel(cmds, run, n);
+                var label = LineLabel(cmds, run, n, parameters[LineKey(run)]);
                 if (label != null) sketches.Add(label);
             }
 
@@ -442,7 +507,7 @@ namespace DWSIM.Extensions.SolidCraft
         /// A label along the longest horizontal run of a line, just above the pipe, written so it
         /// reads left to right from the iso view. Null when no run is long enough to carry it.
         /// </summary>
-        static string LineLabel(List<Command> cmds, PipeRun run, int n)
+        static string LineLabel(List<Command> cmds, PipeRun run, int n, string parameter)
         {
             if (string.IsNullOrEmpty(run.Label)) return null;
 
@@ -463,13 +528,18 @@ namespace DWSIM.Extensions.SolidCraft
             var mid = (a + b) * 0.5 + new Vec3(0, 0, run.OuterDiameter / 2 + 80);
             var name = "Label " + n + " " + run.Tag;
             Add(cmds, "component.activate", "label " + run.Tag, new JObject { ["component"] = LineComponent(run) });
-            AddLabel(cmds, "label " + run.Tag, name, run.Label, mid, dir, height, run.Tag + " label");
+            AddLabel(cmds, "label " + run.Tag, name, parameter, run.Label, mid, dir, height, run.Tag + " label");
             return name;
         }
 
-        /// <summary>Lettering of 3D text in a vertical plane through <paramref name="origin"/>, centred on it.</summary>
-        static void AddLabel(List<Command> cmds, string subject, string sketch, string text, Vec3 origin, Vec3 xDir, double height, string body)
+        /// <summary>
+        /// Lettering of 3D text in a vertical plane through <paramref name="origin"/>, centred on it.
+        /// The words come from the text parameter <paramref name="parameter"/>, so changing the
+        /// parameter (<see cref="DataCommands"/>) rewrites the label in place.
+        /// </summary>
+        static void AddLabel(List<Command> cmds, string subject, string sketch, string parameter, string text, Vec3 origin, Vec3 xDir, double height, string body)
         {
+            Add(cmds, "parameters.add", subject, new JObject { ["name"] = parameter, ["expression"] = text, ["unit"] = "text" });
             Add(cmds, "sketch.create", subject, new JObject
             {
                 ["name"] = sketch,
@@ -482,9 +552,10 @@ namespace DWSIM.Extensions.SolidCraft
             });
             Add(cmds, "sketch.text", subject, new JObject
             {
-                ["text"] = text,
-                ["at"] = new JArray(Round(-TextWidth(text, height) / 2), 0),
-                ["height"] = Round(height)
+                ["text_expression"] = parameter,
+                ["at"] = new JArray(0, 0),
+                ["height"] = Round(height),
+                ["align"] = "center"
             });
             Add(cmds, "sketch.finish", subject, new JObject());
             Add(cmds, "solid.extrude", subject, new JObject { ["sketch"] = sketch, ["distance"] = LabelDepth, ["body_name"] = body });
