@@ -11,11 +11,17 @@
 - [NEW] Percolation Extractor, Desolventizer-Toaster and Meal Dryer-Cooler (Plus): hexane extraction of oilseed flakes on ideal stages, desolventizing and toasting with sparge steam, and drying and cooling of the meal with air
 - [NEW] Oil Degummer, Caustic Neutralizer, Oil Bleacher and Oil Deodorizer (Plus): water or acid degumming, caustic neutralization with washing and the heats of reaction, bleaching with a Freundlich isotherm, and steam stripping on cross-flow trays or counter-current stages with the trans fatty acids formed
 - [NEW] Soybean crushing plant with an oil refinery in the Case Library, tutorial A14 and a User Guide part on the soybean tools
+- [NEW] Corn compounds in the additional compounds folder: corn starch, protein and ash, corn dextrins, maltotriose and succinic acid, with carbohydrate enthalpies that give the measured heat of starch hydrolysis
+- [NEW] Sugar Solutions package (Plus): corn mashes, beers and stillages, with maltose, maltotriose and dextrins as dissolved solids, starch, protein and fibre as solids, and the Corn Stream Analysis quantities as stream properties
+- [NEW] Corn Stream Analysis (Plus): reads and writes corn, mash, liquefact, beer, stillage, syrup, wet cake and DDG streams in the quantities of a dry-grind plant (solids, starch, DE, ethanol g/L and % v/v, oil, protein, fibre), with ten presets
+- [NEW] Starch Liquefaction, SSF Fermenter and DDG Rotary Drum Dryer (Plus): jet cook and liquefaction to a set DE, simultaneous saccharification and fermentation in batch or cascade, and direct-fired drying of wet cake and syrup into DDG
+- [NEW] Corn-only dry-grind ethanol plant in the Case Library, tutorial A15 and a User Guide part on the corn ethanol tools
 - [CHG] Update check at startup: reads the latest published release of the running edition on GitHub (open edition or Patreon Edition), skips release candidates and shows its list of changes; opens the release page when download and install is off
 - [CHG] Help and Tutorials site: the forum links point to the GitHub Discussions
 - [CHG] Bayer, Pulp, Sugar and Soybean Stream Analysis: Copy table puts the table of the stream on the clipboard, Export... writes it to a CSV or tab-separated text file, and Export all streams... writes one table with a column for each material stream
 - [CHG] Bayer, Pulp, Sugar and Soybean Stream Analysis: flows of 100,000 and more show as whole numbers instead of exponent notation
 - [CHG] Update 3D Plant Model Data: the labels in the 3D model show the new temperatures and pressures (models exported from 10.3.1 on)
+- [CHG] Sugar Solutions package: the yeast biomass compounds are insoluble solids instead of NRTL liquids
 - [FIX] SRK and the Peng-Robinson family: a fugacity coefficient that overflowed came back as infinity and failed the flash or the Gibbs reactor
 - [FIX] PT flash: a two-phase split that didn't add up to the feed was returned with a mass balance error; it is now solved again with three phases
 - [FIX] Conversion reactor: parallel reactions that asked for more of a compound than the feed had gave it a negative outlet flow
