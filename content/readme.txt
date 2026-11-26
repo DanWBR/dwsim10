@@ -83,6 +83,7 @@ Version 10.3.1
 - [FIX] Bayer, Pulp, Sugar and Soybean Stream Analysis: the windows showed the default window icon
 - [FIX] 3D plant model picture: with SolidCraft 0.40 and later the render environment step failed and the metal parts came out nearly black; the picture is now lit by a sky, and the camera frames the plant to fill the picture
 - [FIX] PH flash with solids: a liquid just below its bubble point could fail and leave the fail-safe calculation, which drops the solids, to return a hot vapour with the wrong enthalpy (a mixer of cake and syrup at 108 C gave 338 C)
+- [FIX] Drawings: the revision and status of the CAD settings replaced the ones of the document in the title block (a fire water drawing of revision A came out as revision 0)
 
 Version 10.3.0
 

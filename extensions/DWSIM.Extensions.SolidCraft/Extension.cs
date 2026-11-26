@@ -553,7 +553,6 @@ namespace DWSIM.Extensions.SolidCraft
                 Subtitle = name,
                 Number = pid ? "PID-001" : "PFD-001",
                 DocumentType = pid ? "P&ID" : "PFD",
-                Status = "PRELIMINARY",
                 Date = DateTime.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                 PreparedBy = fs.FlowsheetOptions?.SimulationAuthor ?? ""
             };
@@ -651,7 +650,6 @@ namespace DWSIM.Extensions.SolidCraft
                 Subtitle = item.Tag + (string.IsNullOrWhiteSpace(item.Description) ? "" : " - " + item.Description.ToUpperInvariant()),
                 Number = "GA-" + item.Tag,
                 DocumentType = "GA",
-                Status = "PRELIMINARY",
                 Date = DateTime.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                 PreparedBy = fs.FlowsheetOptions?.SimulationAuthor ?? ""
             }, only);
@@ -710,7 +708,6 @@ namespace DWSIM.Extensions.SolidCraft
                 Subtitle = number,
                 Number = "ISO-" + id,
                 DocumentType = "ISO",
-                Status = "PRELIMINARY",
                 Date = DateTime.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                 PreparedBy = fs.FlowsheetOptions?.SimulationAuthor ?? ""
             }, only);
@@ -769,7 +766,6 @@ namespace DWSIM.Extensions.SolidCraft
                 Subtitle = subtitle,
                 Number = number,
                 DocumentType = "DS",
-                Status = "PRELIMINARY",
                 Date = DateTime.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                 PreparedBy = fs.FlowsheetOptions?.SimulationAuthor ?? ""
             }, only);
@@ -829,7 +825,6 @@ namespace DWSIM.Extensions.SolidCraft
                 Subtitle = string.IsNullOrWhiteSpace(project) ? name : project,
                 Number = "PP-001",
                 DocumentType = "PLOT PLAN",
-                Status = "PRELIMINARY",
                 Date = DateTime.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                 PreparedBy = fs.FlowsheetOptions?.SimulationAuthor ?? ""
             };

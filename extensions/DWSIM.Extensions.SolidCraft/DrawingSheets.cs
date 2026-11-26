@@ -50,7 +50,8 @@ namespace DWSIM.Extensions.SolidCraft
     /// <summary>What goes in the title block; empty fields are left blank to fill in by hand.</summary>
     public class TitleData
     {
-        public string Owner = "", Project = "", Area = "", Title = "", Subtitle = "", Number = "", Revision = "0",
+        // the revision and status are the document's own; when they are empty, the settings fill them in
+        public string Owner = "", Project = "", Area = "", Title = "", Subtitle = "", Number = "", Revision = "",
             DocumentType = "", Status = "", Scale = "NOT TO SCALE", Date = "", Sheet = "1/1",
             PreparedBy = "", CheckedBy = "", ApprovedBy = "", Department = "", Language = "en";
     }
@@ -410,17 +411,17 @@ namespace DWSIM.Extensions.SolidCraft
 
         static string Fit(string s, int n) => s == null || s.Length <= n ? s ?? "" : s.Substring(0, n - 1) + ".";
 
-        /// <summary>The attribute values of the title block.</summary>
         /// <summary>
         /// The texts of the title block: the drawing's own (<paramref name="t"/>) with the title block
-        /// fields of the settings over them where they are filled in.
+        /// fields of the settings over them where they are filled in. The revision and the status go the
+        /// other way, because the settings always carry one: the document's own win when it has them.
         /// </summary>
         public static Dictionary<string, string> Attributes(TitleData t, SheetSize size, DrawingStyle style)
         {
             var o = ExportOptions.Load();
             string Pick(string option, string own) => string.IsNullOrWhiteSpace(option) ? own : option.Trim();
             var number = string.IsNullOrWhiteSpace(o.ProjectNumber) ? t.Number : o.ProjectNumber.Trim() + "-" + t.Number;
-            var revision = Pick(o.Revision, t.Revision);
+            var revision = Pick(t.Revision, Pick(o.Revision, "0"));
             return new Dictionary<string, string>
             {
                 ["PROJECT"] = Fit(t.Project, style == DrawingStyle.ISO ? 20 : style == DrawingStyle.ASME ? 30 : 40),
@@ -432,7 +433,7 @@ namespace DWSIM.Extensions.SolidCraft
                 ["NUMBER"] = Fit(number, style == DrawingStyle.ISO ? 24 : 28),
                 ["REVISION"] = revision,
                 ["DOCUMENTTYPE"] = t.DocumentType,
-                ["STATUS"] = Pick(o.Status, t.Status),
+                ["STATUS"] = Pick(t.Status, o.Status),
                 ["SCALE"] = t.Scale,
                 ["DATE"] = t.Date,
                 ["SHEET"] = t.Sheet,
