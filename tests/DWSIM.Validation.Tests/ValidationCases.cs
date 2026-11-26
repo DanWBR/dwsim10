@@ -54,6 +54,7 @@ namespace DWSIM.Validation.Tests
         // Compounds
         [Test] public void C01_PseudoComponent_HeavyCut() => Compounds.C01_PseudoComponent_HeavyCut.Run();
         [Test] public void C02_CompoundFromJson() => Compounds.C02_CompoundFromJson.Run();
+        [Test] public void C03_FoodPropSugars() => Compounds.C03_FoodPropSugars.Run();
 
         // Flowsheets
         [Test] public void F01_RefrigerationCycle() => Flowsheets.F01_RefrigerationCycle.Run();
