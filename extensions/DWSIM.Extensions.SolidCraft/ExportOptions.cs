@@ -38,6 +38,16 @@ namespace DWSIM.Extensions.SolidCraft
         /// <summary>A photorealistic picture (path tracing under a sky) next to the model.</summary>
         public bool Render = true;
 
+        /// <summary>
+        /// The model as binary glTF (.glb) for other viewers and programs (Blender, game engines, the
+        /// Windows 3D viewer). Off by default: SolidCraft meshes the curves finely, so the file runs
+        /// to some 100 MB for a small plant.
+        /// </summary>
+        public bool Gltf = false;
+
+        /// <summary>A general arrangement drawing (plan and elevation) made from the 3D model in SolidCraft.</summary>
+        public bool Arrangement = true;
+
         /// <summary>Top of the pipe rack steel, m.</summary>
         public double RackHeight = 6;
 
@@ -78,7 +88,7 @@ namespace DWSIM.Extensions.SolidCraft
         /// <summary>
         /// The title block of the drawings: the project number (put before each document number), the
         /// revision and its description, the document status, the people (an empty Prepared by leaves
-        /// the simulation's author), the department and area, and a logo drawing (DXF or DWG).
+        /// the simulation's author), the department and area, and a logo (a DXF or DWG drawing, or a PNG, JPEG or BMP picture; the 3D general arrangement takes only a picture).
         /// </summary>
         public string ProjectNumber = "", Revision = "0", RevisionText = "ORIGINAL ISSUE", Status = "PRELIMINARY",
             PreparedBy = "", CheckedBy = "", ApprovedBy = "", Department = "", Area = "", Logo = "";

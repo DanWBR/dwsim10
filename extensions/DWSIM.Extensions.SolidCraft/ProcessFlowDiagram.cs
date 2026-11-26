@@ -445,7 +445,7 @@ namespace DWSIM.Extensions.SolidCraft
                 ["attribs"] = JObject.FromObject(DrawingSheets.Attributes(title, sheet, style))
             }, "the title block");
             var logo = DrawingSheets.Logo(style, sheet.Width - mo, mo, "TITLE_LOGO");
-            if (logo != null) C("insert", logo);
+            if (logo != null) C(DrawingSheets.LogoCommand(logo), logo);
 
             if (table.Count > 0)
             {

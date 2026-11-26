@@ -44,6 +44,8 @@ namespace DWSIM.Extensions.SolidCraft
             this.chkPlatforms = new System.Windows.Forms.CheckBox();
             this.chkInstruments = new System.Windows.Forms.CheckBox();
             this.chkDynamicReplay = new System.Windows.Forms.CheckBox();
+            this.chkGltf = new System.Windows.Forms.CheckBox();
+            this.chkArrangement = new System.Windows.Forms.CheckBox();
             this.lblRackHeight = new System.Windows.Forms.Label();
             this.tbRackHeight = new System.Windows.Forms.TextBox();
             this.lblItemGap = new System.Windows.Forms.Label();
@@ -430,7 +432,7 @@ namespace DWSIM.Extensions.SolidCraft
             this.gbModel.Dock = System.Windows.Forms.DockStyle.Fill;
             this.gbModel.Location = new System.Drawing.Point(11, 323);
             this.gbModel.Name = "gbModel";
-            this.gbModel.Size = new System.Drawing.Size(562, 140);
+            this.gbModel.Size = new System.Drawing.Size(562, 163);
             this.gbModel.TabIndex = 7;
             this.gbModel.TabStop = false;
             this.gbModel.Text = "3D model";
@@ -447,23 +449,26 @@ namespace DWSIM.Extensions.SolidCraft
             this.tlpModel.Controls.Add(this.chkPlatforms, 1, 1);
             this.tlpModel.Controls.Add(this.chkInstruments, 0, 2);
             this.tlpModel.Controls.Add(this.chkDynamicReplay, 1, 2);
-            this.tlpModel.Controls.Add(this.lblRackHeight, 0, 3);
-            this.tlpModel.Controls.Add(this.tbRackHeight, 1, 3);
-            this.tlpModel.Controls.Add(this.lblItemGap, 0, 4);
-            this.tlpModel.Controls.Add(this.tbItemGap, 1, 4);
-            this.tlpModel.Controls.Add(this.lblPlantLayout, 0, 5);
-            this.tlpModel.Controls.Add(this.cbPlantLayout, 1, 5);
+            this.tlpModel.Controls.Add(this.chkGltf, 0, 3);
+            this.tlpModel.Controls.Add(this.chkArrangement, 1, 3);
+            this.tlpModel.Controls.Add(this.lblRackHeight, 0, 4);
+            this.tlpModel.Controls.Add(this.tbRackHeight, 1, 4);
+            this.tlpModel.Controls.Add(this.lblItemGap, 0, 5);
+            this.tlpModel.Controls.Add(this.tbItemGap, 1, 5);
+            this.tlpModel.Controls.Add(this.lblPlantLayout, 0, 6);
+            this.tlpModel.Controls.Add(this.cbPlantLayout, 1, 6);
             this.tlpModel.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tlpModel.Location = new System.Drawing.Point(3, 16);
             this.tlpModel.Name = "tlpModel";
-            this.tlpModel.RowCount = 6;
+            this.tlpModel.RowCount = 7;
             this.tlpModel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             this.tlpModel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             this.tlpModel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             this.tlpModel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             this.tlpModel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             this.tlpModel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
-            this.tlpModel.Size = new System.Drawing.Size(556, 148);
+            this.tlpModel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
+            this.tlpModel.Size = new System.Drawing.Size(556, 171);
             this.tlpModel.TabIndex = 0;
             //
             // chkLabels
@@ -525,6 +530,26 @@ namespace DWSIM.Extensions.SolidCraft
             this.chkDynamicReplay.TabIndex = 5;
             this.chkDynamicReplay.Text = "Replay of the last dynamic run";
             this.chkDynamicReplay.UseVisualStyleBackColor = true;
+            //
+            // chkGltf
+            //
+            this.chkGltf.AutoSize = true;
+            this.chkGltf.Location = new System.Drawing.Point(3, 72);
+            this.chkGltf.Name = "chkGltf";
+            this.chkGltf.Size = new System.Drawing.Size(200, 17);
+            this.chkGltf.TabIndex = 20;
+            this.chkGltf.Text = "glTF model (.glb, large)";
+            this.chkGltf.UseVisualStyleBackColor = true;
+            //
+            // chkArrangement
+            //
+            this.chkArrangement.AutoSize = true;
+            this.chkArrangement.Location = new System.Drawing.Point(281, 72);
+            this.chkArrangement.Name = "chkArrangement";
+            this.chkArrangement.Size = new System.Drawing.Size(200, 17);
+            this.chkArrangement.TabIndex = 21;
+            this.chkArrangement.Text = "General arrangement drawing";
+            this.chkArrangement.UseVisualStyleBackColor = true;
             //
             // lblRackHeight
             //
@@ -902,7 +927,7 @@ namespace DWSIM.Extensions.SolidCraft
             this.lblLogo.Name = "lblLogo";
             this.lblLogo.Size = new System.Drawing.Size(100, 13);
             this.lblLogo.TabIndex = 9;
-            this.lblLogo.Text = "Logo (DXF or DWG)";
+            this.lblLogo.Text = "Logo (drawing or picture)";
             //
             // tbProjectNumber
             //
@@ -1372,6 +1397,8 @@ namespace DWSIM.Extensions.SolidCraft
         private System.Windows.Forms.CheckBox chkPlatforms;
         private System.Windows.Forms.CheckBox chkInstruments;
         private System.Windows.Forms.CheckBox chkDynamicReplay;
+        private System.Windows.Forms.CheckBox chkGltf;
+        private System.Windows.Forms.CheckBox chkArrangement;
         private System.Windows.Forms.Label lblRackHeight;
         private System.Windows.Forms.TextBox tbRackHeight;
         private System.Windows.Forms.Label lblItemGap;

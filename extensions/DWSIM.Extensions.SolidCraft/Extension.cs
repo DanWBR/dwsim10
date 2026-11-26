@@ -287,7 +287,22 @@ namespace DWSIM.Extensions.SolidCraft
                 if (replay != null) extras.AddRange(DynamicReplay.Create(model, fs, replay, outputBase + " - dynamic replay.gif", replayNotes));
             }
             CadJob.Check();
-            var result = SolidCraftRunner.Run(solidcraftFolder, commands, extras, outputBase, options);
+            var project = fs.FlowsheetOptions?.SimulationName;
+            var title = new Dictionary<string, string>
+            {
+                ["title"] = string.IsNullOrWhiteSpace(project) ? name : project,
+                ["identification_number"] = (string.IsNullOrWhiteSpace(options.ProjectNumber) ? "" : options.ProjectNumber.Trim() + "-") + GeneralArrangement.Sheet,
+                ["document_type"] = "Arrangement",
+                // the cell holds some ten letters
+                ["document_status"] = (options.Status ?? "").Length <= 10 ? options.Status : null,
+                ["revision"] = options.Revision,
+                ["department"] = options.Department,
+                ["legal_owner"] = options.DrawingOwner,
+                ["created_by"] = string.IsNullOrWhiteSpace(options.PreparedBy) ? fs.FlowsheetOptions?.SimulationAuthor : options.PreparedBy,
+                ["approved_by"] = options.ApprovedBy,
+                ["date_of_issue"] = DateTime.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+            };
+            var result = SolidCraftRunner.Run(solidcraftFolder, commands, extras, outputBase, options, model, title);
 
             foreach (var w in model.Warnings)
                 fs.ShowMessage("3D plant model: " + w, IFlowsheet.MessageType.Information);
@@ -305,10 +320,15 @@ namespace DWSIM.Extensions.SolidCraft
                 fs.ShowMessage("3D plant model: the labels and the flow animation were left out: " + result.AnimationError, IFlowsheet.MessageType.Warning);
             if (result.RenderError != null)
                 fs.ShowMessage("3D plant model: the photorealistic picture could not be rendered: " + result.RenderError, IFlowsheet.MessageType.Warning);
+            if (result.ArrangementError != null)
+                fs.ShowMessage("3D plant model: the general arrangement drawing could not be made: " + result.ArrangementError, IFlowsheet.MessageType.Warning);
+            else if (result.ArrangementDxfError != null)
+                fs.ShowMessage("3D plant model: the general arrangement was saved as PDF, but SolidCraft could not write its DXF: " + result.ArrangementDxfError, IFlowsheet.MessageType.Warning);
 
             fs.ShowMessage(string.Format("3D plant model: {0} items and {1} lines saved to {2} (SolidCraft design, STEP, line list, material take-off{3}{4}).",
                 model.Equipment.Count(e => e.Visible), model.Pipes.Count, outputFolder,
-                (result.Picture != null ? ", picture" : "") + (result.Render != null ? ", rendering" : "") + (viewer != null ? ", web viewer" : ""),
+                (result.Picture != null ? ", picture" : "") + (result.Render != null ? ", rendering" : "") + (viewer != null ? ", web viewer" : "")
+                    + (result.Gltf != null ? ", glTF model" : "") + (result.Arrangement != null ? ", general arrangement drawing" : ""),
                 result.Animation != null ? ", flow animation: play the \"" + FlowAnimation.StudyName + "\" motion study in SolidCraft" : ""),
                 IFlowsheet.MessageType.Information);
 
@@ -415,7 +435,31 @@ namespace DWSIM.Extensions.SolidCraft
             var name = PlantModelExtender.ModelName(fs);
             var outputBase = Path.Combine(modelFolder ?? PlantModelExtender.OutputFolder(fs), name);
             var model = PlantModelBuilder.Build(fs, name, PlantLayout.Load(fs), ExportOptions.Load());
-            var cmds = SolidCraftScript.DataCommands(model);
+
+            // what the saved design holds: the size each line is drawn at, and the text parameters
+            // of its labels (one read of the design for both)
+            Dictionary<string, string> drawnSizes = null;
+            HashSet<string> savedParameters = null;
+            if (File.Exists(outputBase + ".sc"))
+            {
+                CadJob.Report("SolidCraft: reading the saved design");
+                var design = SolidCraftRunner.Query(folder, outputBase + ".sc", new JArray
+                {
+                    new JObject { ["command"] = "document.metadata", ["params"] = new JObject() },
+                    new JObject { ["command"] = "parameters.list", ["params"] = new JObject { ["filter"] = "user" } }
+                });
+                if (design != null && design.Count > 1)
+                {
+                    if (design[0]?["metadata"]?["org.dwsim.flowsheet"]?["line_sizes"] is JObject sizes)
+                        drawnSizes = sizes.Properties().ToDictionary(p => p.Name, p => (string)p.Value);
+                    savedParameters = SolidCraftScript.TextParameters(design[1]);
+                }
+            }
+            var resized = new List<string>();
+            var cmds = SolidCraftScript.DataCommands(model, drawnSizes, resized);
+            if (resized.Count > 0)
+                fs.ShowMessage("3D plant model: the current flow asks for another size on " + resized.Count + " lines: " + string.Join(", ", resized) +
+                    ". They keep their drawn size in the model; export the model again to redraw them.", IFlowsheet.MessageType.Warning);
 
             try
             {
@@ -448,9 +492,8 @@ namespace DWSIM.Extensions.SolidCraft
             // the update rewrites the design: it stays read only if it was read before
             var wasRead = !PlantLayout.DesignChanged(fs, outputBase + ".sc");
             // the live link may have trimmed the labels to another design: start again from the model
-            cmds = SolidCraftScript.DataCommands(model);
-            var present = SolidCraftRunner.Query(folder, outputBase + ".sc", new JArray { new JObject { ["command"] = "parameters.list", ["params"] = new JObject { ["filter"] = "user" } } });
-            var savedLabels = SolidCraftScript.KeepLabels(cmds, SolidCraftScript.TextParameters(present?.FirstOrDefault()));
+            cmds = SolidCraftScript.DataCommands(model, drawnSizes);
+            var savedLabels = SolidCraftScript.KeepLabels(cmds, savedParameters ?? new HashSet<string>());
             var skipped = new List<string>();
             var error = SolidCraftRunner.UpdateDesign(folder, cmds, outputBase, skipped);
             if (error == null && wasRead) PlantLayout.MarkRead(fs, outputBase + ".sc");

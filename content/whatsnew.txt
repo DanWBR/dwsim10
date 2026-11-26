@@ -16,6 +16,8 @@
 - [NEW] Corn Stream Analysis (Plus): reads and writes corn, mash, liquefact, beer, stillage, syrup, wet cake and DDG streams in the quantities of a dry-grind plant (solids, starch, DE, ethanol g/L and % v/v, oil, protein, fibre), with ten presets
 - [NEW] Starch Liquefaction, SSF Fermenter and DDG Rotary Drum Dryer (Plus): jet cook and liquefaction to a set DE, simultaneous saccharification and fermentation in batch or cascade, and direct-fired drying of wet cake and syrup into DDG
 - [NEW] Corn-only dry-grind ethanol plant in the Case Library, tutorial A15 and a User Guide part on the corn ethanol tools
+- [NEW] Export 3D Plant Model: a general arrangement drawing (plan and two elevations, item tags, title block) is drawn in SolidCraft and saved as PDF
+- [NEW] Export 3D Plant Model: optional glTF model of the plant (.glb)
 - [CHG] Update check at startup: reads the latest published release of the running edition on GitHub (open edition or Patreon Edition), skips release candidates and shows its list of changes; opens the release page when download and install is off
 - [CHG] Help and Tutorials site: the forum links point to the GitHub Discussions
 - [CHG] Bayer, Pulp, Sugar and Soybean Stream Analysis: Copy table puts the table of the stream on the clipboard, Export... writes it to a CSV or tab-separated text file, and Export all streams... writes one table with a column for each material stream
@@ -24,6 +26,9 @@
 - [CHG] Sugar Solutions package: the yeast biomass compounds are insoluble solids instead of NRTL liquids
 - [CHG] Export 3D Plant Model: the labels are flat lettering, which takes a second to build where solid lettering took over a minute, and halves the design file
 - [CHG] 3D plant model: each line carries the composition of its stream in mol %, in SolidCraft, the web viewer and the line list
+- [CHG] Update 3D Plant Model Data: a line whose size the current flow changes keeps its drawn size, with the new size in its data and a message
+- [CHG] 3D plant model: the pipe rack uses standard steel sections (SHS columns, PFC beams), listed with their mass in the material take-off
+- [CHG] Drawings: the title block logo can be a PNG, JPEG or BMP picture
 - [FIX] SRK and the Peng-Robinson family: a fugacity coefficient that overflowed came back as infinity and failed the flash or the Gibbs reactor
 - [FIX] PT flash: a two-phase split that didn't add up to the feed was returned with a mass balance error; it is now solved again with three phases
 - [FIX] Conversion reactor: parallel reactions that asked for more of a compound than the feed had gave it a negative outlet flow

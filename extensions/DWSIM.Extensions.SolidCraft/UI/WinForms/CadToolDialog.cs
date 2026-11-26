@@ -130,6 +130,8 @@ namespace DWSIM.Extensions.SolidCraft
             chkPlatforms.Checked = o.Platforms;
             chkInstruments.Checked = o.Instruments;
             chkDynamicReplay.Checked = o.DynamicReplay;
+            chkGltf.Checked = o.Gltf;
+            chkArrangement.Checked = o.Arrangement;
             tbRackHeight.Text = r.ToLength(o.RackHeight).ToString("0.###", CultureInfo.CurrentCulture);
             tbItemGap.Text = r.ToLength(o.ItemGap).ToString("0.###", CultureInfo.CurrentCulture);
             cbPlantLayout.SelectedIndex = (int)o.LayoutKind;
@@ -195,7 +197,7 @@ namespace DWSIM.Extensions.SolidCraft
 
         private void btnLogo_Click(object sender, EventArgs e)
         {
-            using (var dialog = new OpenFileDialog { Filter = "Drawings (*.dxf, *.dwg)|*.dxf;*.dwg", Title = "The logo for the title block" })
+            using (var dialog = new OpenFileDialog { Filter = "Drawings and pictures (*.dxf, *.dwg, *.png, *.jpg, *.bmp)|*.dxf;*.dwg;*.png;*.jpg;*.jpeg;*.bmp", Title = "The logo for the title block" })
             {
                 try
                 {
@@ -318,6 +320,8 @@ namespace DWSIM.Extensions.SolidCraft
                 o.Platforms = chkPlatforms.Checked;
                 o.Instruments = chkInstruments.Checked;
                 o.DynamicReplay = chkDynamicReplay.Checked;
+                o.Gltf = chkGltf.Checked;
+                o.Arrangement = chkArrangement.Checked;
                 if (!TryRead(tbRackHeight.Text, out var rack)) return "The top of the pipe rack is not a number.";
                 if (!TryRead(tbItemGap.Text, out var gap)) return "The gap between items is not a number.";
                 o.RackHeight = Math.Max(2.5, Math.Min(30, r.FromLength(rack)));

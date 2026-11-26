@@ -239,7 +239,7 @@ namespace DWSIM.Extensions.SolidCraft
                 ["attribs"] = JObject.FromObject(DrawingSheets.Attributes(t2, sheet, style))
             });
             var logo = DrawingSheets.Logo(style, sheet.Width - mo, mo, "LEGEND_LOGO");
-            if (logo != null) C("insert", logo);
+            if (logo != null) C(DrawingSheets.LogoCommand(logo), logo);
 
             // the entries flow in rows of cells, each heading on a row of its own; cells over the
             // title block are skipped

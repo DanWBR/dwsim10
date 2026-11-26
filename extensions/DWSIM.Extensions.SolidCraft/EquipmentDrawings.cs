@@ -343,7 +343,7 @@ namespace DWSIM.Extensions.SolidCraft
                 ["attribs"] = JObject.FromObject(DrawingSheets.Attributes(title, sheet, style))
             });
             var logo = DrawingSheets.Logo(style, sheet.Width - mo, mo, "TITLE_LOGO");
-            if (logo != null) C("insert", logo);
+            if (logo != null) C(DrawingSheets.LogoCommand(logo), logo);
 
             // the tables: the item's data and the nozzle schedule, over the title block
             C("tablestyle", new JObject { ["name"] = "GA", ["textHeight"] = TextHeight, ["margin"] = 0.8, ["current"] = true });

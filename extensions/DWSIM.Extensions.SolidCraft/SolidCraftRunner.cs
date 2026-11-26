@@ -34,7 +34,10 @@ namespace DWSIM.Extensions.SolidCraft
         public class Result
         {
             public bool Success;
-            public string Design, Step, Picture, Script, Animation, Render;
+            public string Design, Step, Picture, Script, Animation, Render, Gltf;
+
+            /// <summary>The general arrangement drawing (PDF and DXF), and why it or its DXF is missing.</summary>
+            public string Arrangement, ArrangementDxf, ArrangementError, ArrangementDxfError;
             public List<string> Skipped = new List<string>();
             public string Error, AnimationError, RenderError;
         }
@@ -82,7 +85,8 @@ namespace DWSIM.Extensions.SolidCraft
         /// flow animation (<paramref name="extras"/>) in a second run on that design, so they stay
         /// out of the STEP file and a failure there never costs the model, and takes a picture.
         /// </summary>
-        public static Result Run(string folder, List<SolidCraftScript.Command> model, List<SolidCraftScript.Command> extras, string outputBase, ExportOptions options = null)
+        public static Result Run(string folder, List<SolidCraftScript.Command> model, List<SolidCraftScript.Command> extras, string outputBase, ExportOptions options = null,
+            PlantModel plant = null, IDictionary<string, string> title = null)
         {
             var cli = Path.Combine(folder, Exe("solidcraft-cli"));
             var res = new Result
@@ -95,9 +99,26 @@ namespace DWSIM.Extensions.SolidCraft
 
             CadJob.Report("SolidCraft: building the design and the STEP file");
             foreach (var f in new[] { res.Design, res.Step }) if (File.Exists(f)) File.Delete(f);
-            res.Error = RunStage(cli, model, res.Script, null, res.Design, res.Step, null, res.Skipped);
+            // the glTF of the model alone (the labels and the flow markers come later), when asked for
+            var gltf = options?.Gltf == true ? outputBase + ".glb" : null;
+            if (gltf != null && File.Exists(gltf)) File.Delete(gltf);
+            res.Error = RunStage(cli, model, res.Script, null, res.Design, res.Step, null, res.Skipped, gltf: gltf);
+            if (gltf != null && File.Exists(gltf)) res.Gltf = gltf;
             res.Success = res.Error == null && File.Exists(res.Design);
             if (!res.Success) return res;
+
+            // the general arrangement, drawn from the model before the labels and the flow markers join it
+            if (options?.Arrangement == true && plant != null)
+            {
+                CadJob.Report("SolidCraft: drawing the general arrangement (plan and elevations)");
+                var logo = options.Logo;
+                var raster = !string.IsNullOrEmpty(logo) && new[] { ".png", ".jpg", ".jpeg" }.Contains(Path.GetExtension(logo).ToLowerInvariant());
+                var ga = GeneralArrangement.Make(cli, res.Design, plant, title ?? new Dictionary<string, string>(), raster ? logo : null, outputBase);
+                res.Arrangement = ga.Pdf;
+                res.ArrangementDxf = ga.Dxf;
+                res.ArrangementError = ga.Error;
+                res.ArrangementDxfError = ga.DxfError;
+            }
 
             if (extras != null) extras = WithoutFailedLines(extras, res.Skipped);
             if (extras != null && extras.Count > 0)
@@ -147,7 +168,7 @@ namespace DWSIM.Extensions.SolidCraft
         /// band is left out whole); returns null on success, else the error.
         /// </summary>
         static string RunStage(string cli, List<SolidCraftScript.Command> commands, string script, string input, string save, string step,
-            Action<List<SolidCraftScript.Command>> prepare, List<string> skipped, int maxSkips = 40)
+            Action<List<SolidCraftScript.Command>> prepare, List<string> skipped, int maxSkips = 40, string gltf = null)
         {
             var cmds = new List<SolidCraftScript.Command>(commands);
             var what = CadJob.Current?.Step;
@@ -159,7 +180,7 @@ namespace DWSIM.Extensions.SolidCraft
                 File.WriteAllText(script, SolidCraftScript.ToJson(FlowAnimation.Clean(cmds)), new UTF8Encoding(false));
 
                 var args = "run " + Quote(script) + (input != null ? " --in " + Quote(input) : "") + " --save " + Quote(save)
-                    + (step != null ? " --out " + Quote(step) : "") + " --quiet";
+                    + (step != null ? " --out " + Quote(step) : "") + (gltf != null ? " --out " + Quote(gltf) : "") + " --quiet";
                 var exit = Execute(cli, args, 900, out var output);
                 if (exit == 0 && File.Exists(save)) return null;
 
@@ -292,7 +313,7 @@ namespace DWSIM.Extensions.SolidCraft
             Process.Start(new ProcessStartInfo(app, Quote(design)) { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(design) });
         }
 
-        static int Execute(string cli, string args, int timeoutSeconds, out string output)
+        internal static int Execute(string cli, string args, int timeoutSeconds, out string output)
         {
             var psi = new ProcessStartInfo(cli, args)
             {
@@ -332,6 +353,6 @@ namespace DWSIM.Extensions.SolidCraft
             }
         }
 
-        static string Quote(string s) => "\"" + s + "\"";
+        internal static string Quote(string s) => "\"" + s + "\"";
     }
 }

@@ -67,7 +67,10 @@ namespace DWSIM.Extensions.SolidCraft
                                 ["y"] = Math.Round(e.Origin.Y),
                                 ["z"] = Math.Round(e.Origin.Z),
                                 ["rot"] = e.Rotation
-                            })))
+                            }))),
+                        // the size each line is drawn at, so a data update can tell when the
+                        // flow now asks for another one
+                        ["line_sizes"] = new JObject(model.Pipes.Where(r => !string.IsNullOrEmpty(r.Tag)).GroupBy(r => r.Tag).Select(g => new JProperty(g.Key, g.First().Size)))
                     }
                 }
             });
@@ -244,11 +247,16 @@ namespace DWSIM.Extensions.SolidCraft
             return cmds;
         }
 
+        public const string SizeForFlow = "Size for the current flow";
+
         /// <summary>
         /// The operating data of every item and line as component properties: what a data update
-        /// sends to the open model, without building anything again.
+        /// sends to the open model, without building anything again. A line whose flow now asks for
+        /// another size than the one it is drawn at (<paramref name="drawnSizes"/>, by tag) keeps the
+        /// drawn size in its properties and label, gets the new one as <see cref="SizeForFlow"/>, and
+        /// is listed in <paramref name="resized"/> as "tag (drawn, new)".
         /// </summary>
-        public static List<Command> DataCommands(PlantModel model)
+        public static List<Command> DataCommands(PlantModel model, IDictionary<string, string> drawnSizes = null, List<string> resized = null)
         {
             var cmds = new List<Command>();
             foreach (var item in model.Equipment.Where(e => e.Visible))
@@ -257,6 +265,7 @@ namespace DWSIM.Extensions.SolidCraft
                 foreach (var kv in item.Properties) props[kv.Key] = kv.Value;
                 Add(cmds, "component.metadata.set", item.Tag, new JObject { ["component"] = item.Tag, ["description"] = item.Description, ["properties"] = props });
             }
+            var lineLabels = new Dictionary<PipeRun, string>();
             foreach (var run in model.Pipes)
             {
                 var props = new JObject();
@@ -264,10 +273,23 @@ namespace DWSIM.Extensions.SolidCraft
                 // a compound the line no longer shows: null takes its old value off the component
                 foreach (var c in model.Compounds.Concat(new[] { PipeRun.OtherCompounds }))
                     if (!run.Properties.ContainsKey(PipeRun.CompositionKey(c))) props[PipeRun.CompositionKey(c)] = JValue.CreateNull();
+                var size = run.Size;
+                var label = run.Label;
+                if (drawnSizes != null && run.Tag != null && drawnSizes.TryGetValue(run.Tag, out var drawn) && !string.IsNullOrEmpty(drawn) && drawn != run.Size)
+                {
+                    // the pipe stays at its drawn size until the model is exported again
+                    size = drawn;
+                    props["Size"] = drawn;
+                    props[SizeForFlow] = run.Size;
+                    if (label != null && label.StartsWith(run.Tag + " " + run.Size)) label = run.Tag + " " + drawn + label.Substring((run.Tag + " " + run.Size).Length);
+                    resized?.Add(run.Tag + " (" + drawn + " drawn, " + run.Size + " for the current flow)");
+                }
+                else props[SizeForFlow] = JValue.CreateNull();
+                lineLabels[run] = label;
                 Add(cmds, "component.metadata.set", "line " + run.Tag, new JObject
                 {
                     ["component"] = LineComponent(run),
-                    ["description"] = "Line " + run.Tag + " (" + run.Size + ", " + run.Phase.ToLowerInvariant() + ")",
+                    ["description"] = "Line " + run.Tag + " (" + size + ", " + run.Phase.ToLowerInvariant() + ")",
                     ["properties"] = props
                 });
             }
@@ -278,8 +300,8 @@ namespace DWSIM.Extensions.SolidCraft
             var changes = new JObject();
             foreach (var item in model.Equipment.Where(e => e.Visible && !string.IsNullOrEmpty(e.Label)))
                 changes[parameters[ItemKey(item)]] = item.Label;
-            foreach (var run in model.Pipes.Where(r => !string.IsNullOrEmpty(r.Label)))
-                changes[parameters[LineKey(run)]] = run.Label;
+            foreach (var run in model.Pipes.Where(r => !string.IsNullOrEmpty(lineLabels[r])))
+                changes[parameters[LineKey(run)]] = lineLabels[run];
             if (changes.Count > 0) Add(cmds, "parameters.change", LabelsSubject, new JObject { ["changes"] = changes });
             return cmds;
         }
@@ -700,33 +722,54 @@ namespace DWSIM.Extensions.SolidCraft
         /// </summary>
         static void AddRack(List<Command> cmds, PipeRack rack, List<string> sketches)
         {
-            const string subject = "the pipe rack", name = "Pipe Rack", sketch = "Pipe Rack frame";
+            const string subject = "the pipe rack", name = "Pipe Rack";
             var zb = rack.Top - PipeRack.BeamHeight / 2;
             double ya = rack.Y0, yb = rack.Y0 + rack.Width;
             var bays = Math.Max(1, (int)Math.Ceiling((rack.X1 - rack.X0) / PipeRack.BayLength));
             var bay = (rack.X1 - rack.X0) / bays;
 
             Add(cmds, "component.create", subject, new JObject { ["name"] = name, ["parent"] = "root", ["grounded"] = true });
-            Add(cmds, "sketch.create", subject, new JObject { ["plane"] = "XY", ["name"] = sketch });
-            Add(cmds, "sketch.options", subject, new JObject { ["sketch_3d"] = true });
-            for (var i = 0; i <= bays; i++)
+            // the columns, the cross beams and the side beams, each a frame member of its standard section
+            // on a 3D sketch of its own, centred on the lines
+            void Members(string what, string profile, Action<Action<Vec3, Vec3>> lines)
             {
-                var x = rack.X0 + i * bay;
-                Line(cmds, subject, new Vec3(x, ya, 0), new Vec3(x, ya, zb));
-                Line(cmds, subject, new Vec3(x, yb, 0), new Vec3(x, yb, zb));
-                Line(cmds, subject, new Vec3(x, ya, zb), new Vec3(x, yb, zb));
+                var sketch = "Pipe Rack " + what;
+                Add(cmds, "sketch.create", subject, new JObject { ["plane"] = "XY", ["name"] = sketch });
+                Add(cmds, "sketch.options", subject, new JObject { ["sketch_3d"] = true });
+                lines((a, b) => Line(cmds, subject, a, b));
+                Add(cmds, "sketch.finish", subject, new JObject());
+                Add(cmds, "frame.member", subject, new JObject
+                {
+                    ["sketch"] = sketch,
+                    ["profile"] = new JObject { ["size"] = profile },
+                    ["anchor"] = "center",
+                    ["body_name"] = "Pipe Rack " + what.TrimEnd('s') + " " + profile
+                });
+                sketches.Add(sketch);
             }
-            Line(cmds, subject, new Vec3(rack.X0, ya, zb), new Vec3(rack.X1, ya, zb));
-            Line(cmds, subject, new Vec3(rack.X0, yb, zb), new Vec3(rack.X1, yb, zb));
-            Add(cmds, "sketch.finish", subject, new JObject());
-            Add(cmds, "frame.member", subject, new JObject
+            Members("columns", PipeRack.ColumnProfile, line =>
             {
-                ["sketch"] = sketch,
-                ["profile"] = new JObject { ["kind"] = "i_beam", ["height"] = PipeRack.BeamHeight, ["width"] = 150, ["web"] = 8, ["flange"] = 12 },
-                ["body_name"] = "Pipe Rack beam"
+                for (var i = 0; i <= bays; i++)
+                {
+                    var x = rack.X0 + i * bay;
+                    line(new Vec3(x, ya, 0), new Vec3(x, ya, zb));
+                    line(new Vec3(x, yb, 0), new Vec3(x, yb, zb));
+                }
+            });
+            Members("cross beams", PipeRack.CrossBeamProfile, line =>
+            {
+                for (var i = 0; i <= bays; i++)
+                {
+                    var x = rack.X0 + i * bay;
+                    line(new Vec3(x, ya, zb), new Vec3(x, yb, zb));
+                }
+            });
+            Members("side beams", PipeRack.SideBeamProfile, line =>
+            {
+                line(new Vec3(rack.X0, ya, zb), new Vec3(rack.X1, ya, zb));
+                line(new Vec3(rack.X0, yb, zb), new Vec3(rack.X1, yb, zb));
             });
             Add(cmds, "appearance.assign", subject, new JObject { ["components"] = new JArray(name), ["color"] = EquipmentTemplates.Skirt });
-            sketches.Add(sketch);
         }
 
         static int Line(List<Command> cmds, string subject, Vec3 from, Vec3 to)

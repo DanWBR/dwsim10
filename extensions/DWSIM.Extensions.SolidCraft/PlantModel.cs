@@ -417,7 +417,16 @@ namespace DWSIM.Extensions.SolidCraft
         public double X0, X1, Y0, Width, Top;
 
         public const double BayLength = 6000;
-        public const double BeamHeight = 250;
+
+        /// <summary>
+        /// The steel, by its standard names (BS EN 10210-2 hollow sections, BS 4-1 parallel flange
+        /// channels), and the mass of each per metre, kg/m, as SolidCraft works it out at 7850 kg/m3.
+        /// </summary>
+        public const string ColumnProfile = "SHS 200x200x8", CrossBeamProfile = "PFC 260x90x35", SideBeamProfile = "PFC 200x90x30";
+        public const double ColumnMass = 47.7, CrossBeamMass = 34.8, SideBeamMass = 29.7;
+
+        /// <summary>The depth of the cross beams, which carry the lines on their top.</summary>
+        public const double BeamHeight = 260;
     }
 
     public class PlantModel

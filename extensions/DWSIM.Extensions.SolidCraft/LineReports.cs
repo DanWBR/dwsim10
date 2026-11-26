@@ -32,7 +32,6 @@ namespace DWSIM.Extensions.SolidCraft
     public static class LineReports
     {
         const double SteelDensity = 7850;     // kg/m3
-        const double RackBeamMass = 42.5;     // kg/m, the 250 x 150 x 8 x 12 I-beam of the rack
 
         public static void WriteLineList(PlantModel model, string path, CultureInfo culture)
         {
@@ -99,9 +98,9 @@ namespace DWSIM.Extensions.SolidCraft
                 csv.Row();
                 csv.Row("Pipe rack");
                 csv.Row("Member", "Count", "Length (m)", "Mass (kg)");
-                csv.Row("Columns (I-beam 250 x 150)", 2 * (bays + 1), Num(columns, 1), Num(columns * RackBeamMass, 0));
-                csv.Row("Cross beams (I-beam 250 x 150)", bays + 1, Num(crossBeams, 1), Num(crossBeams * RackBeamMass, 0));
-                csv.Row("Side beams (I-beam 250 x 150)", 2, Num(sideBeams, 1), Num(sideBeams * RackBeamMass, 0));
+                csv.Row("Columns (" + PipeRack.ColumnProfile + ")", 2 * (bays + 1), Num(columns, 1), Num(columns * PipeRack.ColumnMass, 0));
+                csv.Row("Cross beams (" + PipeRack.CrossBeamProfile + ")", bays + 1, Num(crossBeams, 1), Num(crossBeams * PipeRack.CrossBeamMass, 0));
+                csv.Row("Side beams (" + PipeRack.SideBeamProfile + ")", 2, Num(sideBeams, 1), Num(sideBeams * PipeRack.SideBeamMass, 0));
             }
 
             csv.Row();

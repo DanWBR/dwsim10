@@ -174,6 +174,12 @@ namespace DWSIM.Extensions.SolidCraft
             // a drawing of many keeps its "drawing 3 of 10" in the window
             if (string.IsNullOrEmpty(what)) CadJob.Report("CADCraft: saving " + FormatsText(o));
             if (o.SavePdf) session.Execute("plot", new JObject { ["path"] = outputBase + ".pdf", ["layout"] = layout }, 300);
+            // CADCraft leaves raster images out of its PDFs: a picture logo is stamped on the page
+            var picture = pictureLogo;
+            pictureLogo = null;
+            if (picture != null && o.SavePdf && File.Exists(outputBase + ".pdf"))
+                try { StampPicture(outputBase + ".pdf", picture.Value.File, picture.Value.X, picture.Value.Y, picture.Value.W, picture.Value.H); }
+                catch (Exception) { }
             if (o.SavePng) session.Execute("plot", new JObject { ["path"] = outputBase + ".png", ["layout"] = layout, ["device"] = "CADCraft PNG" }, 300);
             if (o.SaveDwg) session.Tool("save", new JObject { ["path"] = outputBase + ".dwg" }, "save DWG" + (string.IsNullOrEmpty(what) ? "" : " of " + what));
             session.Tool("save", new JObject { ["path"] = outputBase + ".dxf" }, "save DXF" + (string.IsNullOrEmpty(what) ? "" : " of " + what));
@@ -446,6 +452,70 @@ namespace DWSIM.Extensions.SolidCraft
 
         static readonly Dictionary<string, (DateTime Written, double[] Extents)> LogoExtents = new Dictionary<string, (DateTime, double[])>();
 
+        /// <summary>The picture logo of the drawing being made (file and box, sheet mm), for <see cref="Save"/> to stamp on its PDF.</summary>
+        [ThreadStatic] static (string File, double X, double Y, double W, double H)? pictureLogo;
+
+        /// <summary>Draws a picture on the first page of a PDF, its box given in mm from the page's lower-left corner.</summary>
+        static void StampPicture(string pdf, string picture, double x, double y, double w, double h)
+        {
+            const float k = 72f / 25.4f;
+            var temp = pdf + ".stamp";
+            var reader = new iTextSharp.text.pdf.PdfReader(pdf);
+            try
+            {
+                var page = reader.GetPageSize(1);
+                using (var f = new FileStream(temp, FileMode.Create))
+                {
+                    var stamper = new iTextSharp.text.pdf.PdfStamper(reader, f);
+                    var image = iTextSharp.text.Image.GetInstance(picture);
+                    image.ScaleAbsolute((float)(w * k), (float)(h * k));
+                    image.SetAbsolutePosition(page.Left + (float)(x * k), page.Bottom + (float)(y * k));
+                    stamper.GetOverContent(1).AddImage(image);
+                    stamper.Close();
+                }
+            }
+            finally { reader.Close(); }
+            File.Delete(pdf);
+            File.Move(temp, pdf);
+        }
+
+        /// <summary>A PNG, JPEG or BMP logo, which CADCraft attaches as a raster image.</summary>
+        public static bool IsPicture(string file)
+            => new[] { ".png", ".jpg", ".jpeg", ".bmp" }.Contains(Path.GetExtension(file ?? "").ToLowerInvariant());
+
+        /// <summary>The CADCraft command that places a logo made by <see cref="Logo"/>.</summary>
+        public static string LogoCommand(JObject logo) => logo?["path"] != null ? "imageattach" : "insert";
+
+        /// <summary>The size of a PNG, JPEG or BMP in pixels, read from its header; null when it cannot be read.</summary>
+        static int[] PictureSize(string file)
+        {
+            try
+            {
+                var b = File.ReadAllBytes(file);
+                int Be16(int i) => (b[i] << 8) | b[i + 1];
+                int Be32(int i) => (b[i] << 24) | (b[i + 1] << 16) | (b[i + 2] << 8) | b[i + 3];
+                if (b.Length > 24 && b[0] == 0x89 && b[1] == (byte)'P' && b[2] == (byte)'N' && b[3] == (byte)'G')
+                    return new[] { Be32(16), Be32(20) };
+                if (b.Length > 26 && b[0] == (byte)'B' && b[1] == (byte)'M')
+                    return new[] { BitConverter.ToInt32(b, 18), Math.Abs(BitConverter.ToInt32(b, 22)) };
+                if (b.Length > 4 && b[0] == 0xFF && b[1] == 0xD8)
+                {
+                    // the first start-of-frame marker holds the height and the width
+                    var i = 2;
+                    while (i + 9 < b.Length)
+                    {
+                        if (b[i] != 0xFF) { i++; continue; }
+                        var marker = b[i + 1];
+                        if (marker >= 0xC0 && marker <= 0xCF && marker != 0xC4 && marker != 0xC8 && marker != 0xCC)
+                            return new[] { Be16(i + 7), Be16(i + 5) };
+                        i += 2 + Be16(i + 2);
+                    }
+                }
+            }
+            catch (Exception) { }
+            return null;
+        }
+
         /// <summary>The extents of a drawing (min x, min y, max x, max y), from cadcraft-cli info; null when it cannot be read.</summary>
         static double[] Extents(string file)
         {
@@ -476,16 +546,20 @@ namespace DWSIM.Extensions.SolidCraft
         }
 
         /// <summary>
-        /// The insert of the logo drawing chosen in the settings into the title block whose bottom right
+        /// The logo chosen in the settings (a drawing inserted as a block, or a picture attached as a raster
+        /// image, see <see cref="LogoCommand"/>) in the title block whose bottom right
         /// corner is at (<paramref name="x"/>, <paramref name="y"/>), scaled into its box: beside the owner
         /// (ISO, ASME) or in the brand field (Petrobras). Null when there is no logo or it cannot be read.
         /// </summary>
         public static JObject Logo(DrawingStyle style, double x, double y, string name = "TITLE_LOGO")
         {
             var o = ExportOptions.Load();
+            pictureLogo = null;
             if (!HasLogo(o)) return null;
             var file = o.Logo.Trim();
-            var e = Extents(file);
+            var picture = IsPicture(file);
+            var px = picture ? PictureSize(file) : null;
+            var e = picture ? (px != null ? new double[] { 0, 0, px[0], px[1] } : null) : Extents(file);
             if (e == null) return null;
             double w = e[2] - e[0], h = e[3] - e[1];
             if (w <= 0 || h <= 0) return null;
@@ -499,6 +573,17 @@ namespace DWSIM.Extensions.SolidCraft
                 default: bx0 = x0 + 92; by0 = 34; bx1 = x0 + 120; by1 = 41.5; break;
             }
             var s = Math.Min((bx1 - bx0) / w, (by1 - by0) / h);
+            if (picture)
+            {
+                double px0 = x + (bx0 + bx1) / 2 - w * s / 2, py0 = y + (by0 + by1) / 2 - h * s / 2;
+                pictureLogo = (file, px0, py0, w * s, h * s);
+                return new JObject
+                {
+                    ["name"] = name, ["path"] = file.Replace('\\', '/'),
+                    ["at"] = new JArray(Math.Round(px0, 3), Math.Round(py0, 3)),
+                    ["width"] = Math.Round(w * s, 3)
+                };
+            }
             var ax = x + (bx0 + bx1) / 2 - (e[0] + w / 2) * s;
             var ay = y + (by0 + by1) / 2 - (e[1] + h / 2) * s;
             return new JObject

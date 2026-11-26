@@ -41,7 +41,7 @@ namespace DWSIM.Extensions.SolidCraft
         TextBox programFolder, output, owner, clearance, rackHeight, itemGap;
         TextBox projectNumber, department, preparedBy, area, checkedBy, revision, approvedBy, revisionText, logo;
         TextBlock programStatus, problem, renderTime, overwriteText;
-        CheckBox openInApp, labels, flowAnimation, insulation, platforms, instruments, dynamicReplay, render, keepCopy;
+        CheckBox openInApp, labels, flowAnimation, insulation, platforms, instruments, dynamicReplay, gltf, arrangement, render, keepCopy;
         CheckBox dwg, pdf, png, drawingSet, readMoves;
         List<CheckBox> itemChecks;
         StackPanel overwrite;
@@ -192,7 +192,7 @@ namespace DWSIM.Extensions.SolidCraft
                     ("Checked by", checkedBy, false), ("Revision", revision, false),
                     ("Approved by", approvedBy, false), ("Status", status, false),
                     ("Revision description", revisionText, true),
-                    ("Logo (DXF or DWG)", PathRow(logo, BrowseLogo), true))));
+                    ("Logo (drawing or picture)", PathRow(logo, BrowseLogo), true))));
             }
 
             if (r.ShowsItems)
@@ -246,7 +246,9 @@ namespace DWSIM.Extensions.SolidCraft
                 instruments = new CheckBox { Content = "Instruments" };
                 dynamicReplay = new CheckBox { Content = "Replay of the last dynamic run" };
                 var checks = new UniformGrid { Columns = 2 };
-                foreach (var c in new[] { labels, flowAnimation, insulation, platforms, instruments, dynamicReplay }) checks.Children.Add(c);
+                gltf = new CheckBox { Content = "glTF model (.glb, large)" };
+                arrangement = new CheckBox { Content = "General arrangement drawing" };
+                foreach (var c in new[] { labels, flowAnimation, insulation, platforms, instruments, dynamicReplay, gltf, arrangement }) checks.Children.Add(c);
                 rackHeight = Short();
                 itemGap = Short();
                 plantLayout = new ComboBox { ItemsSource = CadTools.PlantLayouts, MinWidth = 160 };
@@ -345,6 +347,8 @@ namespace DWSIM.Extensions.SolidCraft
                 platforms.IsChecked = o.Platforms;
                 instruments.IsChecked = o.Instruments;
                 dynamicReplay.IsChecked = o.DynamicReplay;
+                gltf.IsChecked = o.Gltf;
+                arrangement.IsChecked = o.Arrangement;
                 rackHeight.Text = r.ToLength(o.RackHeight).ToString("0.###", CultureInfo.CurrentCulture);
                 itemGap.Text = r.ToLength(o.ItemGap).ToString("0.###", CultureInfo.CurrentCulture);
                 plantLayout.SelectedIndex = (int)o.LayoutKind;
@@ -458,7 +462,7 @@ namespace DWSIM.Extensions.SolidCraft
             {
                 Title = "The logo for the title block",
                 SuggestedStartLocation = await Folder(folder),
-                FileTypeFilter = new[] { new FilePickerFileType("Drawings (DXF, DWG)") { Patterns = new[] { "*.dxf", "*.dwg" } } }
+                FileTypeFilter = new[] { new FilePickerFileType("Drawings and pictures (DXF, DWG, PNG, JPEG, BMP)") { Patterns = new[] { "*.dxf", "*.dwg", "*.png", "*.jpg", "*.jpeg", "*.bmp" } } }
             });
             var path = picked.FirstOrDefault()?.TryGetLocalPath();
             if (path != null) logo.Text = path;
@@ -520,6 +524,8 @@ namespace DWSIM.Extensions.SolidCraft
                 o.Platforms = platforms.IsChecked == true;
                 o.Instruments = instruments.IsChecked == true;
                 o.DynamicReplay = dynamicReplay.IsChecked == true;
+                o.Gltf = gltf.IsChecked == true;
+                o.Arrangement = arrangement.IsChecked == true;
                 if (!TryRead(rackHeight.Text, out var rack)) return "The top of the pipe rack is not a number.";
                 if (!TryRead(itemGap.Text, out var gap)) return "The gap between items is not a number.";
                 o.RackHeight = Math.Max(2.5, Math.Min(30, r.FromLength(rack)));
