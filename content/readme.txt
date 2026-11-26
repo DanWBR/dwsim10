@@ -46,6 +46,12 @@ Version 10.3.1
 - [NEW] Strong Acid Tower (Plus): drying tower and SO3 absorbers on theoretical stages with adiabatic flashes, reporting the SO3 absorbed, the acid strengths, the acid cooler duty and the dew point of the gas
 - [NEW] SO2 Converter Bed (Plus): adiabatic vanadium catalyst bed that converts SO2 to SO3 up to a set approach to equilibrium
 - [NEW] Sulfur-burning double contact sulfuric acid plant in the Case Library, tutorial A13 and a User Guide part on the sulfuric acid tools
+- [NEW] Vegetable Oils (NRTL) property package (Plus): soybean oil, miscella, meal, hexane and water vapours and the refining streams, with NRTL pairs fitted to open data, the density, heat capacity and viscosity of soybean oil, and a three-phase flash that keeps the meal solids solid
+- [NEW] Soybean compounds in the additional compounds folder: meal protein, sugars, fibre and ash, squalene, tocopherols, sitosterol, linoleic and linolenic acid with corrected vapor pressures, phosphatides, soaps, refining chemicals and bleaching earth
+- [NEW] Soybean Stream Analysis (Plus): reads and writes seed, meal, miscella, crude oil and refined oil streams in the quantities of a crushing plant and a refinery (oil, protein, hexane, free fatty acids, iodine value, phosphorus, soap, tocopherols)
+- [NEW] Percolation Extractor, Desolventizer-Toaster and Meal Dryer-Cooler (Plus): hexane extraction of oilseed flakes on ideal stages, desolventizing and toasting with sparge steam, and drying and cooling of the meal with air
+- [NEW] Oil Degummer, Caustic Neutralizer, Oil Bleacher and Oil Deodorizer (Plus): water or acid degumming, caustic neutralization with washing and the heats of reaction, bleaching with a Freundlich isotherm, and steam stripping on cross-flow trays or counter-current stages with the trans fatty acids formed
+- [NEW] Soybean crushing plant with an oil refinery in the Case Library, tutorial A14 and a User Guide part on the soybean tools
 - [CHG] Update check at startup: reads the latest published release of the running edition on GitHub (open edition or Patreon Edition), skips release candidates and shows its list of changes; opens the release page when download and install is off
 - [CHG] Help and Tutorials site: the forum links point to the GitHub Discussions
 - [FIX] SRK and the Peng-Robinson family: a fugacity coefficient that overflowed came back as infinity and failed the flash or the Gibbs reactor
@@ -55,6 +61,10 @@ Version 10.3.1
 - [FIX] Heater and Cooler editors: with the vapor fraction basis set to kg/kg the calculation type still read Outlet Vapor Mole Fraction
 - [FIX] Pipe Network: a source or sink block without its stream stopped the solve with a missing key error
 - [FIX] Case Library: in the Patreon Edition, a case that needs a newer Patreon Edition was marked as needing the Patreon Edition
+- [FIX] Immiscible water flash: when steam made up most of the vapour, the organic liquid was solved at the total pressure and kept most of its solvent
+- [FIX] Three-phase flash: an answer of vapour and nearly pure water dropped the third phase, so water and hexane at 100 C and 5 bar stayed a vapour above the vapor pressure of hexane
+- [FIX] Heat of vaporization of additional compounds with an equation and of ChemSep compounds without one, and the CAPE-OPEN heat of vaporization at the normal boiling point
+- [FIX] Bayer, Pulp, Sugar and Soybean Stream Analysis: the windows showed the default window icon
 
 Version 10.3.0
 
