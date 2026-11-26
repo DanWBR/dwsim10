@@ -315,16 +315,24 @@ namespace DWSIM.Extensions.SolidCraft
         }
 
         /// <summary>
-        /// The camera of a view (<see cref="CadTools.RenderViews"/>) aimed at the middle of the plant, far
-        /// enough to take it all in with its labels; null for a model with nothing in it.
+        /// The camera of a view (<see cref="CadTools.RenderViews"/>) that frames the plant with its labels
+        /// in the picture: the plant's corners are projected on the picture plane, the target goes to
+        /// the middle of what they cover, and the camera comes as close as it can while every corner
+        /// stays inside the picture's width and height. Null for a model with nothing in it.
         /// </summary>
         public static JObject RenderCamera(PlantModel model, string view)
         {
             var pts = new List<Vec3>();
+            void Box(Vec3 lo, Vec3 hi)
+            {
+                foreach (var x in new[] { lo.X, hi.X })
+                    foreach (var y in new[] { lo.Y, hi.Y })
+                        foreach (var z in new[] { lo.Z, hi.Z })
+                            pts.Add(new Vec3(x, y, z));
+            }
             foreach (var e in model.Equipment.Where(e => e.Visible))
             {
-                pts.Add(e.FootprintCentre + new Vec3(-e.FootprintX, -e.FootprintY, 0));
-                pts.Add(e.FootprintCentre + new Vec3(e.FootprintX, e.FootprintY, e.Envelope.ZTop));
+                Box(e.FootprintCentre + new Vec3(-e.FootprintX, -e.FootprintY, 0), e.FootprintCentre + new Vec3(e.FootprintX, e.FootprintY, e.Envelope.ZTop));
                 if (model.Options.Labels && !string.IsNullOrEmpty(e.Label))
                 {
                     // the label over the item (see CreateLabels)
@@ -336,15 +344,59 @@ namespace DWSIM.Extensions.SolidCraft
                 }
             }
             foreach (var r in model.Pipes) pts.AddRange(r.Path);
+            if (model.Rack != null) Box(new Vec3(model.Rack.X0, model.Rack.Y0, 0), new Vec3(model.Rack.X1, model.Rack.Y0 + model.Rack.Width, model.Rack.Top));
             if (pts.Count == 0) return null;
-            var lo = new Vec3(pts.Min(p => p.X), pts.Min(p => p.Y), pts.Min(p => p.Z));
-            var hi = new Vec3(pts.Max(p => p.X), pts.Max(p => p.Y), pts.Max(p => p.Z));
-            var centre = (lo + hi) * 0.5;
-            const double fov = 0.7;
-            var distance = (hi - lo).Length / 2 / Math.Tan(fov / 2) * 1.1;
+
             var v = CadTools.RenderViews.FirstOrDefault(x => x.Id == view);
             if (v.Id == null) v = CadTools.RenderViews[0];
-            return new JObject { ["target"] = new JArray(centre.ToArray()), ["yaw"] = v.Yaw, ["pitch"] = v.Pitch, ["distance"] = Math.Round(distance), ["fov"] = fov };
+            const double fov = 0.7;
+            const double fill = 0.9;
+            var aspect = model.Options != null && model.Options.RenderHeight > 0 ? (double)model.Options.RenderWidth / model.Options.RenderHeight : 1.6;
+
+            // SolidCraft's camera: with yaw 0 it looks along +Y from the -Y side, Z is up, and the
+            // field of view is the picture's height
+            var back = new Vec3(-Math.Sin(v.Yaw) * Math.Cos(v.Pitch), -Math.Cos(v.Yaw) * Math.Cos(v.Pitch), Math.Sin(v.Pitch));
+            var forward = back * -1;
+            var right = new Vec3(Math.Cos(v.Yaw), -Math.Sin(v.Yaw), 0);
+            var up = new Vec3(right.Y * forward.Z - right.Z * forward.Y, right.Z * forward.X - right.X * forward.Z, right.X * forward.Y - right.Y * forward.X);
+            double Dot(Vec3 a, Vec3 b) => a.X * b.X + a.Y * b.Y + a.Z * b.Z;
+            var tanV = Math.Tan(fov / 2) * fill;
+            var tanH = tanV * aspect;
+
+            var target = new Vec3(pts.Average(p => p.X), pts.Average(p => p.Y), pts.Average(p => p.Z));
+            // the nearest the camera can be with every corner inside the picture
+            double Fit()
+            {
+                double nearest = 0;
+                foreach (var p in pts)
+                {
+                    var d = p - target;
+                    nearest = Math.Max(nearest, Math.Max(Math.Abs(Dot(d, right)) / tanH, Math.Abs(Dot(d, up)) / tanV) - Dot(d, forward));
+                }
+                return nearest;
+            }
+            double distance = 0;
+            // the projection depends on the distance and the distance on where the target is, so
+            // centre and fit a few times; it settles in two or three passes
+            for (var pass = 0; pass < 4; pass++)
+            {
+                distance = Fit();
+                double xMin = double.MaxValue, xMax = double.MinValue, yMin = double.MaxValue, yMax = double.MinValue;
+                foreach (var p in pts)
+                {
+                    var d = p - target;
+                    var depth = distance + Dot(d, forward);
+                    if (depth <= 1) continue;
+                    var sx = Dot(d, right) / depth;
+                    var sy = Dot(d, up) / depth;
+                    xMin = Math.Min(xMin, sx); xMax = Math.Max(xMax, sx);
+                    yMin = Math.Min(yMin, sy); yMax = Math.Max(yMax, sy);
+                }
+                if (xMin > xMax) break;
+                target = target + right * ((xMin + xMax) / 2 * distance) + up * ((yMin + yMax) / 2 * distance);
+            }
+            distance = Math.Max(Fit(), 1000);
+            return new JObject { ["target"] = new JArray(target.ToArray()), ["yaw"] = v.Yaw, ["pitch"] = v.Pitch, ["distance"] = Math.Round(distance), ["fov"] = fov };
         }
 
         /// <summary>

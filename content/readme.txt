@@ -67,7 +67,7 @@ Version 10.3.1
 - [FIX] Three-phase flash: an answer of vapour and nearly pure water dropped the third phase, so water and hexane at 100 C and 5 bar stayed a vapour above the vapor pressure of hexane
 - [FIX] Heat of vaporization of additional compounds with an equation and of ChemSep compounds without one, and the CAPE-OPEN heat of vaporization at the normal boiling point
 - [FIX] Bayer, Pulp, Sugar and Soybean Stream Analysis: the windows showed the default window icon
-- [FIX] 3D plant model picture: with SolidCraft 0.40 and later the render environment step failed and the metal parts came out nearly black; the picture is now lit by a sky
+- [FIX] 3D plant model picture: with SolidCraft 0.40 and later the render environment step failed and the metal parts came out nearly black; the picture is now lit by a sky, and the camera frames the plant to fill the picture
 
 Version 10.3.0
 
