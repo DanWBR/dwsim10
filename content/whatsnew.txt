@@ -36,3 +36,4 @@
 - [FIX] Heat of vaporization of additional compounds with an equation and of ChemSep compounds without one, and the CAPE-OPEN heat of vaporization at the normal boiling point
 - [FIX] Bayer, Pulp, Sugar and Soybean Stream Analysis: the windows showed the default window icon
 - [FIX] 3D plant model picture: with SolidCraft 0.40 and later the render environment step failed and the metal parts came out nearly black; the picture is now lit by a sky, and the camera frames the plant to fill the picture
+- [FIX] PH flash with solids: a liquid just below its bubble point could fail and leave the fail-safe calculation, which drops the solids, to return a hot vapour with the wrong enthalpy (a mixer of cake and syrup at 108 C gave 338 C)
