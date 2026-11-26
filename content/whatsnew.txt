@@ -23,6 +23,7 @@
 - [CHG] Update 3D Plant Model Data: the labels in the 3D model show the new temperatures and pressures (models exported from 10.3.1 on)
 - [CHG] Sugar Solutions package: the yeast biomass compounds are insoluble solids instead of NRTL liquids
 - [CHG] Export 3D Plant Model: the labels are flat lettering, which takes a second to build where solid lettering took over a minute, and halves the design file
+- [CHG] 3D plant model: each line carries the composition of its stream in mol %, in SolidCraft, the web viewer and the line list
 - [FIX] SRK and the Peng-Robinson family: a fugacity coefficient that overflowed came back as infinity and failed the flash or the Gibbs reactor
 - [FIX] PT flash: a two-phase split that didn't add up to the feed was returned with a mass balance error; it is now solved again with three phases
 - [FIX] Conversion reactor: parallel reactions that asked for more of a compound than the feed had gave it a negative outlet flow

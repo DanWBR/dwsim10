@@ -261,6 +261,9 @@ namespace DWSIM.Extensions.SolidCraft
             {
                 var props = new JObject();
                 foreach (var kv in run.Properties) props[kv.Key] = kv.Value;
+                // a compound the line no longer shows: null takes its old value off the component
+                foreach (var c in model.Compounds.Concat(new[] { PipeRun.OtherCompounds }))
+                    if (!run.Properties.ContainsKey(PipeRun.CompositionKey(c))) props[PipeRun.CompositionKey(c)] = JValue.CreateNull();
                 Add(cmds, "component.metadata.set", "line " + run.Tag, new JObject
                 {
                     ["component"] = LineComponent(run),

@@ -37,7 +37,7 @@ namespace DWSIM.Extensions.SolidCraft
     {
         public static PlantModel Build(IFlowsheet fs, string name, IDictionary<string, Placement> layout = null, ExportOptions options = null)
         {
-            var model = new PlantModel { Name = name, Options = options ?? new ExportOptions() };
+            var model = new PlantModel { Name = name, Options = options ?? new ExportOptions(), Compounds = fs.SelectedCompounds.Keys.ToList() };
             Options = model.Options;
             var byGraphic = new Dictionary<string, EquipmentItem>();
             ControlledValves = Instruments.ControlledValves(fs);
@@ -642,6 +642,32 @@ namespace DWSIM.Extensions.SolidCraft
 
         static string Fmt(double x, string format) => x.ToString(format, CultureInfo.InvariantCulture);
 
+        /// <summary>
+        /// The stream's overall composition on the line, mol %, as <see cref="PipeRun.Composition"/>
+        /// and one property per compound (largest first), with the compounds below the minimum or
+        /// past the count added up as other compounds.
+        /// </summary>
+        static void AddComposition(PipeRun run, IMaterialStream ms)
+        {
+            var fractions = ms.Phases[0].Compounds.Values
+                .Select(c => new KeyValuePair<string, double>(c.Name, 100 * Finite(c.MoleFraction.GetValueOrDefault())))
+                .Where(c => c.Value > 0)
+                .OrderByDescending(c => c.Value)
+                .ToList();
+            var shown = fractions.Where(c => c.Value >= PipeRun.CompositionMinimum).Take(PipeRun.CompositionCount).ToList();
+            var other = fractions.Sum(c => c.Value) - shown.Sum(c => c.Value);
+            run.Composition = shown;
+            foreach (var c in shown) run.Properties[PipeRun.CompositionKey(c.Key)] = Percent(c.Value);
+            if (other >= 0.001)
+            {
+                run.Composition.Add(new KeyValuePair<string, double>(PipeRun.OtherCompounds, other));
+                run.Properties[PipeRun.CompositionKey(PipeRun.OtherCompounds)] = Percent(other);
+            }
+        }
+
+        /// <summary>A percentage with three significant figures or so: 82.1, 9.34, 0.215.</summary>
+        static string Percent(double x) => Fmt(x, x >= 10 ? "0.0" : x >= 1 ? "0.00" : "0.000");
+
         static void Describe(EquipmentItem item, string key, double value, bool estimated)
         {
             item.Properties[key] = value.ToString("0.###", CultureInfo.InvariantCulture) + (estimated ? " (estimated)" : "");
@@ -735,6 +761,7 @@ namespace DWSIM.Extensions.SolidCraft
                 run.Properties["Volumetric flow (m3/h)"] = Fmt(q * 3600, "0.###");
                 run.Properties["Vapor fraction"] = Fmt(vf, "0.####");
                 run.Properties["Velocity (m/s)"] = Fmt(run.Velocity, "0.##");
+                AddComposition(run, ms);
                 if (p > 0) run.Label += "  " + Fmt(t, "0.#") + " °C  " + Fmt(p, "0.##") + " bar";
 
                 // the fluid for the line hydraulics: homogeneous density from the flows, and the
