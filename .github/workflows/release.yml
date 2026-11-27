@@ -17,7 +17,8 @@ jobs:
 
   # The DWSIM 3D window (a Godot program, ui/DWSIM.Viewer3D) exported once for every
   # runtime id; the payload jobs drop it in as viewer3d/. Godot and its export templates come from
-  # the official release, checked against its SHA-512 sums, and stay in the cache.
+  # the official release, checked against its SHA-512 sums, and stay in the cache. The release
+  # templates are then replaced by the size-optimized ones of viewer3d-templates.yml.
   viewer3d:
     name: DWSIM 3D window
     runs-on: ubuntu-latest
@@ -50,6 +51,7 @@ jobs:
           mkdir -p "$dest"
           unzip -q ~/godot/Godot_v${GODOT_VERSION}-stable_export_templates.tpz -d /tmp/tpz
           mv /tmp/tpz/templates/* "$dest/"
+          bash ui/DWSIM.Viewer3D/templates/install.sh "$dest"
 
       - name: Export
         run: bash ui/DWSIM.Viewer3D/export.sh ~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64 viewer3d-out

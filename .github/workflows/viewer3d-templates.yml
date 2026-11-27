@@ -1,0 +1,159 @@
+name: DWSIM 3D export templates
+
+# Builds the Godot export templates of the DWSIM 3D window from the Godot source with the build
+# profile in ui/DWSIM.Viewer3D/templates/custom.py (the modules the window does not use left out,
+# optimized for size), and publishes them as assets of the release named by TEMPLATES_TAG. The
+# viewer3d job of the release workflows downloads them in place of the official templates.
+#
+# Run it by hand when Godot or the build profile changes, then bump TEMPLATES_TAG in the release
+# workflows if the tag changed.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  GODOT_VERSION: 4.7.2
+  TEMPLATES_TAG: viewer3d-templates-4.7.2
+  BUILDROOT: godot-2023.08.x-4  # glibc 2.28, as the official templates
+
+jobs:
+  windows:
+    name: Windows ${{ matrix.arch }}
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        arch: [x86_64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: godotengine/godot
+          ref: ${{ env.GODOT_VERSION }}-stable
+          path: godot
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build
+        shell: bash
+        run: |
+          pip install scons
+          cp ui/DWSIM.Viewer3D/templates/custom.py godot/
+          cd godot
+          scons platform=windows target=template_release arch=${{ matrix.arch }} profile=custom.py d3d12=no accesskit=no -j4
+          mkdir -p ../out
+          cp bin/godot.windows.template_release.${{ matrix.arch }}.exe ../out/windows_release_${{ matrix.arch }}.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: templates-windows-${{ matrix.arch }}
+          path: out
+          retention-days: 1
+
+  # Godot's own buildroot toolchains, so the templates need the same old glibc as the official ones
+  linux:
+    name: Linux ${{ matrix.arch }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+            sdk: x86_64-godot-linux-gnu_sdk-buildroot
+          - arch: arm64
+            sdk: aarch64-godot-linux-gnu_sdk-buildroot
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: godotengine/godot
+          ref: ${{ env.GODOT_VERSION }}-stable
+          path: godot
+      - name: Fetch the toolchain
+        run: |
+          curl -Lf --retry 3 "https://github.com/godotengine/buildroot/releases/download/$BUILDROOT/${{ matrix.sdk }}.tar.bz2" | tar xj -C "$HOME"
+          cd "$HOME/${{ matrix.sdk }}" && ./relocate-sdk.sh
+      - name: Build
+        run: |
+          pip install scons
+          export PATH="$HOME/${{ matrix.sdk }}/bin:$PATH"
+          cp ui/DWSIM.Viewer3D/templates/custom.py godot/
+          cd godot
+          scons platform=linuxbsd target=template_release arch=${{ matrix.arch }} profile=custom.py d3d12=no accesskit=no -j4
+          mkdir -p ../out
+          cp bin/godot.linuxbsd.template_release.${{ matrix.arch }} ../out/linux_release.${{ matrix.arch }}
+          # the official templates run on glibc 2.28; these must not ask for more
+          objdump=$(ls "$HOME/${{ matrix.sdk }}/bin/"*-linux-gnu-objdump | head -1)
+          need=$("$objdump" -T ../out/linux_release.${{ matrix.arch }} | grep -o 'GLIBC_[0-9.]*' | sort -Vu | tail -1)
+          echo "needs $need"
+          [ "$(printf '%s\n' "$need" GLIBC_2.28 | sort -V | tail -1)" = GLIBC_2.28 ]
+      - uses: actions/upload-artifact@v4
+        with:
+          name: templates-linux-${{ matrix.arch }}
+          path: out
+          retention-days: 1
+
+  # One universal binary (Vulkan through MoltenVK, plus Metal on Apple Silicon) put into the
+  # official macos.zip in place of its release binary
+  macos:
+    name: macOS universal
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: godotengine/godot
+          ref: ${{ env.GODOT_VERSION }}-stable
+          path: godot
+      - name: Install the Vulkan SDK
+        run: sh godot/misc/scripts/install_vulkan_sdk_macos.sh
+      - name: Build
+        run: |
+          pip3 install --break-system-packages scons || pip3 install scons
+          cp ui/DWSIM.Viewer3D/templates/custom.py godot/
+          cd godot
+          for a in x86_64 arm64; do
+            scons platform=macos target=template_release arch=$a profile=custom.py d3d12=no accesskit=no -j3
+          done
+          lipo -create bin/godot.macos.template_release.x86_64 bin/godot.macos.template_release.arm64 -output bin/godot_macos_release.universal
+      - name: Pack into the official macos.zip
+        run: |
+          base=https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable
+          curl -Lf --retry 3 -O "$base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          curl -Lf --retry 3 -O "$base/SHA512-SUMS.txt"
+          grep -E " Godot_v${GODOT_VERSION}-stable_export_templates\.tpz$" SHA512-SUMS.txt | shasum -a 512 -c -
+          unzip -q "Godot_v${GODOT_VERSION}-stable_export_templates.tpz" templates/macos.zip
+          mkdir mac && cd mac
+          unzip -q ../templates/macos.zip
+          cp ../godot/bin/godot_macos_release.universal macos_template.app/Contents/MacOS/godot_macos_release.universal
+          mkdir -p ../out
+          zip -qry ../out/macos.zip .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: templates-macos
+          path: out
+          retention-days: 1
+
+  publish:
+    name: Publish
+    needs: [windows, linux, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: templates-*
+          path: out
+          merge-multiple: true
+      - name: Release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd out
+          sha256sum * > SHA256SUMS.txt
+          ls -la
+          notes="Godot ${GODOT_VERSION} export templates of the DWSIM 3D window, built from the Godot source with ui/DWSIM.Viewer3D/templates/custom.py. Godot is under the MIT licence."
+          if gh release view "$TEMPLATES_TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TEMPLATES_TAG" * --clobber -R "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TEMPLATES_TAG" * -R "$GITHUB_REPOSITORY" --title "DWSIM 3D export templates (Godot ${GODOT_VERSION})" --notes "$notes" --prerelease --target "$GITHUB_SHA"
+          fi

@@ -180,7 +180,7 @@ func _textured(name: String, tile_m: float) -> StandardMaterial3D:
 
 ## A sky of small stars for the night (the physical sky shows it when the sun is down).
 func _stars() -> ImageTexture:
-	var img := Image.create(1024, 512, false, Image.FORMAT_RGB8)
+	var img := Image.create_empty(1024, 512, false, Image.FORMAT_RGB8)
 	img.fill(Color(0.004, 0.006, 0.014))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7

@@ -28,8 +28,24 @@ godot --path . -- --dwsim-scene=scene.json --capture-dir=out --views=IsoSE,Plan 
 `export.sh <godot> <out> [rid ...]` exports the window into `<out>/<rid>/viewer3d`, the folder
 DWSIM looks in next to its own executable (macOS: `DWSIM.app/Contents/Helpers`). It needs the
 export templates of the same Godot version. The release workflows run it once and copy the result
-into every package. The builds are about 126 MB on Windows x64 and 92 MB on Linux x64 (the engine
-and about 21 MB of textures, models and sounds), and some 100 MB per architecture on macOS.
+into every package.
+
+The release templates are built from the Godot source with `templates/custom.py`: it leaves out
+the parts the window does not use (physics, navigation, XR, networking, video, Direct3D 12 and
+the runtime glTF and texture compressors) and optimizes the binary for size with full link-time
+optimization. The workflow `viewer3d-templates.yml`, run by hand when Godot or the profile
+changes, builds them for every platform and publishes them on the release
+`viewer3d-templates-<godot version>`; `templates/install.sh` then puts them over the official
+templates before the export, and it keeps the official ones if that release cannot be reached.
+With them, the builds are about 62 MB on Windows x64 and 55 MB on Linux x64 (about 22 MB of that
+is textures, models and sounds), against 126 MB and 92 MB with the official templates. Windows
+runs on Vulkan, and the OpenGL 3 renderer is still the fallback everywhere.
+
+To build a template locally, check out the Godot tag, copy `custom.py` next to `SConstruct` and
+run, for example, `scons platform=windows target=template_release arch=x86_64 profile=custom.py
+d3d12=no accesskit=no` (the platform defaults override those two in the profile). On Linux, use
+Godot's buildroot toolchain `godot-2023.08.x-4`, so the template needs glibc 2.28 like the
+official one.
 
 ## Controls
 
