@@ -11,7 +11,7 @@ namespace DWSIM.Drawing.SkiaSharp.PlantDesigner
     public enum KeyMods { None = 0, Shift = 1, Ctrl = 2, Alt = 4 }
 
     /// <summary>The designer's tools.</summary>
-    public enum PlantTool { Select, Pipe }
+    public enum PlantTool { Select, Pipe, Place }
 
     /// <summary>
     /// Turns mouse and keyboard input into camera moves, selection and, when an editor is attached, drawing. The hosts
@@ -56,6 +56,8 @@ namespace DWSIM.Drawing.SkiaSharp.PlantDesigner
         /// <summary>The editor of the drawing; null makes the controller a viewer.</summary>
         public DrawingEditor Editor { get; private set; }
         public PlantTool Tool { get; private set; } = PlantTool.Select;
+        /// <summary>The kind the place tool puts down.</summary>
+        public PlantKind PlaceKind { get; private set; }
         public AxisLock Lock { get; private set; } = AxisLock.Auto;
         private V3? _anchor;
         private string _typed = "";
@@ -98,9 +100,18 @@ namespace DWSIM.Drawing.SkiaSharp.PlantDesigner
             Tool = Editor == null ? PlantTool.Select : t;
             EndRun();
             View.Shortcuts.Clear();
-            View.Shortcuts.AddRange(Editor == null ? PlantView.ViewerShortcuts() : Tool == PlantTool.Pipe ? PlantView.PipeToolShortcuts() : PlantView.SelectToolShortcuts());
+            View.Shortcuts.AddRange(Editor == null ? PlantView.ViewerShortcuts() : Tool == PlantTool.Pipe ? PlantView.PipeToolShortcuts()
+                : Tool == PlantTool.Place ? PlantView.PlaceToolShortcuts(PlaceKind) : PlantView.SelectToolShortcuts());
             Changed();
             Redraw();
+        }
+
+        /// <summary>Picks the kind to place and switches to the place tool (null goes back to the select tool).</summary>
+        public void SetPlaceKind(string id)
+        {
+            PlaceKind = View.Kinds.FirstOrDefault(k => k.Id == id);
+            SetTool(PlaceKind == null ? PlantTool.Select : PlantTool.Place);
+            RefreshPreview();
         }
 
         public void SetLock(AxisLock l) { Lock = l; RefreshPreview(); Changed(); Redraw(); }
@@ -115,6 +126,7 @@ namespace DWSIM.Drawing.SkiaSharp.PlantDesigner
             _typed = "";
             View.Typed = "";
             View.Preview.Clear();
+            View.PreviewKind = "";
         }
 
         private void UpdateChip()
@@ -122,7 +134,8 @@ namespace DWSIM.Drawing.SkiaSharp.PlantDesigner
             if (Editor == null) { View.ToolChip = ""; return; }
             var g = View.Drawing.Grid;
             string lk = Lock == AxisLock.Auto ? "any axis" : Lock == AxisLock.Horizontal ? "horizontal" : Lock == AxisLock.Vertical ? "vertical" : Lock.ToString() + " axis";
-            View.ToolChip = (Tool == PlantTool.Pipe ? "Pipe" : "Select") + "   ·   " + lk + "   ·   level " + g.Level.ToString(CultureInfo.InvariantCulture)
+            string tool = Tool == PlantTool.Pipe ? "Pipe" : Tool == PlantTool.Place ? "Place " + (PlaceKind != null ? PlaceKind.Name : "") : "Select";
+            View.ToolChip = tool + "   ·   " + lk + "   ·   level " + g.Level.ToString(CultureInfo.InvariantCulture)
                 + " (z = " + g.LevelZ.ToString("0.###", CultureInfo.InvariantCulture) + " m)   ·   step " + g.StepH.ToString("0.###", CultureInfo.InvariantCulture)
                 + (Math.Abs(g.StepV - g.StepH) > 1e-12 ? " / " + g.StepV.ToString("0.###", CultureInfo.InvariantCulture) : "") + " m" + (g.Snap ? "" : ", snap off");
         }
@@ -145,7 +158,7 @@ namespace DWSIM.Drawing.SkiaSharp.PlantDesigner
             _movingVertex = -1;
             if (Editor != null && Tool == PlantTool.Select && button == PointerButton.Left && _downHit.Kind == HitKind.Vertex) _movingVertex = _downHit.Id;
             _panning = button == PointerButton.Middle || (button == PointerButton.Right && (mods & KeyMods.Shift) != 0)
-                || (button == PointerButton.Left && _movingVertex < 0 && (_downHit.Kind == HitKind.None || (Editor != null && Tool == PlantTool.Pipe && !_downHit.IsOverlay())));
+                || (button == PointerButton.Left && _movingVertex < 0 && (_downHit.Kind == HitKind.None || (Editor != null && Tool != PlantTool.Select && !_downHit.IsOverlay())));
             View.Camera.StopAnimation();
         }
 
@@ -168,10 +181,11 @@ namespace DWSIM.Drawing.SkiaSharp.PlantDesigner
             var h = PlantRenderer.HitTest(View, x, y);
             bool cardHot = h.Kind == HitKind.Card;
             bool changed = !h.Same(View.Hover);
-            View.Hover = h.IsElement && !(Editor != null && Tool == PlantTool.Pipe) ? h : Hit.None;
+            View.Hover = h.IsElement && !(Editor != null && Tool != PlantTool.Select) ? h : Hit.None;
             View.CardHot = cardHot;
             if (changed) { var hc = HoverChanged; if (hc != null) hc(View.Hover); }
             if (Editor != null && Tool == PlantTool.Pipe) PreviewPipe(x, y, h);
+            if (Editor != null && Tool == PlantTool.Place) PreviewPlace(x, y, h);
             Redraw();
         }
 
@@ -201,6 +215,7 @@ namespace DWSIM.Drawing.SkiaSharp.PlantDesigner
             if (h.Kind == HitKind.Card) return;
             if (h.Kind == HitKind.Minimap) { CenterOnMinimap(x, y); Redraw(); return; }
             if (Editor != null && Tool == PlantTool.Pipe) { PipeClick(x, y, h); Redraw(); return; }
+            if (Editor != null && Tool == PlantTool.Place) { PlaceClick(x, y, h); Redraw(); return; }
             bool add = (mods & KeyMods.Ctrl) != 0;
             if (h.IsElement) View.Toggle(h, add);
             else if (!add) View.ClearSelection();
@@ -380,6 +395,81 @@ namespace DWSIM.Drawing.SkiaSharp.PlantDesigner
             if (Editor == null || View.MouseX < 0) return;
             if (_movingVertex >= 0) { PreviewMove(View.MouseX, View.MouseY); return; }
             if (Tool == PlantTool.Pipe) PreviewPipe(View.MouseX, View.MouseY, PlantRenderer.HitTest(View, View.MouseX, View.MouseY));
+            if (Tool == PlantTool.Place) PreviewPlace(View.MouseX, View.MouseY, PlantRenderer.HitTest(View, View.MouseX, View.MouseY));
+        }
+
+        // ------------------------------------------------------------------ place tool
+
+        /// <summary>The pipe leg under the mouse and the point of it nearest the mouse; null when none is near.</summary>
+        public PlantLeg PipeUnder(double x, double y, out V3 at)
+        {
+            at = V3.Zero;
+            var d = View.Drawing;
+            PlantLeg best = null; double bd = double.MaxValue, bt = 0;
+            foreach (var l in d.Legs.Where(l => l.Kind == LegKind.Pipe))
+            {
+                var a = View.Camera.Project(d.P(l.A)); var b = View.Camera.Project(d.P(l.B));
+                double abx = b.X - a.X, aby = b.Y - a.Y, l2 = abx * abx + aby * aby;
+                if (l2 < 1e-9) continue;
+                double t = Math.Max(0, Math.Min(1, ((x - a.X) * abx + (y - a.Y) * aby) / l2));
+                double px = a.X + t * abx - x, py = a.Y + t * aby - y, dist = Math.Sqrt(px * px + py * py);
+                if (dist <= Snap && dist < bd) { bd = dist; best = l; bt = t; }
+            }
+            if (best != null) at = d.P(best.A) + (d.P(best.B) - d.P(best.A)) * bt;
+            return best;
+        }
+
+        /// <summary>Where a component of the given length would sit in a leg: centred on the point, kept inside the leg.</summary>
+        private static void Extent(PlantDrawing d, PlantLeg l, V3 at, double length, out V3 p1, out V3 p2)
+        {
+            V3 a = d.P(l.A), b = d.P(l.B);
+            double len = V3.Distance(a, b);
+            var dir = (b - a).Normalized();
+            double L = Math.Min(length, len);
+            double t = Math.Max(0, Math.Min(len, V3.Dot(at - a, dir)));
+            double t1 = Math.Max(0, Math.Min(len - L, t - L / 2));
+            p1 = a + dir * t1; p2 = a + dir * (t1 + L);
+        }
+
+        private void PreviewPlace(double x, double y, Hit h)
+        {
+            var pv = View.Preview;
+            pv.Clear();
+            View.PreviewKind = "";
+            if (PlaceKind == null || h.IsOverlay()) return;
+            if (PlaceKind.Inline)
+            {
+                V3 at;
+                var l = PipeUnder(x, y, out at);
+                if (l == null) return;
+                V3 p1, p2; Extent(View.Drawing, l, at, PlaceKind.Length, out p1, out p2);
+                pv.HasLeg = true; pv.From = p1; pv.To = p2; pv.Joins = true; pv.Label = PlaceKind.Name;
+                View.PreviewKind = PlaceKind.Id;
+                return;
+            }
+            V3 p; bool on;
+            if (!StartPoint(x, y, out p, out on)) return;
+            pv.HasPoint = true; pv.Point = p; pv.Joins = on; pv.Label = PlaceKind.Name;
+            View.PreviewKind = PlaceKind.Id;
+        }
+
+        private void PlaceClick(double x, double y, Hit h)
+        {
+            if (PlaceKind == null || h.IsOverlay()) return;
+            if (PlaceKind.Inline)
+            {
+                V3 at;
+                var l = PipeUnder(x, y, out at);
+                if (l == null) return;
+                Editor.PlaceComponent(l.Id, at, PlaceKind.Id, PlaceKind.Length);
+            }
+            else
+            {
+                V3 p; bool on;
+                if (!StartPoint(x, y, out p, out on)) return;
+                Editor.PlaceItemAt(p, PlaceKind.Id);
+            }
+            PreviewPlace(x, y, PlantRenderer.HitTest(View, x, y));
         }
 
         private void PipeClick(double x, double y, Hit h)
@@ -504,6 +594,10 @@ namespace DWSIM.Drawing.SkiaSharp.PlantDesigner
                 case "PAGEDOWN": case "NEXT": ShiftLevel(-1); return true;
                 case "P": SetTool(PlantTool.Pipe); RefreshPreview(); return true;
                 case "S": SetTool(PlantTool.Select); return true;
+                case "ESCAPE":
+                    if (Tool != PlantTool.Place) return false;
+                    SetTool(PlantTool.Select);
+                    return true;
                 case "DELETE":
                     if (!View.HasSelection) return false;
                     DeleteSelection();

@@ -170,6 +170,27 @@ namespace DWSIM.Drawing.SkiaSharp.PlantDesigner
                         c.DrawText(pv.Label, r.Left + 6 * u, r.Bottom - 5 * u, t);
                     }
             }
+            if (!string.IsNullOrEmpty(v.PreviewKind))
+            {
+                // the block being placed, drawn half transparent where a click would put it
+                c.SaveLayer(new SKPaint { Color = SKColors.Black.WithAlpha(150) });
+                if (pv.HasLeg)
+                {
+                    var a = Pt(cam.Project(pv.From)); var b = Pt(cam.Project(pv.To));
+                    DrawGlyph(c, v, th, v.GlyphOf(v.PreviewKind), new SKPoint((a.X + b.X) / 2, (a.Y + b.Y) / 2), b - a, th.Accent);
+                }
+                else if (pv.HasPoint) DrawItem(c, v, th, new PlantItem { Kind = v.PreviewKind }, cam.Project(pv.Point));
+                c.Restore();
+                if (pv.HasPoint && !pv.HasLeg && !string.IsNullOrEmpty(pv.Label))
+                    using (var t = Text(th.Ink, 12 * u, true))
+                    {
+                        var s0 = Pt(cam.Project(pv.Point));
+                        float w = t.MeasureText(pv.Label);
+                        var r = new SKRect(s0.X + 14 * u, s0.Y - 30 * u, s0.X + 26 * u + w, s0.Y - 12 * u);
+                        Panel(c, r, th, u);
+                        c.DrawText(pv.Label, r.Left + 6 * u, r.Bottom - 5 * u, t);
+                    }
+            }
             if (pv.HasPoint)
             {
                 var s = Pt(cam.Project(pv.Point));

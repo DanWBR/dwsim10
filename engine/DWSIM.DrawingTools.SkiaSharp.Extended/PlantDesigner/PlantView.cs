@@ -98,6 +98,16 @@ namespace DWSIM.Drawing.SkiaSharp.PlantDesigner
         public void Clear() { HasLeg = false; HasPoint = false; Joins = false; Label = ""; }
     }
 
+    /// <summary>A kind of item or component the designer can place (the host lists them).</summary>
+    public sealed class PlantKind
+    {
+        public string Id = "", Name = "";
+        /// <summary>The block goes inside a pipe (a component leg); otherwise it stands on a point.</summary>
+        public bool Inline;
+        /// <summary>The length a component takes along its pipe, m.</summary>
+        public double Length = 1.0;
+    }
+
     public sealed class ShortcutLine
     {
         public string Keys, Action;
@@ -162,6 +172,10 @@ namespace DWSIM.Drawing.SkiaSharp.PlantDesigner
         public string ToolChip = "";
         /// <summary>The length being typed, shown next to the cursor; empty hides it.</summary>
         public string Typed = "";
+        /// <summary>The items and components the designer can place.</summary>
+        public readonly List<PlantKind> Kinds = new List<PlantKind>();
+        /// <summary>The item the place tool shows under the mouse (its kind); empty for none.</summary>
+        public string PreviewKind = "";
 
         // the screen rectangles of the overlays, from the last render (device pixels)
         internal SKRect CardRect, CardToggleRect, MinimapRect;
@@ -250,6 +264,25 @@ namespace DWSIM.Drawing.SkiaSharp.PlantDesigner
                     new ShortcutLine("Ctrl+Z / Ctrl+Y", "undo / redo")),
                 CameraGroup(),
             };
+        }
+
+        /// <summary>The shortcuts of the designer's place tool.</summary>
+        public static List<ShortcutGroup> PlaceToolShortcuts(PlantKind kind)
+        {
+            var g = kind != null && kind.Inline
+                ? new ShortcutGroup("Place: " + kind.Name,
+                    new ShortcutLine("Click a pipe", "put the block inside it"),
+                    new ShortcutLine("Left drag", "pan"),
+                    new ShortcutLine("Esc / S", "back to the select tool"),
+                    new ShortcutLine("P", "pipe tool"))
+                : new ShortcutGroup("Place: " + (kind != null ? kind.Name : "item"),
+                    new ShortcutLine("Click a pipe end", "put the item there"),
+                    new ShortcutLine("Click a pipe", "split it and put the item there"),
+                    new ShortcutLine("Click the grid", "put the item on a new point"),
+                    new ShortcutLine("Left drag", "pan"),
+                    new ShortcutLine("Esc / S", "back to the select tool"),
+                    new ShortcutLine("P", "pipe tool"));
+            return new List<ShortcutGroup> { g, new ShortcutGroup("Edit", new ShortcutLine("Ctrl+Z / Ctrl+Y", "undo / redo")), CameraGroup() };
         }
 
         /// <summary>The shortcuts of the designer's select tool.</summary>
