@@ -102,6 +102,10 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             P("palm", "Palm Tree", Nature, 4, 4, 8, 400),
             P("bush", "Bush", Nature, 1.5, 1.5, 1.2, 60),
             P("flowers", "Flowers", Nature, 1, 1, 0.4, 40),
+            P("autumntree", "Autumn Tree", Nature, 4, 4, 7, 250),
+            P("smalltree", "Small Tree", Nature, 2, 2, 3.5, 120),
+            P("stone", "Stone", Nature, 0.6, 0.6, 0.3, 30),
+            P("tallrock", "Tall Rock", Nature, 2, 2, 3.5, 600),
 
             P("suv", "Car", Vehicles, 4.8, 2, 1.8, 45000),
             P("delivery", "Delivery Van", Vehicles, 5.5, 2.1, 2.4, 55000),

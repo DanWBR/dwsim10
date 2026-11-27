@@ -36,26 +36,93 @@ const MODELS := {
 	"tree:oak": [KENNEY + "nature/tree_oak.glb", 7.0, true],
 	"tree:default": [KENNEY + "nature/tree_default.glb", 7.0, true],
 	"tree:detailed": [KENNEY + "nature/tree_detailed.glb", 7.0, true],
-	"tree:fat": [KENNEY + "nature/tree_fat.glb", 6.5, true],
-	"tree:tall": [KENNEY + "nature/tree_tall.glb", 8.0, true],
+	"tree:fat": [KENNEY + "nature/tree_fat.glb", 7.0, true],
+	"tree:tall": [KENNEY + "nature/tree_tall.glb", 7.0, true],
+	"tree:simple": [KENNEY + "nature/tree_simple.glb", 7.0, true],
+	"tree:plateau": [KENNEY + "nature/tree_plateau.glb", 7.0, true],
+	"tree:thin": [KENNEY + "nature/tree_thin.glb", 7.0, true],
+	"tree:cone": [KENNEY + "nature/tree_cone.glb", 7.0, true],
+	"tree:oak_dark": [KENNEY + "nature/tree_oak_dark.glb", 7.0, true],
+	"tree:default_dark": [KENNEY + "nature/tree_default_dark.glb", 7.0, true],
+	"tree:detailed_dark": [KENNEY + "nature/tree_detailed_dark.glb", 7.0, true],
+	"tree:fat_dark": [KENNEY + "nature/tree_fat_darkh.glb", 7.0, true],
+	"tree:tall_dark": [KENNEY + "nature/tree_tall_dark.glb", 7.0, true],
+	"tree:simple_dark": [KENNEY + "nature/tree_simple_dark.glb", 7.0, true],
+	"tree:plateau_dark": [KENNEY + "nature/tree_plateau_dark.glb", 7.0, true],
+	"tree:thin_dark": [KENNEY + "nature/tree_thin_dark.glb", 7.0, true],
+	"tree:cone_dark": [KENNEY + "nature/tree_cone_dark.glb", 7.0, true],
+	"autumntree:default": [KENNEY + "nature/tree_default_fall.glb", 7.0, true],
+	"autumntree:oak": [KENNEY + "nature/tree_oak_fall.glb", 7.0, true],
+	"autumntree:detailed": [KENNEY + "nature/tree_detailed_fall.glb", 7.0, true],
+	"autumntree:fat": [KENNEY + "nature/tree_fat_fall.glb", 7.0, true],
+	"autumntree:tall": [KENNEY + "nature/tree_tall_fall.glb", 7.0, true],
+	"autumntree:simple": [KENNEY + "nature/tree_simple_fall.glb", 7.0, true],
+	"autumntree:plateau": [KENNEY + "nature/tree_plateau_fall.glb", 7.0, true],
+	"autumntree:thin": [KENNEY + "nature/tree_thin_fall.glb", 7.0, true],
+	"autumntree:cone": [KENNEY + "nature/tree_cone_fall.glb", 7.0, true],
+	"smalltree:small": [KENNEY + "nature/tree_small.glb", 3.5, true],
+	"smalltree:small_dark": [KENNEY + "nature/tree_small_dark.glb", 3.5, true],
+	"smalltree:small_fall": [KENNEY + "nature/tree_small_fall.glb", 3.5, true],
+	"smalltree:pine_a": [KENNEY + "nature/tree_pineSmallA.glb", 3.5, true],
+	"smalltree:pine_b": [KENNEY + "nature/tree_pineSmallB.glb", 3.5, true],
+	"smalltree:pine_c": [KENNEY + "nature/tree_pineSmallC.glb", 3.5, true],
+	"smalltree:pine_d": [KENNEY + "nature/tree_pineSmallD.glb", 3.5, true],
+	"smalltree:ground_a": [KENNEY + "nature/tree_pineGroundA.glb", 2.5, true],
+	"smalltree:ground_b": [KENNEY + "nature/tree_pineGroundB.glb", 2.5, true],
 	"pine:a": [KENNEY + "nature/tree_pineDefaultA.glb", 9.0, true],
 	"pine:b": [KENNEY + "nature/tree_pineDefaultB.glb", 9.0, true],
 	"pine:round": [KENNEY + "nature/tree_pineRoundA.glb", 8.0, true],
+	"pine:round_b": [KENNEY + "nature/tree_pineRoundB.glb", 8.0, true],
+	"pine:round_c": [KENNEY + "nature/tree_pineRoundC.glb", 8.0, true],
+	"pine:round_d": [KENNEY + "nature/tree_pineRoundD.glb", 8.0, true],
+	"pine:round_e": [KENNEY + "nature/tree_pineRoundE.glb", 8.0, true],
+	"pine:round_f": [KENNEY + "nature/tree_pineRoundF.glb", 8.0, true],
 	"pine:tall": [KENNEY + "nature/tree_pineTallA.glb", 11.0, true],
+	"pine:tall_b": [KENNEY + "nature/tree_pineTallB.glb", 11.0, true],
+	"pine:tall_c": [KENNEY + "nature/tree_pineTallC.glb", 11.0, true],
+	"pine:tall_d": [KENNEY + "nature/tree_pineTallD.glb", 11.0, true],
 	"palm:a": [KENNEY + "nature/tree_palm.glb", 8.0, true],
 	"palm:tall": [KENNEY + "nature/tree_palmTall.glb", 10.0, true],
 	"palm:detailed": [KENNEY + "nature/tree_palmDetailedTall.glb", 9.0, true],
 	"palm:bend": [KENNEY + "nature/tree_palmBend.glb", 8.0, true],
+	"palm:short": [KENNEY + "nature/tree_palmShort.glb", 5.0, true],
+	"palm:detailed_short": [KENNEY + "nature/tree_palmDetailedShort.glb", 5.0, true],
+	"rock:a": [KENNEY + "nature/rock_largeA.glb", 1.5, false],
+	"rock:b": [KENNEY + "nature/rock_largeB.glb", 1.5, false],
+	"rock:c": [KENNEY + "nature/rock_largeC.glb", 1.5, false],
+	"rock:d": [KENNEY + "nature/rock_largeD.glb", 1.5, false],
+	"rock:e": [KENNEY + "nature/rock_largeE.glb", 1.5, false],
+	"rock:f": [KENNEY + "nature/rock_largeF.glb", 1.5, false],
+	"stone:a": [KENNEY + "nature/rock_smallA.glb", 0.6, false],
+	"stone:b": [KENNEY + "nature/rock_smallB.glb", 0.6, false],
+	"stone:c": [KENNEY + "nature/rock_smallC.glb", 0.6, false],
+	"stone:d": [KENNEY + "nature/rock_smallD.glb", 0.6, false],
+	"stone:e": [KENNEY + "nature/rock_smallE.glb", 0.6, false],
+	"stone:f": [KENNEY + "nature/rock_smallF.glb", 0.6, false],
+	"stone:g": [KENNEY + "nature/rock_smallG.glb", 0.6, false],
+	"stone:h": [KENNEY + "nature/rock_smallH.glb", 0.6, false],
+	"stone:i": [KENNEY + "nature/rock_smallI.glb", 0.6, false],
+	"stone:flat_a": [KENNEY + "nature/rock_smallFlatA.glb", 0.7, false],
+	"stone:flat_b": [KENNEY + "nature/rock_smallFlatB.glb", 0.7, false],
+	"stone:flat_c": [KENNEY + "nature/rock_smallFlatC.glb", 0.7, false],
+	"stone:top_a": [KENNEY + "nature/rock_smallTopA.glb", 0.6, false],
+	"stone:top_b": [KENNEY + "nature/rock_smallTopB.glb", 0.6, false],
+	"tallrock:a": [KENNEY + "nature/rock_tallA.glb", 3.5, true],
+	"tallrock:b": [KENNEY + "nature/rock_tallB.glb", 3.5, true],
+	"tallrock:c": [KENNEY + "nature/rock_tallC.glb", 3.5, true],
+	"tallrock:d": [KENNEY + "nature/rock_tallD.glb", 3.5, true],
+	"tallrock:e": [KENNEY + "nature/rock_tallE.glb", 3.5, true],
+	"tallrock:f": [KENNEY + "nature/rock_tallF.glb", 3.5, true],
+	"tallrock:g": [KENNEY + "nature/rock_tallG.glb", 3.5, true],
+	"tallrock:h": [KENNEY + "nature/rock_tallH.glb", 3.5, true],
+	"tallrock:i": [KENNEY + "nature/rock_tallI.glb", 3.5, true],
+	"tallrock:j": [KENNEY + "nature/rock_tallJ.glb", 3.5, true],
 	"bush:a": [KENNEY + "nature/plant_bush.glb", 1.5, false],
 	"bush:large": [KENNEY + "nature/plant_bushLarge.glb", 2.2, false],
 	"bush:detailed": [KENNEY + "nature/plant_bushDetailed.glb", 1.6, false],
 	"flowers:red": [KENNEY + "nature/flower_redA.glb", 1.0, false],
 	"flowers:yellow": [KENNEY + "nature/flower_yellowA.glb", 1.0, false],
 	"flowers:purple": [KENNEY + "nature/flower_purpleA.glb", 1.0, false],
-	"rock:a": [KENNEY + "nature/rock_largeA.glb", 1.5, false],
-	"rock:b": [KENNEY + "nature/rock_largeB.glb", 1.5, false],
-	"rock:c": [KENNEY + "nature/rock_largeC.glb", 1.5, false],
-	"rock:d": [KENNEY + "nature/rock_largeD.glb", 1.5, false],
 	"suv": [KENNEY + "vehicles/suv.glb", 4.7, false],
 	"delivery": [KENNEY + "vehicles/delivery.glb", 5.6, false],
 	"truck": [KENNEY + "vehicles/truck-flat.glb", 7.0, false],
@@ -76,13 +143,13 @@ const MODELS := {
 ## object saved without one gets one from its id.
 const VARIANTS := {
 	"office": ["e", "k", "c"], "factory": ["b", "e", "m"], "plantoffice": ["a", "o"], "storehouse": ["i", "j"],
-	"container": ["a", "b", "c"], "parasol": ["a", "b"], "tree": ["oak", "default", "detailed", "fat", "tall"],
-	"pine": ["a", "b", "round", "tall"], "palm": ["a", "tall", "detailed", "bend"], "bush": ["a", "large", "detailed"],
-	"flowers": ["red", "yellow", "purple"], "rock": ["a", "b", "c", "d"], "truck": ["", "box"],
+	"container": ["a", "b", "c"], "parasol": ["a", "b"], "bush": ["a", "large", "detailed"],
+	"flowers": ["red", "yellow", "purple"], "truck": ["", "box"],
+	"tree": ["oak", "default", "detailed", "fat", "tall", "simple", "plateau", "thin", "cone", "oak_dark", "default_dark", "detailed_dark", "fat_dark", "tall_dark", "simple_dark", "plateau_dark", "thin_dark", "cone_dark"], "autumntree": ["default", "oak", "detailed", "fat", "tall", "simple", "plateau", "thin", "cone"], "smalltree": ["small", "small_dark", "small_fall", "pine_a", "pine_b", "pine_c", "pine_d", "ground_a", "ground_b"], "pine": ["a", "b", "round", "round_b", "round_c", "round_d", "round_e", "round_f", "tall", "tall_b", "tall_c", "tall_d"], "palm": ["a", "tall", "detailed", "bend", "short", "detailed_short"], "rock": ["a", "b", "c", "d", "e", "f"], "stone": ["a", "b", "c", "d", "e", "f", "g", "h", "i", "flat_a", "flat_b", "flat_c", "top_a", "top_b"], "tallrock": ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"],
 }
 
 ## Plants and rocks: each one a little bigger or smaller than the next.
-const VARIED := ["tree", "pine", "palm", "bush", "flowers", "rock"]
+const VARIED := ["tree", "autumntree", "smalltree", "pine", "palm", "bush", "flowers", "rock", "stone", "tallrock"]
 
 ## The signs over the doors of the buildings made here.
 const SIGNS := {"admin": "ADMINISTRATION", "workshop": "MAINTENANCE WORKSHOP", "warehouse": "WAREHOUSE",
@@ -137,6 +204,8 @@ const FALLBACK := {
 	"flowers": ["point", 1, 1, 0.4], "container": ["point", 6.1, 2.44, 2.6], "dumpster": ["point", 2, 1.2, 1.3],
 	"parasol": ["point", 2.5, 2.5, 2.5], "watertower": ["point", 6, 6, 18], "solar": ["point", 10, 6, 2],
 	"windturbine": ["point", 8, 8, 30], "powerline": ["line", 2, 0, 12],
+	"autumntree": ["point", 4, 4, 7], "smalltree": ["point", 2, 2, 3.5], "stone": ["point", 0.6, 0.6, 0.3],
+	"tallrock": ["point", 2, 2, 3.5],
 }
 
 
@@ -409,7 +478,7 @@ static func _model(parent: Node3D, spec: Array) -> void:
 	var n: Node3D = ps.instantiate()
 	parent.add_child(n)
 	if "/nature/" in str(spec[0]):
-		_tone_node(n)
+		_tone_node(n, "/nature/rock_" in str(spec[0]))
 	var size: float = spec[1]
 	if size > 0.0:
 		var b := _bounds_of(n)
@@ -596,27 +665,32 @@ static var _trees := []
 
 ## Natural tones for the bright colours of the Nature Kit, by material name.
 const TONES := {"leafsGreen": Color(0.3, 0.5, 0.17), "leafsDark": Color(0.17, 0.35, 0.16), "grass": Color(0.34, 0.52, 0.19),
-	"woodBark": Color(0.42, 0.3, 0.2), "woodBarkDark": Color(0.33, 0.24, 0.17), "dirt": Color(0.47, 0.38, 0.28)}
+	"woodBark": Color(0.42, 0.3, 0.2), "woodBarkDark": Color(0.33, 0.24, 0.17), "dirt": Color(0.47, 0.38, 0.28),
+	"leafsFall": Color(0.82, 0.42, 0.14), "woodBirch": Color(0.85, 0.83, 0.77), "stone": Color(0.58, 0.58, 0.56)}
+## On stones and rocks the earth is stone and the grass is moss.
+const ROCK_TONES := {"dirt": Color(0.5, 0.49, 0.47), "grass": Color(0.33, 0.43, 0.2), "stone": Color(0.6, 0.6, 0.58)}
 static var _toned := {}
 
 
 ## The material in a natural tone, for a Nature Kit material that has one; the same material otherwise.
-static func _tone(m: Material) -> Material:
-	if m == null or not TONES.has(m.resource_name):
+static func _tone(m: Material, rocky := false) -> Material:
+	var tones: Dictionary = ROCK_TONES if rocky and m != null and ROCK_TONES.has(m.resource_name) else TONES
+	if m == null or not tones.has(m.resource_name):
 		return m
-	if not _toned.has(m.resource_name):
+	var key := ("rock:" if tones == ROCK_TONES else "") + m.resource_name
+	if not _toned.has(key):
 		var t := (m as BaseMaterial3D).duplicate() as BaseMaterial3D
-		t.albedo_color = TONES[m.resource_name]
-		t.roughness = 0.9
-		_toned[m.resource_name] = t
-	return _toned[m.resource_name]
+		t.albedo_color = tones[m.resource_name]
+		t.roughness = 0.9 if tones != ROCK_TONES else 0.95
+		_toned[key] = t
+	return _toned[key]
 
 
-static func _tone_node(n: Node) -> void:
+static func _tone_node(n: Node, rocky := false) -> void:
 	for mi in n.find_children("*", "MeshInstance3D", true, false):
 		var m := mi as MeshInstance3D
 		for i in m.mesh.get_surface_count():
-			var t := _tone(m.mesh.surface_get_material(i))
+			var t := _tone(m.mesh.surface_get_material(i), rocky)
 			if t != m.mesh.surface_get_material(i):
 				m.set_surface_override_material(i, t)
 
@@ -625,7 +699,8 @@ static func _tone_node(n: Node) -> void:
 static func nature_trees() -> Array:
 	if not _trees.is_empty():
 		return _trees
-	for v in ["oak", "default", "detailed", "fat", "tall", "pineDefaultA", "pineRoundA"]:
+	for v in ["oak", "default", "detailed", "fat", "tall", "simple", "plateau", "thin", "oak_dark", "default_dark",
+			"detailed_dark", "pineDefaultA", "pineRoundA", "pineRoundC", "pineTallB"]:
 		var ps := _scene(KENNEY + "nature/tree_" + v + ".glb")
 		if ps == null:
 			continue
