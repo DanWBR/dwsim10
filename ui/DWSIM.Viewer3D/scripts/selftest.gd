@@ -21,8 +21,44 @@ func _ready() -> void:
 	DirAccess.make_dir_recursive_absolute(out_dir)
 	if item_id == "build":
 		_run_build()
+	elif item_id.begins_with("edit:"):
+		_run_edit(item_id.substr(5))
 	else:
 		_run()
+
+
+## The editor self-test ("edit:<tag>"): selects the item with that tag and asks DWSIM for its
+## editor with a double click, as the user would.
+func _run_edit(tag: String) -> void:
+	OS.low_processor_usage_mode = false
+	var id := ""
+	for i in 600:
+		for k in main.entries.keys():
+			if str(main.entries[k]["data"].get("tag", "")) == tag:
+				id = k
+		if id != "":
+			break
+		await _wait(0.1)
+	if id == "":
+		push_error("selftest: no item tagged " + tag)
+		return
+	await _wait(1.0)
+	_key(KEY_F1)
+	await _wait(0.3)
+	var node: Node3D = main.entries[id]["node"]
+	var at: Vector2 = main.rig.camera.unproject_position(main._node_bounds(node).get_center())
+	_mouse_move(at, 0)
+	_mouse_button(at, true)
+	_mouse_button(at, false)
+	var e := InputEventMouseButton.new()
+	e.button_index = MOUSE_BUTTON_LEFT
+	e.pressed = true
+	e.double_click = true
+	e.position = at
+	e.global_position = at
+	Input.parse_input_event(e)
+	await _wait(3.0)
+	await _shot("edit_" + tag, false)
 
 
 ## The building self-test ("--selftest-item=build"): add a cooler from the palette, give it a feed

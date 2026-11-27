@@ -34,7 +34,7 @@ architecture on macOS.
 ## Controls
 
 With the mouse over an item or a line, the window tints it, draws a box at its limits (seen
-through the other items too) and shows its tag and size (width x depth x height). Left click selects (Ctrl adds), a double click frames the item, right drag turns the view, middle
+through the other items too) and shows its tag and size (width x depth x height). Left click selects (Ctrl adds), a double click opens the item's editor, Shift+F frames it, right drag turns the view, middle
 drag (or Shift + right drag) moves the view, and the wheel zooms. Keys 1 to 4 are the isometric views,
 5 is the plan, 6 and 7 the front and right side, Q and E turn the view by 90 degrees, F fits the
 plant, L, I, R and G show or hide the labels, insulation, pipe rack and grid, and F1 the card of
@@ -58,14 +58,28 @@ every item, green for outlets, blue for inlets and grey for the ones in use: a c
 then on a nozzle of another item joins them with a new material stream, and a click on the ground
 instead makes a feed (on an inlet) or a product (on an outlet). Delete removes the selection, and
 the Tag field of the Place panel renames an item. Ctrl+Z takes back these changes too, one by one.
-Energy streams, logical blocks and the unit operations of extensions are added in the 2D drawing;
-the window shows them once they are there.
+The palette also lists the logical blocks (adjust, specification, recycle, energy recycle, PID
+controller) and, under Extensions, the unit operations of the extensions DWSIM loaded, which the
+plant model draws as a block of their size. Energy nozzles are orange: joining an energy outlet (an
+energy connector, or an outlet of the energy kind) to an energy inlet makes an energy stream, and
+DWSIM's own rules decide which units give or take energy.
+
+In the plant, a logical block is a spinning sphere with two rings, floating 3 m up on a thin pole;
+a controller is a giant old computer on the ground, with a green screen, blinking lamps and turning
+tape reels; an energy stream is a spinning golden bolt with dashed links to the nozzles it joins.
+A turns the animation on and off.
+
+A double click (or Enter) on an item asks DWSIM to open its editor in a floating window that stays
+above the 3D view: the cross-platform interface builds the same editor it docks, in a window of
+its own, and the Windows interface floats the object's editor form.
 
 `-- --selftest-item=<object name> --selftest-out=<folder>` runs a self-test of the editing once
 DWSIM has sent the scene: it drags the item 6 m along X, turns it, raises it twice and undoes the
 last step, with input events fed to the window itself, and saves a picture after each step (the
 first one with the mouse over the item). With `--selftest-item=build` it adds a cooler from the
-palette, gives it a feed and a product from its nozzles, renames it, deletes it and undoes that.
+palette, gives it a feed and a product from its nozzles, renames it, deletes it and undoes that,
+and with `edit:<tag>` it double-clicks that item. DWSIM_VIEWER3D_SELFTEST and
+DWSIM_VIEWER3D_SELFTEST_OUT ask for the same in a window that DWSIM starts itself.
 
 ## Licences
 

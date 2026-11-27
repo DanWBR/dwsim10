@@ -79,6 +79,12 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                 });
             }
 
+            if (fs != null)
+            {
+                AddBadges(items, ids, model, fs);
+                AddEnergyStreams(items, ids, model, fs);
+            }
+
             var lines = new JArray();
             foreach (var run in model.Pipes.Where(r => r.Path.Count > 1))
                 lines.Add(new JObject
@@ -115,10 +121,80 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             return scene;
         }
 
+        /// <summary>The height a badge floats at when it has no place of its own, mm.</summary>
+        public const double BadgeHeight = 3000;
+
         /// <summary>
-        /// The material nozzles of an item, where its lines leave it: "k" (in or out), "i" (the
-        /// connector of the 2D icon), "p" (world, mm), "d" (outward direction) and "used" (a stream
-        /// is on it). Energy connectors have no nozzle.
+        /// Whether an object is a logical block: no body in the plant, a badge in the 3D view
+        /// (adjust, specification, energy recycle, controllers, switches, inputs, energy mixers).
+        /// </summary>
+        public static bool IsBadge(DWSIM.Interfaces.Enums.GraphicObjects.ObjectType t)
+        {
+            switch (t)
+            {
+                case DWSIM.Interfaces.Enums.GraphicObjects.ObjectType.OT_Adjust:
+                case DWSIM.Interfaces.Enums.GraphicObjects.ObjectType.OT_Spec:
+                case DWSIM.Interfaces.Enums.GraphicObjects.ObjectType.OT_EnergyRecycle:
+                case DWSIM.Interfaces.Enums.GraphicObjects.ObjectType.Switch:
+                case DWSIM.Interfaces.Enums.GraphicObjects.ObjectType.Input:
+                case DWSIM.Interfaces.Enums.GraphicObjects.ObjectType.NodeEn:
+                case DWSIM.Interfaces.Enums.GraphicObjects.ObjectType.EnergyMixer:
+                    return true;
+            }
+            return t.ToString().StartsWith("Controller_");
+        }
+
+        /// <summary>
+        /// Whether a badge floats: the logical blocks do, the controllers do not, since a controller
+        /// is a cabinet that stands on the ground.
+        /// </summary>
+        public static bool Floats(DWSIM.Interfaces.Enums.GraphicObjects.ObjectType t) => IsBadge(t) && !t.ToString().StartsWith("Controller_");
+
+        /// <summary>
+        /// The logical blocks as items without solids ("badge": true), where the saved layout puts
+        /// them, or over their place on the flowsheet drawing.
+        /// </summary>
+        static void AddBadges(JArray items, HashSet<string> ids, PlantModel model, IFlowsheet fs)
+        {
+            var layout = PlantLayout.Load(fs);
+            foreach (var obj in fs.SimulationObjects.Values.OrderBy(o => o.GraphicObject?.Tag))
+            {
+                var go = obj.GraphicObject;
+                if (go == null || !IsBadge(go.ObjectType)) continue;
+                Vec3 origin;
+                Placement placed;
+                var isPlaced = layout.TryGetValue(obj.Name, out placed);
+                if (isPlaced) origin = new Vec3(placed.X, placed.Y, placed.Z);
+                else
+                {
+                    var w = PlantModelBuilder.ToWorld(model, go.X + go.Width / 2.0, go.Y + go.Height / 2.0);
+                    origin = new Vec3(w.X, w.Y, Floats(go.ObjectType) ? BadgeHeight : 0);
+                }
+                string desc;
+                try { desc = obj.GetDisplayName(); } catch (Exception) { desc = go.ObjectType.ToString(); }
+                items.Add(new JObject
+                {
+                    ["id"] = Unique(ids, obj.Name),
+                    ["tag"] = go.Tag,
+                    ["desc"] = desc,
+                    ["type"] = go.ObjectType.ToString(),
+                    ["o"] = WebViewer.V(origin),
+                    ["rot"] = 0,
+                    ["placed"] = isPlaced,
+                    ["inst"] = false,
+                    ["badge"] = true,
+                    ["label"] = go.Tag,
+                    ["props"] = new JObject(),
+                    ["parts"] = new JArray(),
+                    ["ports"] = new JArray()
+                });
+            }
+        }
+
+        /// <summary>
+        /// The nozzles of an item, where its streams leave it: "k" (in, out, ein or eout: material
+        /// or energy, into or out of the item), "i" (the connector of the 2D icon; -1 for the energy
+        /// connector), "p" (world, mm), "d" (outward direction) and "used" (a stream is on it).
         /// </summary>
         static JArray Ports(EquipmentItem item, IFlowsheet fs)
         {
@@ -127,6 +203,13 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             if (fs == null || item.Name == null || !fs.GraphicObjects.TryGetValue(item.Name, out go) || go == null) return ports;
             Add(ports, item, go, go.InputConnectors, false);
             Add(ports, item, go, go.OutputConnectors, true);
+            var ec = go.EnergyConnector;
+            if (ec != null && ec.Active)
+            {
+                Vec3 at, dir;
+                PlantModelBuilder.Nozzle(item, go, ec, 0, 1, true, out at, out dir);
+                ports.Add(Port("eout", -1, at, dir, ec.IsAttached));
+            }
             return ports;
         }
 
@@ -136,18 +219,118 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             for (var i = 0; i < list.Count; i++)
             {
                 var cp = list[i];
-                if (cp == null || cp.Type == DWSIM.Interfaces.Enums.GraphicObjects.ConType.ConEn) continue;
+                if (cp == null) continue;
+                var energy = cp.Type == DWSIM.Interfaces.Enums.GraphicObjects.ConType.ConEn;
                 Vec3 at, dir;
                 PlantModelBuilder.Nozzle(item, go, cp, i, list.Count, output, out at, out dir);
-                ports.Add(new JObject
+                ports.Add(Port((energy ? "e" : "") + (output ? "out" : "in"), i, at, dir, cp.IsAttached));
+            }
+        }
+
+        static JObject Port(string kind, int index, Vec3 at, Vec3 dir, bool used) => new JObject
+        {
+            ["k"] = kind,
+            ["i"] = index,
+            ["p"] = WebViewer.V(at),
+            ["d"] = WebViewer.V(dir),
+            ["used"] = used
+        };
+
+        /// <summary>
+        /// The energy streams, as items without solids ("energy": true): the window draws a bolt
+        /// where the stream is, and "links" are the nozzles it joins. The place is the saved one, or
+        /// above the middle of its ends, or beside its only end.
+        /// </summary>
+        static void AddEnergyStreams(JArray items, HashSet<string> ids, PlantModel model, IFlowsheet fs)
+        {
+            var layout = PlantLayout.Load(fs);
+            var equipment = model.Equipment.Where(e => e.Name != null).GroupBy(e => e.Name).ToDictionary(g => g.Key, g => g.First());
+            var badges = items.OfType<JObject>().Where(i => (bool?)i["badge"] == true).ToDictionary(i => (string)i["id"], i => i["o"]);
+            foreach (var obj in fs.SimulationObjects.Values.OrderBy(o => o.GraphicObject?.Tag))
+            {
+                var es = obj.GraphicObject;
+                if (es == null || es.ObjectType != DWSIM.Interfaces.Enums.GraphicObjects.ObjectType.EnergyStream) continue;
+                var ends = new List<Vec3>();
+                var source = es.InputConnectors.Count > 0 && es.InputConnectors[0].IsAttached ? es.InputConnectors[0].AttachedConnector?.AttachedFrom : null;
+                var sink = es.OutputConnectors.Count > 0 && es.OutputConnectors[0].IsAttached ? es.OutputConnectors[0].AttachedConnector?.AttachedTo : null;
+                Vec3 end;
+                if (End(source, es, true, equipment, badges, out end)) ends.Add(end);
+                if (End(sink, es, false, equipment, badges, out end)) ends.Add(end);
+
+                Vec3 origin;
+                Placement placed;
+                var isPlaced = layout.TryGetValue(obj.Name, out placed);
+                if (isPlaced) origin = new Vec3(placed.X, placed.Y, placed.Z);
+                else if (ends.Count == 2) origin = new Vec3((ends[0].X + ends[1].X) / 2, (ends[0].Y + ends[1].Y) / 2, Math.Max(ends[0].Z, ends[1].Z) + 1500);
+                else if (ends.Count == 1) origin = new Vec3(ends[0].X + (source != null ? 2500 : -2500), ends[0].Y, ends[0].Z + 1000);
+                else
                 {
-                    ["k"] = output ? "out" : "in",
-                    ["i"] = i,
-                    ["p"] = WebViewer.V(at),
-                    ["d"] = WebViewer.V(dir),
-                    ["used"] = cp.IsAttached
+                    var w = PlantModelBuilder.ToWorld(model, es.X + es.Width / 2.0, es.Y + es.Height / 2.0);
+                    origin = new Vec3(w.X, w.Y, BadgeHeight);
+                }
+
+                var props = new JObject();
+                var e = obj as IEnergyStream;
+                if (e != null)
+                    try { props["Energy flow (kW)"] = Math.Round(e.GetEnergyFlow(), 3).ToString(System.Globalization.CultureInfo.InvariantCulture); }
+                    catch (Exception) { }
+                items.Add(new JObject
+                {
+                    ["id"] = Unique(ids, obj.Name),
+                    ["tag"] = es.Tag,
+                    ["desc"] = "Energy stream" + (source != null ? " from " + source.Tag : "") + (sink != null ? " to " + sink.Tag : ""),
+                    ["type"] = "EnergyStream",
+                    ["o"] = WebViewer.V(origin),
+                    ["rot"] = 0,
+                    ["placed"] = isPlaced,
+                    ["inst"] = false,
+                    ["badge"] = true,
+                    ["energy"] = true,
+                    ["links"] = new JArray(ends.Select(WebViewer.V)),
+                    ["label"] = es.Tag,
+                    ["props"] = props,
+                    ["parts"] = new JArray(),
+                    ["ports"] = new JArray()
                 });
             }
+        }
+
+        /// <summary>The world point of the nozzle of a unit that an energy stream is on (or the badge of a logical block).</summary>
+        static bool End(IGraphicObject unit, IGraphicObject es, bool unitIsSource, Dictionary<string, EquipmentItem> equipment, Dictionary<string, JToken> badges, out Vec3 point)
+        {
+            point = new Vec3(0, 0, 0);
+            if (unit == null) return false;
+            EquipmentItem item;
+            if (equipment.TryGetValue(unit.Name, out item))
+            {
+                var list = unitIsSource ? unit.OutputConnectors : unit.InputConnectors;
+                for (var i = 0; i < list.Count; i++)
+                {
+                    var cp = list[i];
+                    if (cp == null || !cp.IsAttached || cp.AttachedConnector == null) continue;
+                    var other = unitIsSource ? cp.AttachedConnector.AttachedTo : cp.AttachedConnector.AttachedFrom;
+                    if (other != es) continue;
+                    Vec3 dir;
+                    PlantModelBuilder.Nozzle(item, unit, cp, i, list.Count, unitIsSource, out point, out dir);
+                    return true;
+                }
+                var ec = unit.EnergyConnector;
+                if (unitIsSource && ec != null && ec.IsAttached && ec.AttachedConnector?.AttachedTo == es)
+                {
+                    Vec3 dir;
+                    PlantModelBuilder.Nozzle(item, unit, ec, 0, 1, true, out point, out dir);
+                    return true;
+                }
+                point = item.Origin;
+                return true;
+            }
+            JToken o;
+            if (badges.TryGetValue(unit.Name, out o))
+            {
+                point = new Vec3((double)o[0], (double)o[1], (double)o[2]);
+                return true;
+            }
+            return false;
         }
 
         /// <summary>

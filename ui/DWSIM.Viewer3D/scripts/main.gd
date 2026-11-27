@@ -26,6 +26,9 @@ const SHORTCUTS := [
 	["PgUp / PgDn", "Raise / lower 0.5 m"],
 	["T / Shift+T", "Turn the selection"],
 	["Ctrl+Z / Ctrl+Y", "Undo / redo a move"],
+	["Double click", "Open the editor (Enter too)"],
+	["Shift+F", "Frame the selection"],
+	["A", "Animation on / off"],
 	["Esc", "Clear the selection"],
 	["F1", "This card"],
 ]
@@ -38,6 +41,7 @@ var editor: LayoutEditor
 var tools: BuildTools
 var title_panel: PanelContainer
 var _pending_select := ""
+var animate := true
 
 var world: Node3D
 var items_root: Node3D
@@ -124,6 +128,10 @@ func _ready() -> void:
 			test_item = arg.get_slice("=", 1)
 		elif arg.begins_with("--selftest-out="):
 			test_out = arg.get_slice("=", 1)
+	# the same, asked through the environment, for a window that DWSIM starts itself
+	if test_item == "":
+		test_item = OS.get_environment("DWSIM_VIEWER3D_SELFTEST")
+		test_out = OS.get_environment("DWSIM_VIEWER3D_SELFTEST_OUT")
 	if test_item != "" and test_out != "":
 		add_child(SelfTest.new(self, test_item, test_out))
 
@@ -532,7 +540,7 @@ func _unhandled_input(event: InputEvent) -> void:
 					if mb.double_click:
 						var id := _pick(mb.position)
 						if id != "":
-							_focus(id)
+							_edit(id)
 						else:
 							_fit_all()
 				MOUSE_BUTTON_RIGHT, MOUSE_BUTTON_MIDDLE:
@@ -568,7 +576,16 @@ func _unhandled_input(event: InputEvent) -> void:
 			match k:
 				KEY_Q: rig.turn(-1)
 				KEY_E: rig.turn(1)
-				KEY_F: _fit_all()
+				KEY_F:
+					if (event as InputEventKey).shift_pressed and not selected.is_empty():
+						_focus(selected[0])
+					else:
+						_fit_all()
+				KEY_ENTER, KEY_KP_ENTER:
+					if not selected.is_empty():
+						_edit(selected[0])
+				KEY_A:
+					animate = not animate
 				KEY_L: labels_root.visible = not labels_root.visible
 				KEY_I: insulation_root.visible = not insulation_root.visible
 				KEY_R: rack_root.visible = not rack_root.visible
@@ -577,6 +594,14 @@ func _unhandled_input(event: InputEvent) -> void:
 				KEY_ESCAPE: _set_selection([], true)
 				KEY_EQUAL, KEY_KP_ADD: rig.zoom_at(0.8, _viewport_size() / 2.0, _viewport_size())
 				KEY_MINUS, KEY_KP_SUBTRACT: rig.zoom_at(1.25, _viewport_size() / 2.0, _viewport_size())
+
+
+## Asks DWSIM to open the editor of an object in a floating window.
+func _edit(id: String) -> void:
+	if id.begins_with("line#"):
+		_show_toast("This line belongs to its item; open the item's editor.")
+		return
+	link.send({"type": "edit", "id": id})
 
 
 func _fit_all() -> void:
@@ -716,6 +741,12 @@ func _process(delta: float) -> void:
 	info_panel.position = Vector2(size.x - info_panel.size.x - 12, card.position.y + (card.size.y + 12 if card.visible else 0))
 	toast.position = Vector2(14, size.y - 34)
 	_update_hover()
+	if animate:
+		var t := Time.get_ticks_msec() / 1000.0
+		for n in get_tree().get_nodes_in_group("spin"):
+			(n as Node3D).rotate_object_local(Vector3.UP, float(n.get_meta("spin", 1.0)) * delta)
+		for n in get_tree().get_nodes_in_group("blink"):
+			(n as Node3D).visible = fmod(t * float(n.get_meta("rate", 1.0)) + float(n.get_meta("phase", 0.0)), 1.0) < 0.6
 	if tools != null and tools.palette_panel != null:
 		tools.palette_panel.position = Vector2(12, title_panel.position.y + title_panel.size.y + 12)
 	if editor != null and editor.panel != null:

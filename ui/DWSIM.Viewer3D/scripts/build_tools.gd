@@ -15,6 +15,7 @@ var main: Node3D
 var tool := Tool.SELECT
 var place_type := ""
 var place_name := ""
+var place_external := ""
 
 var palette_panel: PanelContainer
 var _palette_box: VBoxContainer
@@ -27,6 +28,7 @@ var _mat_out: StandardMaterial3D
 var _mat_in: StandardMaterial3D
 var _mat_used: StandardMaterial3D
 var _mat_hot: StandardMaterial3D
+var _mat_energy: StandardMaterial3D
 
 
 func _init(owner_main: Node3D) -> void:
@@ -38,6 +40,7 @@ func _ready() -> void:
 	_mat_in = _flat(Color(0.2, 0.5, 0.92))
 	_mat_used = _flat(Color(0.55, 0.57, 0.6))
 	_mat_hot = _flat(Color(1.0, 0.75, 0.15))
+	_mat_energy = _flat(Color(0.98, 0.55, 0.1))
 	_ports_root = Node3D.new()
 	_ports_root.visible = false
 	add_child(_ports_root)
@@ -114,9 +117,10 @@ func set_palette(entries: Array) -> void:
 			_palette_box.add_child(h)
 		var type := str(e.get("objectType", ""))
 		var name := str(e.get("name", type))
-		var b := _button(_palette_box, name, func(): start_place(type, name))
+		var external := str(e.get("external", ""))
+		var b := _button(_palette_box, name, func(): start_place(type, name, external))
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		b.name = "add_" + type
+		b.name = ("ext_" + external if external != "" else "add_" + type).validate_node_name()
 
 
 func _button(parent: Control, text: String, pressed: Callable) -> Button:
@@ -141,9 +145,10 @@ func set_tool(t: Tool) -> void:
 	_update_label()
 
 
-func start_place(type: String, name: String) -> void:
+func start_place(type: String, name: String, external := "") -> void:
 	place_type = type
 	place_name = name
+	place_external = external
 	set_tool(Tool.PLACE)
 
 
@@ -155,9 +160,9 @@ func _update_label() -> void:
 			_tool_label.text = "Click on the ground to place the %s (Esc cancels)." % place_name
 		Tool.CONNECT:
 			if _start.is_empty():
-				_tool_label.text = "Click a nozzle (green: outlet, blue: inlet), then another nozzle, or the ground for a feed or a product stream."
+				_tool_label.text = "Click a nozzle (green: outlet, blue: inlet, orange: energy), then another nozzle, or the ground for a feed or a product stream."
 			else:
-				_tool_label.text = "Now click the other nozzle, or the ground for a %s stream (Esc cancels)." % ("product" if _start["k"] == "out" else "feed")
+				_tool_label.text = "Now click the other nozzle, or the ground for a %s stream (Esc cancels)." % ("product" if str(_start["k"]).ends_with("out") else "feed")
 		_:
 			_tool_label.text = "Pick equipment to add, or Connect to join nozzles."
 
@@ -189,7 +194,8 @@ func refresh_ports() -> void:
 			s.radial_segments = 12
 			s.rings = 6
 			mi.mesh = s
-			mi.material_override = _mat_used if bool(p.get("used", false)) else (_mat_out if p.get("k") == "out" else _mat_in)
+			var k := str(p.get("k"))
+			mi.material_override = _mat_used if bool(p.get("used", false)) else (_mat_energy if k.begins_with("e") else (_mat_out if k == "out" else _mat_in))
 			mi.position = SceneBuilder.vec(p.get("p"))
 			mi.set_meta("port", {"id": id, "k": str(p.get("k")), "i": int(p.get("i", 0)), "used": bool(p.get("used", false))})
 			_ports_root.add_child(mi)
@@ -261,8 +267,11 @@ func handle(event: InputEvent) -> bool:
 		if tool == Tool.PLACE:
 			var g = _ground(mb.position)
 			if g != null:
-				main.link.send({"type": "add", "objectType": place_type,
-					"x": roundf(snappedf(g.x, 0.5) * 1000.0), "y": roundf(-snappedf(g.z, 0.5) * 1000.0), "z": 0, "rot": 0})
+				var add := {"type": "add", "objectType": place_type,
+					"x": roundf(snappedf(g.x, 0.5) * 1000.0), "y": roundf(-snappedf(g.z, 0.5) * 1000.0), "z": 0, "rot": 0}
+				if place_external != "":
+					add["external"] = place_external
+				main.link.send(add)
 				if not mb.shift_pressed:
 					set_tool(Tool.SELECT)
 			return true
@@ -289,11 +298,15 @@ func _click_connect(at: Vector2) -> void:
 		_update_label()
 		return
 	var m := {"type": "connect"}
+	var energy := str(_start["k"]).begins_with("e")
+	var outward := str(_start["k"]).ends_with("out")
+	if energy:
+		m["energy"] = true
 	if hit == null:
 		if _ground(at) == null:
 			return
 		# the ground: a product stream from an outlet, a feed stream to an inlet
-		if _start["k"] == "out":
+		if outward:
 			m["from"] = _start["id"]
 			m["fromPort"] = _start["i"]
 		else:
@@ -301,11 +314,12 @@ func _click_connect(at: Vector2) -> void:
 			m["toPort"] = _start["i"]
 	else:
 		var p: Dictionary = hit.get_meta("port")
-		if p["used"] or p["id"] == _start["id"] or p["k"] == _start["k"]:
-			main._show_toast("Join an outlet to a free inlet of another item.")
+		var pk := str(p["k"])
+		if p["used"] or p["id"] == _start["id"] or pk.begins_with("e") != energy or pk.ends_with("out") == outward:
+			main._show_toast("Join an outlet to a free inlet of another item, material to material, energy to energy.")
 			return
-		var out_p: Dictionary = _start if _start["k"] == "out" else p
-		var in_p: Dictionary = p if _start["k"] == "out" else _start
+		var out_p: Dictionary = _start if outward else p
+		var in_p: Dictionary = p if outward else _start
 		m["from"] = out_p["id"]
 		m["fromPort"] = out_p["i"]
 		m["to"] = in_p["id"]

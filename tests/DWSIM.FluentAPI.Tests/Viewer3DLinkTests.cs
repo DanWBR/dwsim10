@@ -208,9 +208,9 @@ namespace DWSIM.FluentAPI.Tests
             Assert.That(Type(link.Handle(Command(SceneProtocol.Connect, new { to = cooler }))), Is.EqualTo(SceneProtocol.Error), "the inlet is taken now");
 
             link.Sync();
-            var ports = Item(link.Scene, cooler)["ports"];
-            Assert.That(ports.Select(p => (string)p["k"]), Is.EquivalentTo(new[] { "in", "out" }), "material nozzles only");
-            Assert.That(ports.All(p => (bool)p["used"]), "both nozzles carry a stream");
+            var ports = Item(link.Scene, cooler)["ports"].Where(p => !((string)p["k"]).StartsWith("e")).ToList();
+            Assert.That(ports.Select(p => (string)p["k"]), Is.EquivalentTo(new[] { "in", "out" }), "one material inlet and one outlet");
+            Assert.That(ports.All(p => (bool)p["used"]), "both material nozzles carry a stream");
             Assert.That(link.Scene["lines"].Select(l => (string)l["id"]), Does.Contain((string)feed["id"]), "the feed is a line to the battery limit");
 
             link.Handle(Command(SceneProtocol.Undo));
@@ -237,6 +237,79 @@ namespace DWSIM.FluentAPI.Tests
             Assert.That(fs.Inner.GraphicObjects[heater].Tag, Is.EqualTo("E-101"));
             link.Handle(Command(SceneProtocol.Undo));
             Assert.That(fs.Inner.GraphicObjects[heater].Tag, Is.EqualTo("E-1"), "undo takes a new tag back");
+        }
+
+        [Test]
+        public void EnergyStreamsJoinEnergyNozzles()
+        {
+            var fs = PumpAndHeater();
+            var link = new FlowsheetLink(fs.Inner);
+            string Type(JObject a) => (string)a["type"];
+            var heater = Id(fs, "E-1");
+            var pump = Id(fs, "P-1");
+
+            var duty = link.Handle(Command(SceneProtocol.Connect, new { to = heater, energy = true }));
+            Assert.That(Type(duty), Is.EqualTo(SceneProtocol.Added), (string)duty["message"]);
+            var es = fs.Inner.GraphicObjects[(string)duty["id"]];
+            Assert.That(es.ObjectType, Is.EqualTo(DWSIM.Interfaces.Enums.GraphicObjects.ObjectType.EnergyStream));
+            Assert.That(es.OutputConnectors[0].AttachedConnector.AttachedTo.Name, Is.EqualTo(heater), "the duty feeds the heater");
+
+            // a cooler's duty (its energy connector) to the pump's energy inlet
+            var cooler = (string)link.Handle(Command(SceneProtocol.Add, new { objectType = "Cooler", x = 30000, y = 0 }))["id"];
+            var work = link.Handle(Command(SceneProtocol.Connect, new { from = cooler, fromPort = -1, to = pump, energy = true }));
+            Assert.That(Type(work), Is.EqualTo(SceneProtocol.Added), (string)work["message"]);
+
+            link.Sync();
+            var bolt = Item(link.Scene, (string)work["id"]);
+            Assert.That(bolt, Is.Not.Null, "an energy stream is an item of the scene");
+            Assert.That((bool)bolt["energy"], Is.True);
+            Assert.That(bolt["links"].Count(), Is.EqualTo(2), "linked to both nozzles");
+            Assert.That(Item(link.Scene, (string)duty["id"])["links"].Count(), Is.EqualTo(1), "a duty from the battery limit has one link");
+            var heaterPorts = Item(link.Scene, heater)["ports"];
+            Assert.That(heaterPorts.Any(p => (string)p["k"] == "ein" && (bool)p["used"]), "the heater shows its energy inlet in use");
+            Assert.That(Item(link.Scene, cooler)["ports"].Any(p => (string)p["k"] == "eout" && (int)p["i"] == -1), "the cooler's energy connector is an energy outlet");
+
+            Assert.That(Type(link.Handle(Command(SceneProtocol.Connect, new { from = pump, fromPort = -1, energy = true }))), Is.EqualTo(SceneProtocol.Error), "a pump gives no energy");
+            link.Handle(Command(SceneProtocol.Undo));
+            Assert.That(fs.Inner.SimulationObjects.ContainsKey((string)work["id"]), Is.False, "undo takes the energy stream back");
+        }
+
+        [Test]
+        public void LogicalBlocksAndControllersAreBadges()
+        {
+            var fs = PumpAndHeater();
+            var link = new FlowsheetLink(fs.Inner);
+            var adjust = (string)link.Handle(Command(SceneProtocol.Add, new { objectType = "OT_Adjust", x = 0, y = 5000 }))["id"];
+            var pid = (string)link.Handle(Command(SceneProtocol.Add, new { objectType = "Controller_PID", x = 4000, y = 5000 }))["id"];
+            link.Sync();
+            var a = Item(link.Scene, adjust);
+            var c = Item(link.Scene, pid);
+            Assert.That((bool)a["badge"] && (bool)c["badge"], Is.True);
+            Assert.That((double)a["o"][2], Is.EqualTo(SceneBuilder.BadgeHeight), "a logical block floats");
+            Assert.That((double)c["o"][2], Is.EqualTo(0), "a controller stands on the ground");
+            Assert.That(link.PaletteWithExtensions().Select(e => (string)e["objectType"]), Does.Contain("Controller_PID"));
+        }
+
+        [Test]
+        public void TheWindowAsksForEditorsAndExtensionOperations()
+        {
+            var fs = PumpAndHeater();
+            var link = new FlowsheetLink(fs.Inner);
+            var pump = Id(fs, "P-1");
+            Assert.That((string)link.Handle(Command(SceneProtocol.Edit, new { id = pump }))["type"], Is.EqualTo(SceneProtocol.Error), "without an editor host there is nothing to open");
+            string asked = null;
+            link.EditHandler = id => { asked = id; return true; };
+            Assert.That((string)link.Handle(Command(SceneProtocol.Edit, new { id = pump }))["type"], Is.EqualTo(SceneProtocol.Ack));
+            Assert.That(asked, Is.EqualTo(pump));
+            Assert.That((string)link.Handle(Command(SceneProtocol.Edit, new { id = "nope" }))["type"], Is.EqualTo(SceneProtocol.Error));
+
+            var extensions = link.PaletteWithExtensions().Where(e => e["external"] != null).ToList();
+            TestContext.Progress.WriteLine("extension unit operations in the palette: " + extensions.Count);
+            Assume.That(extensions, Is.Not.Empty, "this host loaded no extension unit operations");
+            var key = (string)extensions[0]["external"];
+            var added = link.Handle(new JObject { ["type"] = SceneProtocol.Add, ["objectType"] = "External", ["external"] = key, ["x"] = 20000, ["y"] = 0 });
+            Assert.That((string)added["type"], Is.EqualTo(SceneProtocol.Added), (string)added["message"]);
+            Assert.That(fs.Inner.GraphicObjects[(string)added["id"]].ObjectType, Is.EqualTo(DWSIM.Interfaces.Enums.GraphicObjects.ObjectType.External));
         }
 
         [Test]

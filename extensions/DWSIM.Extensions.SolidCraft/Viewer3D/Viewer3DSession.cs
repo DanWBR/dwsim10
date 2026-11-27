@@ -68,6 +68,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             {
                 session.Link = new FlowsheetLink(fs);
                 session.Link.Log += text => Report(fs, text, IFlowsheet.MessageType.Warning);
+                session.Link.EditHandler = id => EditorHost.Open(fs, flowsheetGui, id);
                 session.Link.Start();
                 session.Window = ViewerLauncher.Start(session.Link, compatibilityRenderer);
                 session.Window.EnableRaisingEvents = true;

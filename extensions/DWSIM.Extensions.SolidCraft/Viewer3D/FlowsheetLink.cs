@@ -65,6 +65,12 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
         string fingerprint, selection;
         int nextRef;
 
+        /// <summary>
+        /// Opens the editor of an object for the window (see <see cref="EditorHost"/>); called on
+        /// the interface thread, false when it could not. Null: the window cannot open editors.
+        /// </summary>
+        public Func<string, bool> EditHandler;
+
         /// <summary>How often the link looks for changes, ms.</summary>
         public int PollInterval = 500;
 
@@ -178,7 +184,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                 var welcome = SceneProtocol.Message(SceneProtocol.Welcome);
                 welcome["version"] = SceneProtocol.Version;
                 welcome["name"] = PlantModelExtender.ModelName(fs);
-                welcome["palette"] = Palette.ToJson();
+                welcome["palette"] = PaletteWithExtensions();
                 Send(welcome);
                 Refresh();
                 Connected?.Invoke(this, EventArgs.Empty);
@@ -377,6 +383,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                 case SceneProtocol.Delete: return Delete(m);
                 case SceneProtocol.Rename: return Rename(m);
                 case SceneProtocol.Select: return Select(m);
+                case SceneProtocol.Edit: return Edit(m);
                 case SceneProtocol.SceneFull:
                     scene = null;
                     selection = null;
@@ -501,27 +508,98 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             return !double.IsNaN(value) && !double.IsInfinity(value);
         }
 
+        /// <summary>The built-in palette and, after it, the unit operations of the extensions DWSIM loaded.</summary>
+        public JArray PaletteWithExtensions()
+        {
+            var palette = Palette.ToJson();
+            JArray extra = null;
+            OnUi(() =>
+            {
+                extra = new JArray();
+                var available = fs.AvailableExternalUnitOperations;
+                if (available == null) return;
+                foreach (var kv in available.OrderBy(k => k.Value?.Name ?? k.Key, StringComparer.OrdinalIgnoreCase))
+                {
+                    if (kv.Value == null) continue;
+                    string name;
+                    try { name = string.IsNullOrWhiteSpace(kv.Value.Name) ? kv.Key : kv.Value.Name; }
+                    catch (Exception) { name = kv.Key; }
+                    extra.Add(new JObject { ["group"] = "Extensions", ["name"] = name, ["objectType"] = "External", ["external"] = kv.Key });
+                }
+            });
+            foreach (var e in extra) palette.Add(e);
+            return palette;
+        }
+
+        /// <summary>
+        /// Adds a unit operation of an extension, known by its key in AvailableExternalUnitOperations:
+        /// a new instance of its class, placed through the drawing surface the way each interface's
+        /// palette does it (FlowsheetBase.AddObjectToSurface, or the Windows surface's own).
+        /// </summary>
+        ISimulationObject AddExternal(string key, int x, int y, string tag)
+        {
+            IExternalUnitOperation template;
+            if (fs.AvailableExternalUnitOperations == null || !fs.AvailableExternalUnitOperations.TryGetValue(key, out template) || template == null)
+                throw new InvalidOperationException("there is no extension unit operation '" + key + "'");
+            var instance = (IExternalUnitOperation)Activator.CreateInstance(template.GetType());
+            var before = new HashSet<string>(fs.SimulationObjects.Keys);
+            var target = (object)fs;
+            var method = FindAdd(target.GetType());
+            if (method == null)
+            {
+                var type = fs.GetType();
+                target = type.GetField("FormSurface")?.GetValue(fs) ?? type.GetProperty("FormSurface")?.GetValue(fs);
+                method = target == null ? null : FindAdd(target.GetType());
+            }
+            if (method == null) throw new InvalidOperationException("this interface cannot add extension unit operations from the 3D view");
+            var args = method.GetParameters().Select(p =>
+            {
+                switch (p.Name)
+                {
+                    case "type": return (object)ObjectType.External;
+                    case "x": return x;
+                    case "y": return y;
+                    case "tag": return tag ?? "";
+                    case "id": return "";
+                    case "uoobj": return instance;
+                    default: return p.HasDefaultValue ? p.DefaultValue : (p.ParameterType.IsValueType ? Activator.CreateInstance(p.ParameterType) : null);
+                }
+            }).ToArray();
+            method.Invoke(target, args);
+            return fs.SimulationObjects.Values.FirstOrDefault(o => !before.Contains(o.Name));
+        }
+
+        static System.Reflection.MethodInfo FindAdd(Type t) => t.GetMethods().FirstOrDefault(mi =>
+            mi.Name == "AddObjectToSurface" && mi.GetParameters().Any(p => p.Name == "uoobj"));
+
         JObject Add(JObject m)
         {
             ObjectType type;
-            if (!Enum.TryParse((string)m["objectType"] ?? "", true, out type) || type == ObjectType.Nenhum)
+            var external = (string)m["external"];
+            if (external != null) type = ObjectType.External;
+            else if (!Enum.TryParse((string)m["objectType"] ?? "", true, out type) || type == ObjectType.Nenhum || type == ObjectType.External)
                 return Error("unknown object type '" + m["objectType"] + "'", SceneProtocol.Add);
 
             var x = (double?)m["x"] ?? 0;
             var y = (double?)m["y"] ?? 0;
+            var z = (double?)m["z"] ?? 0;
+            // a logical block dropped on the ground floats at the badge height
+            if (SceneBuilder.Floats(type) && z == 0) z = SceneBuilder.BadgeHeight;
             double cx, cy;
             if (model != null) SceneBuilder.ToCanvas(model, x, y, out cx, out cy);
             else { cx = 100; cy = 100; }
             FreeSpot(ref cx, ref cy);
 
             Remember(true);
-            var obj = fs.AddObject(type, (int)Math.Round(cx), (int)Math.Round(cy), (string)m["tag"] ?? "");
+            var obj = external != null
+                ? AddExternal(external, (int)Math.Round(cx), (int)Math.Round(cy), (string)m["tag"])
+                : fs.AddObject(type, (int)Math.Round(cx), (int)Math.Round(cy), (string)m["tag"] ?? "");
             if (obj == null) return Error("DWSIM did not add a " + type, SceneProtocol.Add);
 
             if (m["z"] != null || m["rot"] != null || m["x"] != null)
             {
                 var layout = PlantLayout.Load(fs);
-                layout[obj.Name] = new Placement { X = Math.Round(x), Y = Math.Round(y), Z = Math.Round((double?)m["z"] ?? 0), Rot = QuarterTurn((double?)m["rot"] ?? 0) };
+                layout[obj.Name] = new Placement { X = Math.Round(x), Y = Math.Round(y), Z = Math.Round(z), Rot = QuarterTurn((double?)m["rot"] ?? 0) };
                 PlantLayout.Save(fs, layout);
             }
             var answer = SceneProtocol.Message(SceneProtocol.Added);
@@ -539,6 +617,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             if (m["from"] != null && from == null || m["to"] != null && to == null || from == null && to == null)
                 return Error("the ends must be objects of the flowsheet", SceneProtocol.Connect);
             if (from == to) return Error("an object cannot connect to itself", SceneProtocol.Connect);
+            if ((bool?)m["energy"] == true) return ConnectEnergy(from, fromPort, to, toPort, (string)m["tag"]);
             if (from == null || to == null) return Open(from, fromPort, to, toPort, (string)m["tag"]);
 
             var fromStream = IsStream(from);
@@ -600,6 +679,55 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             return answer;
         }
 
+        /// <summary>
+        /// An energy stream: from an energy outlet of a unit (an outlet connector of the energy kind,
+        /// or its energy connector, port -1) to an energy inlet of another, or from either to the
+        /// battery limit. DWSIM's own connection rules decide which units give or take energy.
+        /// </summary>
+        JObject ConnectEnergy(IGraphicObject from, int? fromPort, IGraphicObject to, int? toPort, string tag)
+        {
+            if (from != null && IsStream(from) || to != null && IsStream(to)) return Error("an energy stream joins unit operations", SceneProtocol.Connect);
+            if (from != null)
+            {
+                var fp = fromPort ?? -1;
+                var cp = fp < 0 ? from.EnergyConnector : (fp < from.OutputConnectors.Count ? from.OutputConnectors[fp] : null);
+                if (cp == null || cp.IsAttached) return Error(from.Tag + " has no free energy outlet there", SceneProtocol.Connect);
+            }
+            if (to != null)
+            {
+                var tp = toPort ?? FreePort(to.InputConnectors, true);
+                if (tp < 0 || tp >= to.InputConnectors.Count || to.InputConnectors[tp].IsAttached) return Error(to.Tag + " has no free energy inlet there", SceneProtocol.Connect);
+                toPort = tp;
+            }
+            var a = from ?? to;
+            var b = to ?? from;
+            double sx = (a.X + a.Width / 2.0 + b.X + b.Width / 2.0) / 2 - 10;
+            double sy = Math.Max(a.Y + a.Height, b.Y + b.Height) + 30;
+            if (from == null) sx = to.X - 60;
+            if (to == null) sx = from.X + from.Width + 40;
+            FreeSpot(ref sx, ref sy);
+            Remember(true);
+            Snapshot(SnapshotType.ObjectAddedOrRemoved);
+            var es = fs.AddObject(ObjectType.EnergyStream, (int)Math.Round(sx), (int)Math.Round(sy), tag ?? "");
+            if (es?.GraphicObject == null) return Error("DWSIM did not add the energy stream", SceneProtocol.Connect);
+            try
+            {
+                if (from != null) fs.ConnectObjects(from, es.GraphicObject, fromPort ?? -1, 0);
+                if (to != null) fs.ConnectObjects(es.GraphicObject, to, 0, toPort.Value);
+            }
+            catch (Exception ex)
+            {
+                // DWSIM refused one end: take the stream back out, as nothing was made
+                try { fs.DeleteSelectedObject(this, EventArgs.Empty, es.GraphicObject, false, false); } catch (Exception) { }
+                undo.RemoveAt(undo.Count - 1);
+                return Error(ex.InnerException?.Message ?? ex.Message, SceneProtocol.Connect);
+            }
+            var answer = SceneProtocol.Message(SceneProtocol.Added);
+            answer["id"] = es.Name;
+            answer["tag"] = es.GraphicObject.Tag;
+            return answer;
+        }
+
         JObject Disconnect(JObject m)
         {
             var from = Graphic((string)m["from"]);
@@ -642,6 +770,15 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             return null;
         }
 
+        JObject Edit(JObject m)
+        {
+            var id = (string)m["id"];
+            if (id == null || !fs.SimulationObjects.ContainsKey(id)) return Error("there is no object '" + id + "'", SceneProtocol.Edit);
+            var handler = EditHandler;
+            if (handler == null || !handler(id)) return Error("DWSIM cannot open this editor from the 3D view", SceneProtocol.Edit);
+            return null;
+        }
+
         JObject Select(JObject m)
         {
             var ids = (m["ids"] as JArray)?.Select(t => (string)t).Where(id => id != null && fs.GraphicObjects.ContainsKey(id)).ToList() ?? new List<string>();
@@ -675,13 +812,13 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
 
         static bool IsStream(IGraphicObject go) => go.ObjectType == ObjectType.MaterialStream || go.ObjectType == ObjectType.EnergyStream;
 
-        static int FreePort(IEnumerable<IConnectionPoint> ports)
+        static int FreePort(IEnumerable<IConnectionPoint> ports, bool energy = false)
         {
             if (ports == null) return -1;
             var k = 0;
             foreach (var cp in ports)
             {
-                if (cp != null && !cp.IsAttached && cp.Type != DWSIM.Interfaces.Enums.GraphicObjects.ConType.ConEn) return k;
+                if (cp != null && !cp.IsAttached && (cp.Type == DWSIM.Interfaces.Enums.GraphicObjects.ConType.ConEn) == energy) return k;
                 k++;
             }
             return -1;

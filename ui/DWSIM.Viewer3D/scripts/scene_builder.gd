@@ -145,6 +145,9 @@ func item(it: Dictionary) -> Node3D:
 	var node := Node3D.new()
 	node.name = "item"
 	node.position = vec(it.get("o"))
+	if bool(it.get("badge", false)):
+		_badge(node, it)
+		return node
 	for p in it.get("parts", []):
 		if p is Dictionary:
 			var mi := part(p)
@@ -155,6 +158,167 @@ func item(it: Dictionary) -> Node3D:
 		var mi := sphere(Vector3(0, 0.3, 0), 0.25, material("#9aa3ad", false), 12)
 		node.add_child(mi)
 	return node
+
+
+## The objects without a body in the plant model: a controller is a giant old computer on the
+## ground, an energy stream a spinning bolt with dashed links to the nozzles it joins, and the
+## other logical blocks spinning spheres floating over their place.
+func _badge(node: Node3D, it: Dictionary) -> void:
+	var type := str(it.get("type", ""))
+	if type.begins_with("Controller_"):
+		_computer(node)
+	elif bool(it.get("energy", false)):
+		_bolt(node, it.get("links", []))
+	else:
+		_orb(node, type)
+
+
+func _glow(c: Color, energy := 0.35, metal := 0.0) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = c
+	m.emission_enabled = true
+	m.emission = c
+	m.emission_energy_multiplier = energy
+	m.metallic = metal
+	m.roughness = 0.35
+	return m
+
+
+## Something that turns about its own Y axis (main.gd turns the "spin" group).
+static func spinning(n: Node3D, speed: float) -> Node3D:
+	n.add_to_group("spin")
+	n.set_meta("spin", speed)
+	return n
+
+
+func _pole(node: Node3D, color: Color) -> void:
+	var h := node.position.y
+	if h > 0.5:
+		var pole := cylinder(Vector3(0, -h, 0), Vector3(0, -0.45, 0), 0.025, material(color.to_html(false), false), 8)
+		if pole != null:
+			node.add_child(pole)
+
+
+func _orb(node: Node3D, type: String) -> void:
+	var color := Color(0.55, 0.36, 0.85)
+	if type in ["OT_EnergyRecycle", "NodeEn", "EnergyMixer"]:
+		color = Color(0.95, 0.75, 0.15)
+	elif type in ["Switch", "Input"]:
+		color = Color(0.15, 0.65, 0.65)
+	var spin := spinning(Node3D.new(), 1.4)
+	node.add_child(spin)
+	var ball := sphere(Vector3.ZERO, 0.3, _glow(color, 0.3, 0.2), 24)
+	spin.add_child(ball)
+	var ring_mat := _glow(color.lightened(0.35), 0.5, 0.6)
+	for tilt in [Vector3(deg_to_rad(20), 0, 0), Vector3(deg_to_rad(90), 0, deg_to_rad(25))]:
+		var t := TorusMesh.new()
+		t.inner_radius = 0.40
+		t.outer_radius = 0.45
+		t.rings = 32
+		t.ring_segments = 6
+		var mi := MeshInstance3D.new()
+		mi.mesh = t
+		mi.material_override = ring_mat
+		mi.rotation = tilt
+		spin.add_child(mi)
+	_pole(node, Color(0.54, 0.57, 0.61))
+
+
+func _box(parent: Node3D, size: Vector3, at: Vector3, mat: Material) -> MeshInstance3D:
+	var b := BoxMesh.new()
+	b.size = size
+	var mi := MeshInstance3D.new()
+	mi.mesh = b
+	mi.material_override = mat
+	mi.position = at
+	parent.add_child(mi)
+	return mi
+
+
+## A controller: a mainframe cabinet of the old days, with a green screen, rows of blinking
+## lamps and two tape reels that turn.
+func _computer(node: Node3D) -> void:
+	var beige := material("#d8cfb6", false)
+	var dark := material("#2c3035", false)
+	_box(node, Vector3(1.5, 0.08, 0.9), Vector3(0, 0.04, 0), dark)
+	_box(node, Vector3(1.4, 2.1, 0.8), Vector3(0, 1.13, 0), beige)
+	_box(node, Vector3(1.2, 1.55, 0.02), Vector3(0, 1.25, 0.41), dark)
+	_box(node, Vector3(0.5, 0.3, 0.03), Vector3(0, 1.12, 0.425), _glow(Color(0.22, 0.83, 0.33), 1.2))
+	for side in [-0.3, 0.3]:
+		var pivot := Node3D.new()
+		pivot.position = Vector3(side, 1.67, 0.44)
+		pivot.rotation = Vector3(deg_to_rad(90), 0, 0)
+		node.add_child(pivot)
+		var reel := spinning(MeshInstance3D.new(), 2.5 if side < 0 else -2.0) as MeshInstance3D
+		var c := CylinderMesh.new()
+		c.top_radius = 0.2
+		c.bottom_radius = 0.2
+		c.height = 0.04
+		c.radial_segments = 24
+		reel.mesh = c
+		reel.material_override = material("#9aa0a6", true)
+		pivot.add_child(reel)
+		_box(reel, Vector3(0.38, 0.05, 0.04), Vector3.ZERO, dark)
+		_box(reel, Vector3(0.04, 0.05, 0.38), Vector3.ZERO, dark)
+	var lamps := [Color(0.95, 0.2, 0.15), Color(1.0, 0.7, 0.1), Color(0.2, 0.9, 0.3)]
+	for row in 3:
+		for col in 9:
+			var k := row * 9 + col
+			var lamp := _box(node, Vector3(0.05, 0.05, 0.02), Vector3(-0.44 + col * 0.11, 0.62 + row * 0.1, 0.425), _glow(lamps[(k * 7) % 3], 1.5))
+			lamp.add_to_group("blink")
+			lamp.set_meta("rate", 0.6 + float((k * 13) % 7) * 0.25)
+			lamp.set_meta("phase", float((k * 37) % 100) / 100.0)
+
+
+## The outline of a lightning bolt, about 0.9 m tall, in the XY plane.
+const BOLT := [Vector2(0.10, 0.45), Vector2(-0.20, 0.02), Vector2(0.00, 0.02), Vector2(-0.12, -0.45), Vector2(0.22, 0.07), Vector2(0.02, 0.07)]
+
+
+static func bolt_mesh(depth := 0.1) -> ArrayMesh:
+	var pts := PackedVector2Array(BOLT)
+	var tri := Geometry2D.triangulate_polygon(pts)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var h := depth / 2.0
+	for i in range(0, tri.size(), 3):
+		for j in [0, 1, 2]:
+			var p: Vector2 = pts[tri[i + j]]
+			st.add_vertex(Vector3(p.x, p.y, h))
+		for j in [2, 1, 0]:
+			var p: Vector2 = pts[tri[i + j]]
+			st.add_vertex(Vector3(p.x, p.y, -h))
+	var n := pts.size()
+	for i in n:
+		var a: Vector2 = pts[i]
+		var b: Vector2 = pts[(i + 1) % n]
+		for v in [Vector3(a.x, a.y, h), Vector3(b.x, b.y, h), Vector3(b.x, b.y, -h), Vector3(a.x, a.y, h), Vector3(b.x, b.y, -h), Vector3(a.x, a.y, -h)]:
+			st.add_vertex(v)
+	st.generate_normals()
+	return st.commit()
+
+
+## An energy stream: a golden bolt turning over its place, with dashed links to its nozzles.
+func _bolt(node: Node3D, links: Array) -> void:
+	var gold := _glow(Color(1.0, 0.78, 0.2), 0.9, 0.5)
+	gold.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var bolt := spinning(MeshInstance3D.new(), 1.6) as MeshInstance3D
+	bolt.mesh = bolt_mesh()
+	bolt.material_override = gold
+	bolt.scale = Vector3.ONE * 1.6
+	node.add_child(bolt)
+	var dash_mat := material("#f0a030", false)
+	for end in links:
+		var to := vec(end) - node.position
+		var length := to.length()
+		if length < 0.6:
+			continue
+		var dirn := to / length
+		var k := 0.5
+		while k < length:
+			var c := cylinder(dirn * k, dirn * minf(k + 0.3, length), 0.022, dash_mat, 6)
+			if c != null:
+				node.add_child(c)
+			k += 0.5
 
 
 ## A line: the pipe, its elbows and flanges; the insulation goes to its own group.

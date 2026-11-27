@@ -57,14 +57,24 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
         /// <summary>{ids}: the items go back to the place the flowsheet drawing gives them; no ids for all of them.</summary>
         public const string LayoutReset = "layout.reset";
 
-        /// <summary>{objectType, tag, x, y, z, rot}: a new object, placed in 3D; DWSIM answers <see cref="Added"/>.</summary>
+        /// <summary>
+        /// {objectType, tag, x, y, z, rot}, or {external, ...} for a unit operation of an extension
+        /// (its key in the palette): a new object, placed in 3D; DWSIM answers <see cref="Added"/>.
+        /// </summary>
         public const string Add = "add";
 
-        /// <summary>{from, to, fromPort, toPort}: joins two objects; between two unit operations DWSIM puts a new stream.</summary>
+        /// <summary>
+        /// {from, to, fromPort, toPort, energy}: joins two objects; between two unit operations DWSIM
+        /// puts a new stream (an energy stream with energy: true). With one end only, the stream goes
+        /// to the battery limit: a feed or a product.
+        /// </summary>
         public const string Connect = "connect";
 
         /// <summary>{from, to}: takes the connection between two objects apart.</summary>
         public const string Disconnect = "disconnect";
+
+        /// <summary>{id}: opens the object's editor in a floating window of DWSIM.</summary>
+        public const string Edit = "edit";
 
         /// <summary>{ids}: removes objects from the simulation.</summary>
         public const string Delete = "delete";

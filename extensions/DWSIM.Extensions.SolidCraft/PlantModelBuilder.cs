@@ -1214,7 +1214,7 @@ namespace DWSIM.Extensions.SolidCraft
                 item.Origin = ToWorld(model, item.CanvasX, item.CanvasY) - new Vec3(item.FootprintOffsetX, item.FootprintOffsetY, 0);
         }
 
-        static Vec3 ToWorld(PlantModel model, double cx, double cy)
+        internal static Vec3 ToWorld(PlantModel model, double cx, double cy)
         {
             if (model.MapCanvasX != null && model.MapCanvasX.Length > 0)
                 return new Vec3(Math.Round(Map(model.MapCanvasX, model.MapWorldX, model.MapHalfX, cx)),

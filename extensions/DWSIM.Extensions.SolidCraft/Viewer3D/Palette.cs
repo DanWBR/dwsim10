@@ -22,10 +22,10 @@ using ObjectType = DWSIM.Interfaces.Enums.GraphicObjects.ObjectType;
 namespace DWSIM.Extensions.SolidCraft.Viewer3D
 {
     /// <summary>
-    /// The equipment the DWSIM 3D window can add, by group: the built-in unit operations that have
-    /// a body in the plant model. Streams come from connecting nozzles; logical blocks, gauges and
-    /// annotations have no body and stay in the 2D drawing, and so do the unit operations of
-    /// extensions, which the window shows once they are in the flowsheet.
+    /// The objects the DWSIM 3D window can add, by group: the built-in unit operations, which have
+    /// a body in the plant model, and the logical blocks, which float as badges. Streams come from
+    /// connecting nozzles; the unit operations of extensions join the catalog at run time (see
+    /// <see cref="FlowsheetLink"/>); gauges and annotations stay in the 2D drawing.
     /// </summary>
     public static class Palette
     {
@@ -56,6 +56,11 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             ("Reactors", "CSTR", ObjectType.RCT_CSTR),
             ("Reactors", "PFR", ObjectType.RCT_PFR),
             ("Lines", "Pipe Segment", ObjectType.Pipe),
+            ("Logical blocks", "Adjust", ObjectType.OT_Adjust),
+            ("Logical blocks", "Specification", ObjectType.OT_Spec),
+            ("Logical blocks", "Recycle", ObjectType.OT_Recycle),
+            ("Logical blocks", "Energy Recycle", ObjectType.OT_EnergyRecycle),
+            ("Logical blocks", "PID Controller", ObjectType.Controller_PID),
         };
 
         /// <summary>The catalog as the window gets it in the welcome message.</summary>
