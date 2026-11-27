@@ -597,7 +597,17 @@ namespace DWSIM.Extensions.SolidCraft
 
         public static readonly string NewPipe = "(a new pipe segment)";
 
+        /// <summary>The tag of the pipe segment the import was opened for (from its editor); the last step offers it first.</summary>
+        public string Target = "";
+
         public IsometricImportSession(IFlowsheet fs) { Flowsheet = fs; }
+
+        /// <summary>The tag of the pipe segment with this name, or "" when there isn't one.</summary>
+        public static string TagOf(IFlowsheet fs, string pipeName)
+        {
+            if (string.IsNullOrEmpty(pipeName) || !fs.SimulationObjects.TryGetValue(pipeName, out var o)) return "";
+            return o.GraphicObject.ObjectType == ObjectType.Pipe ? o.GraphicObject.Tag : "";
+        }
 
         /// <summary>Reads the isometric on a worker thread, without touching the flowsheet; call <see cref="Propose"/> on the UI thread afterwards.</summary>
         public void Read(CancellationToken ct, Action<string> step) => Reading = IsometricImport.Read(File, ct, step);

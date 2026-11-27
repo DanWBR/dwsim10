@@ -311,6 +311,11 @@ namespace DWSIM.UI.Desktop.Editors
                     () => Restructure(list => list.Add(NewSection(list, list.Count)))));
                 actions.Children.Add(ActionButton("Remove All Sections", "Removes every section of the pipe.",
                     () => Restructure(list => list.Clear())));
+                // offered by the CAD Tools extension when it is loaded
+                if (DWSIM.GlobalSettings.Settings.ImportPipeIsometric != null)
+                    actions.Children.Add(ActionButton("Import from Isometric...",
+                        "Makes the profile from a piping isometric (PDF, picture or CAD drawing, one or several sheets) that the AI Assistant reads.",
+                        ImportIsometric));
                 panel.CreateAndAddControlRow(actions);
 
                 gridHost = new Border();
@@ -338,6 +343,22 @@ namespace DWSIM.UI.Desktop.Editors
                 UpdateChart();
 
                 return panel;
+            }
+
+            /// <summary>Opens the CAD Tools isometric import for this pipe; the sections it writes replace the profile.</summary>
+            private void ImportIsometric()
+            {
+                var import = DWSIM.GlobalSettings.Settings.ImportPipeIsometric;
+                if (import == null) return;
+                flowsheet.RegisterSnapshot(SnapshotType.ObjectData, pipe);
+                import(flowsheet, pipe.Name, applied => Dispatcher.UIThread.Post(() =>
+                {
+                    if (!applied) return;
+                    RebuildGrid();
+                    ShowStatus(true);
+                    UpdateChart();
+                    panel.OnAfterEdit?.Invoke();
+                }));
             }
 
             private static Button ActionButton(string text, string tip, Action click)

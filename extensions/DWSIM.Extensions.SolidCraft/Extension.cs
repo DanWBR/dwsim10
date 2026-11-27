@@ -1096,6 +1096,16 @@ namespace DWSIM.Extensions.SolidCraft
     {
         IFlowsheet Flowsheet;
 
+        public IsometricImportExtender()
+        {
+            // the Pipe Segment editors offer "Import from Isometric" through this
+            DWSIM.GlobalSettings.Settings.ImportPipeIsometric = (fs, pipe, done) =>
+            {
+                if (fs is IFlowsheet f) IsometricImportPrompt.Show(f, pipe, done);
+                else done?.Invoke(false);
+            };
+        }
+
         public string ID => "3b8e5d14-7c2a-4f96-a1d0-8e6c2b9f4a57";
 
         public string DisplayText => "Import Pipe Segment from Piping Isometric...";

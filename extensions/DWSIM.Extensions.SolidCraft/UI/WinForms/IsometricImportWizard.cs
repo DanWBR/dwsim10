@@ -37,10 +37,14 @@ namespace DWSIM.Extensions.SolidCraft
         WorkIndicator work;
         bool loading;
 
-        public IsometricImportWizard(IFlowsheet fs)
+        /// <summary>The pipe segment the last profile went into, null before one.</summary>
+        internal ISimulationObject Applied => session.Applied;
+
+        public IsometricImportWizard(IFlowsheet fs, string pipeTag = null)
         {
-            session = new IsometricImportSession(fs);
+            session = new IsometricImportSession(fs) { Target = pipeTag ?? "" };
             InitializeComponent();
+            if (session.Target != "") Text += " - " + session.Target;
         }
 
         private void IsometricImportWizard_Load(object sender, EventArgs e)
@@ -340,7 +344,7 @@ namespace DWSIM.Extensions.SolidCraft
                 dgvChecks.Rows[k].DefaultCellStyle.ForeColor = i.Level == ImportIssue.Levels.Error ? Color.DarkRed : i.Level == ImportIssue.Levels.Warning ? Color.DarkGoldenrod : SystemColors.ControlText;
             }
             var targets = session.Targets();
-            var keep = session.Applied?.GraphicObject.Tag ?? cbTarget.SelectedItem as string;
+            var keep = session.Applied?.GraphicObject.Tag ?? cbTarget.SelectedItem as string ?? (session.Target != "" ? session.Target : null);
             cbTarget.Items.Clear();
             cbTarget.Items.AddRange(targets.Cast<object>().ToArray());
             cbTarget.SelectedItem = keep != null && targets.Contains(keep) ? keep : targets[0];
@@ -372,9 +376,19 @@ namespace DWSIM.Extensions.SolidCraft
     /// <summary>Opens the isometric import in the Windows interface.</summary>
     internal static class IsometricImportPrompt
     {
-        internal static void Show(IFlowsheet fs)
+        internal static void Show(IFlowsheet fs) => Show(fs, null, null);
+
+        /// <summary>Opens the import for the pipe segment with this name (from its editor; null for any), and runs done
+        /// once it closes, with true when it wrote a hydraulic profile.</summary>
+        internal static void Show(IFlowsheet fs, string pipeName, Action<bool> done)
         {
-            using (var wizard = new IsometricImportWizard(fs)) wizard.ShowDialog(Form.ActiveForm);
+            bool applied;
+            using (var wizard = new IsometricImportWizard(fs, IsometricImportSession.TagOf(fs, pipeName)))
+            {
+                wizard.ShowDialog(Form.ActiveForm);
+                applied = wizard.Applied != null;
+            }
+            done?.Invoke(applied);
         }
     }
 }

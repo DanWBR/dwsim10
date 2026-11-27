@@ -112,6 +112,14 @@ Public Class Settings
     ''' </summary>
     Public Shared Property AskAssistant As Action(Of Object, String, String)
 
+    ''' <summary>
+    ''' Set by the CAD Tools extension when it loads: opens the piping isometric import for a Pipe Segment.
+    ''' The arguments are the flowsheet, the name of the pipe segment, and what to run once the import
+    ''' closes (True when it wrote a hydraulic profile). The Pipe Segment editors offer "Import from
+    ''' Isometric" only while it is set.
+    ''' </summary>
+    Public Shared Property ImportPipeIsometric As Action(Of Object, String, Action(Of Boolean))
+
     Public Shared DefaultEditFormLocation As Integer = 8
 
     Public Shared SolverBreakOnException As Boolean = False
