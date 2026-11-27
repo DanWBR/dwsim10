@@ -81,8 +81,29 @@ palette, gives it a feed and a product from its nozzles, renames it, deletes it 
 and with `edit:<tag>` it double-clicks that item. DWSIM_VIEWER3D_SELFTEST and
 DWSIM_VIEWER3D_SELFTEST_OUT ask for the same in a window that DWSIM starts itself.
 
+## Surroundings
+
+The plant stands on a concrete pad, inside a band of gravel, on grass. The panel at the bottom left
+sets the hour (or lets a day pass in 4 minutes), the weather, the quality of the picture and the
+sound; the window keeps them between runs (user://environment.cfg). N jumps between noon and night,
+W steps through the weather and M turns the sound off and on.
+
+- The sun follows the hour at the equinox for a latitude of 22.9 S (the plot plan's Y is north),
+  with a physical sky; the moon and the stars light the night.
+- At night the lamp posts around the plant come on, and a red warning light blinks on top of every
+  item taller than 15 m.
+- Cloudy, Rain, Storm (with lightning), Snow and Fog dim the sun and veil the view; rain darkens
+  and wets the ground, snow whitens it, and the wind leans the rain and the snow.
+- The ambient sounds follow the hour and the weather: wind, birds by day, crickets by night, rain
+  and storm.
+- Quality: Low (no ambient occlusion or glow, small shadows, fewer drops; the start setting with
+  the OpenGL renderer), Medium, High (4x MSAA, indirect light, large shadows).
+
+`--time=<hour> --weather=<name> --quality=<name> --mute` set them for one run (pictures, tests).
+The textures and sounds, all CC0, are listed in `assets/CREDITS.md`.
+
 ## Licences
 
 The window is part of DWSIM (GPL 3). The Godot Engine is MIT licensed; `licenses/` holds its
 licence and the notices of the third-party code it includes, and every export carries them.
-Only CC0 assets go into this project.
+Only CC0 assets go into this project (see `assets/CREDITS.md`).

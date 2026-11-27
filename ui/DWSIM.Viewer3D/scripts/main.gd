@@ -29,6 +29,9 @@ const SHORTCUTS := [
 	["Double click", "Open the editor (Enter too)"],
 	["Shift+F", "Frame the selection"],
 	["A", "Animation on / off"],
+	["N", "Noon / night"],
+	["W", "Next weather"],
+	["M", "Sound on / off"],
 	["Esc", "Clear the selection"],
 	["F1", "This card"],
 ]
@@ -42,6 +45,8 @@ var tools: BuildTools
 var title_panel: PanelContainer
 var _pending_select := ""
 var animate := true
+var surroundings: PlantEnvironment
+var world_env: Environment
 
 var world: Node3D
 var items_root: Node3D
@@ -90,6 +95,12 @@ func _ready() -> void:
 	var edit_panel := editor.build_panel(_panel_style())
 	edit_panel.theme = _light_theme()
 	hud.add_child(edit_panel)
+	surroundings = PlantEnvironment.new(self, world_env, sun)
+	add_child(surroundings)
+	var env_panel := surroundings.build_panel(_panel_style())
+	env_panel.theme = _light_theme()
+	env_panel.name = "environment_panel"
+	hud.add_child(env_panel)
 	tools = BuildTools.new(self)
 	add_child(tools)
 	var palette := tools.build_panel(_panel_style())
@@ -160,6 +171,7 @@ func _build_world() -> void:
 	env.glow_intensity = 0.25
 	var we := WorldEnvironment.new()
 	we.environment = env
+	world_env = env
 	add_child(we)
 
 	sun = DirectionalLight3D.new()
@@ -196,6 +208,7 @@ func _build_world() -> void:
 	lm.albedo_color = Color(0.45, 0.47, 0.5, 0.55)
 	lm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	grid.material_override = lm
+	grid.visible = false
 	add_child(grid)
 
 
@@ -222,6 +235,8 @@ func _fit_ground() -> void:
 	grid.mesh = im
 	grid.position = Vector3(0, box.position.y + 0.002, 0)
 	sun.directional_shadow_max_distance = rig.distance + box.size.length() * 1.5
+	if surroundings != null:
+		surroundings.fit(box)
 
 
 ## The corners of every solid of the plant, for a tight fit of the view.
@@ -570,6 +585,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			rig.orbit(d.x, d.y)
 	elif event is InputEventKey and event.pressed and not event.echo:
 		var k := (event as InputEventKey).keycode
+		if surroundings != null and surroundings.handle_key(k):
+			return
 		if KEY_VIEWS.has(k):
 			rig.set_view(KEY_VIEWS[k])
 		else:
@@ -747,6 +764,9 @@ func _process(delta: float) -> void:
 			(n as Node3D).rotate_object_local(Vector3.UP, float(n.get_meta("spin", 1.0)) * delta)
 		for n in get_tree().get_nodes_in_group("blink"):
 			(n as Node3D).visible = fmod(t * float(n.get_meta("rate", 1.0)) + float(n.get_meta("phase", 0.0)), 1.0) < 0.6
+	var ep := hud.get_node_or_null("environment_panel") as Control
+	if ep != null:
+		ep.position = Vector2(12, size.y - ep.size.y - 12)
 	if tools != null and tools.palette_panel != null:
 		tools.palette_panel.position = Vector2(12, title_panel.position.y + title_panel.size.y + 12)
 	if editor != null and editor.panel != null:
