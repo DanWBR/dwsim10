@@ -592,6 +592,7 @@ namespace DWSIM.Drawing.SkiaSharp.PlantDesigner
             if (!v.Options.ShowCard || v.Shortcuts.Count == 0)
             {
                 v.CardRect = SKRect.Empty;
+                if (!v.Options.ShowCardButton) { v.CardToggleRect = SKRect.Empty; return; }
                 Panel(c, v.CardToggleRect, th, u);
                 using (var p = Text(th.Ink, 13 * u, true)) { float w = p.MeasureText("?"); c.DrawText("?", v.CardToggleRect.MidX - w / 2, v.CardToggleRect.MidY + 5 * u, p); }
                 return;

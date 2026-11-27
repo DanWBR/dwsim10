@@ -77,6 +77,8 @@ namespace DWSIM.Drawing.SkiaSharp.PlantDesigner
         public bool ShowGrid = true, ShowLabels = true, ShowSizes = false, ShowLegend = true, ShowMinimap = true, ShowAxes = true;
         /// <summary>The shortcuts card is open (false shows only its "?" button).</summary>
         public bool ShowCard = true;
+        /// <summary>The "?" button that opens the card shows while the card is closed (pictures for reports leave it out).</summary>
+        public bool ShowCardButton = true;
         public bool Dark;
         /// <summary>Device pixels per interface pixel (the display scaling).</summary>
         public float UiScale = 1f;
