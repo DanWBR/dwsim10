@@ -1,7 +1,7 @@
 # DWSIM 3D
 
 DWSIM 3D is the 3D view of a flowsheet: a Godot 4.7 program (GDScript) that DWSIM starts from
-**CAD Tools > 3D View (DWSIM 3D)**. DWSIM builds the scene from the plant model of the SolidCraft
+**CAD Tools > 3D Designer/Viewer**. DWSIM builds the scene from the plant model of the SolidCraft
 extension (equipment sized from the simulation, routed lines, pipe rack) and sends it over a local
 connection; the window draws it and sends the user's edits back. The DWSIM side lives in
 `extensions/DWSIM.Extensions.SolidCraft/Viewer3D` (protocol in `SceneProtocol.cs`).

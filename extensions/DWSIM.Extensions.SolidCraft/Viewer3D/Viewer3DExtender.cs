@@ -20,7 +20,7 @@ using DWSIM.Interfaces;
 namespace DWSIM.Extensions.SolidCraft.Viewer3D
 {
     /// <summary>
-    /// CAD Tools > 3D View: opens the flowsheet in the DWSIM 3D window, which shows the plant model
+    /// CAD Tools > 3D Designer/Viewer: opens the flowsheet in the DWSIM 3D window, which shows the plant model
     /// and follows every change of the flowsheet. It needs neither SolidCraft nor CADCraft.
     /// </summary>
     public class Viewer3DExtender : IExtender, IExtender3, IExtender6
@@ -30,7 +30,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
 
         public string ID => "3c8f1d27-6a4e-4b9c-a2d5-7e1f0b9c4d83";
 
-        public string DisplayText => "3D View (DWSIM 3D)";
+        public string DisplayText => "3D Designer/Viewer";
 
         public byte[] DisplayImage => PlantModelExtender.Icon();
 
