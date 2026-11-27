@@ -186,20 +186,46 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
                 Dim names = RET_VNAMES()
                 Dim i = 0
                 For Each comp In comps
-                    If Not CompoundParameters.ContainsKey(comp) Then
+                    'a compound without parameters is refused only when the stream carries it: the compound
+                    'list belongs to the whole flowsheet, and another package may handle the streams that do
+                    '(sulfur in a Claus section next to a PC-SAFT absorber)
+                    If Not HasCompoundParameters(comp) AndAlso IsInCurrentStream(names(i)) Then
                         Throw New Exception(String.Format("Missing PC-SAFT parameters for {0}. Calculation results will be unreliable", names(i)))
-                    Else
-                        ' A copolymer has no single sigma/epsilon/m of its own; its parameters come from the
-                        ' repeat-unit segments, so exempt it from the empty-parameter check.
-                        Dim isCopoly = Not String.IsNullOrEmpty(CompoundParameters(comp).copolymer)
-                        If Not isCopoly AndAlso CompoundParameters(comp).sigma = 0.0 And CompoundParameters(comp).epsilon = 0.0 And CompoundParameters(comp).m = 0.0 Then
-                            Throw New Exception(String.Format("Missing PC-SAFT parameters for {0}. Calculation results will be unreliable", names(i)))
-                        End If
                     End If
                     i += 1
                 Next
             End If
         End Sub
+
+        ''' <summary>
+        ''' True when the package has PC-SAFT parameters for the compound: a row with m, sigma or epsilon, or a
+        ''' copolymer, whose parameters come from its repeat-unit segments.
+        ''' </summary>
+        Public Function HasCompoundParameters(cas As String) As Boolean
+            If Not CompoundParameters.ContainsKey(cas) Then Return False
+            Dim prm = CompoundParameters(cas)
+            If Not String.IsNullOrEmpty(prm.copolymer) Then Return True
+            Return Not (prm.sigma = 0.0 And prm.epsilon = 0.0 And prm.m = 0.0 And prm.m_over_M = 0.0)
+        End Function
+
+        ''' <summary>
+        ''' The parameters of a compound. A compound of the flowsheet that the package has no parameters for gets
+        ''' stand-in values (m = 1, sigma = 3 A, epsilon/k = 200 K, not associating), so that a stream without it
+        ''' still builds its mixture: every mixing rule weighs the compound by its mole fraction, which is zero.
+        ''' The stand-in values aren't stored in the package or saved with the flowsheet.
+        ''' </summary>
+        Public Function GetCompoundParameters(cas As String) As PCSParam
+            If HasCompoundParameters(cas) Then Return CompoundParameters(cas)
+            Return New PCSParam With {.casno = cas, .m = 1.0, .sigma = 3.0, .epsilon = 200.0}
+        End Function
+
+        'a stream that isn't known or doesn't list the compound counts as carrying it, so the check stays strict
+        Private Function IsInCurrentStream(name As String) As Boolean
+            Dim ms = TryCast(CurrentMaterialStream, Streams.MaterialStream)
+            If ms Is Nothing OrElse Not ms.Phases(0).Compounds.ContainsKey(name) Then Return True
+            Dim c = ms.Phases(0).Compounds(name)
+            Return c.MoleFraction.GetValueOrDefault() > 0.0 OrElse c.MolarFlow.GetValueOrDefault() > 0.0
+        End Function
 
         Public Overrides Function ReturnInstance(typename As String) As Object
 

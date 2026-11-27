@@ -190,7 +190,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             For i = 1 To nc
                 Dim c = compounds(i - 1)
                 Dim cas As String = c.CAS_Number
-                Dim prm = pp.CompoundParameters(cas)
+                Dim prm = pp.GetCompoundParameters(cas)
                 Dim casL As New List(Of String), mL As New List(Of Double), sigL As New List(Of Double), epsL As New List(Of Double)
                 Dim bA As New List(Of Integer), bB As New List(Of Integer), bF As New List(Of Double)
 
@@ -443,7 +443,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
                 Dim cproxy As New pccompound
 
-                Dim prm = pp.CompoundParameters(c.CAS_Number)
+                Dim prm = pp.GetCompoundParameters(c.CAS_Number)
 
                 ' A polymer (m_over_M > 0) has a segment number proportional to its molar mass:
                 ' m = (m/M) * Molar_Weight. Small molecules keep their tabulated absolute m.
