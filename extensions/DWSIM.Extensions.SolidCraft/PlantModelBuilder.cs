@@ -181,7 +181,7 @@ namespace DWSIM.Extensions.SolidCraft
         /// <summary>What the build in progress draws.</summary>
         [ThreadStatic] static ExportOptions Options;
 
-        static EquipmentItem CreateItem(ISimulationObject obj, ObjectType type, List<string> warnings)
+        internal static EquipmentItem CreateItem(ISimulationObject obj, ObjectType type, List<string> warnings)
         {
             var tag = obj.GraphicObject.Tag;
 
@@ -226,6 +226,7 @@ namespace DWSIM.Extensions.SolidCraft
                         if (type == ObjectType.Heater && q > 5000)
                         {
                             var fired = EquipmentTemplates.FiredHeater(Clamp(Math.Pow(q / 10000, 1.0 / 3), 0.7, 2.5));
+                            fired.Style = "fired";
                             Describe(fired, "Duty (kW)", q, false);
                             return fired;
                         }
@@ -624,7 +625,7 @@ namespace DWSIM.Extensions.SolidCraft
         /// The operating conditions of an item, from its first outlet stream (its first inlet when it
         /// has none): saved as properties and shown on its label.
         /// </summary>
-        static void AddOperatingData(EquipmentItem item, ISimulationObject obj)
+        internal static void AddOperatingData(EquipmentItem item, ISimulationObject obj)
         {
             item.Label = item.Tag;
             var go = obj.GraphicObject;
@@ -719,7 +720,7 @@ namespace DWSIM.Extensions.SolidCraft
             return q;
         }
 
-        static PipeRun SizePipe(IMaterialStream ms, string tag)
+        internal static PipeRun SizePipe(IMaterialStream ms, string tag)
         {
             double q = 0, vf = 0;
             if (ms != null)

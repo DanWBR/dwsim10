@@ -29,6 +29,7 @@ const SHORTCUTS := [
 	["Double click", "Open the editor (Enter too)"],
 	["Shift+F", "Frame the selection"],
 	["A", "Animation on / off"],
+	["V", "Values on the plant"],
 	["N", "Noon / night"],
 	["W", "Next weather"],
 	["M", "Sound on / off"],
@@ -46,6 +47,12 @@ var title_panel: PanelContainer
 var _pending_select := ""
 var animate := true
 var surroundings: PlantEnvironment
+var life: PlantLife
+var alarms := {}
+var errors := {}
+var _alarm_mat: StandardMaterial3D
+var _error_mat: StandardMaterial3D
+var values_root: Node3D
 var world_env: Environment
 
 var world: Node3D
@@ -121,6 +128,16 @@ func _ready() -> void:
 	_hover_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_hover_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	_hover_mat.albedo_color = Color(1.0, 0.78, 0.25, 0.22)
+	_alarm_mat = StandardMaterial3D.new()
+	_alarm_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_alarm_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_alarm_mat.albedo_color = Color(1.0, 0.12, 0.08, 0.55)
+	_error_mat = StandardMaterial3D.new()
+	_error_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_error_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_error_mat.albedo_color = Color(1.0, 0.55, 0.05, 0.3)
+	life = PlantLife.new(self)
+	add_child(life)
 	_hover_box = MeshInstance3D.new()
 	var box_mat := StandardMaterial3D.new()
 	box_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -184,7 +201,7 @@ func _build_world() -> void:
 
 	world = Node3D.new()
 	add_child(world)
-	for n in ["items", "lines", "insulation", "rack", "labels"]:
+	for n in ["items", "lines", "insulation", "rack", "labels", "values"]:
 		var node := Node3D.new()
 		node.name = n
 		world.add_child(node)
@@ -193,6 +210,8 @@ func _build_world() -> void:
 	insulation_root = world.get_node("insulation")
 	rack_root = world.get_node("rack")
 	labels_root = world.get_node("labels")
+	values_root = world.get_node("values")
+	values_root.visible = false
 
 	ground = MeshInstance3D.new()
 	ground.mesh = PlaneMesh.new()
@@ -284,6 +303,8 @@ func _on_message(m: Dictionary) -> void:
 			_apply_delta(m)
 		"select":
 			_set_selection(m.get("ids", []), false)
+		"values":
+			_apply_values(m)
 		"capture":
 			_capture_for_link(m)
 		"added":
@@ -353,6 +374,9 @@ func _after_change() -> void:
 		_set_selection(selected.filter(func(id): return entries.has(id)), false)
 	if tools != null:
 		tools.refresh_ports()
+	if life != null:
+		life.refresh()
+	_value_tags()
 	_update_title()
 
 
@@ -449,8 +473,23 @@ func _tint(id: String, on: bool) -> void:
 	var node = entries[id]["node"]
 	if node == null or not is_instance_valid(node):
 		return
+	var mat: Material = _overlay_for(id, on)
 	for mi in node.find_children("*", "MeshInstance3D", true, false):
-		mi.material_overlay = _highlight if on else (_hover_mat if id == _hover_id else null)
+		mi.material_overlay = mat
+
+
+## What tints an object: a blinking red for an alarm, the selection, the hover, a steady orange for
+## an object with an error.
+func _overlay_for(id: String, selected_on: bool) -> Material:
+	if alarms.has(id) and fmod(Time.get_ticks_msec() / 1000.0, 1.0) < 0.5:
+		return _alarm_mat
+	if selected_on or selected.has(id):
+		return _highlight
+	if id == _hover_id:
+		return _hover_mat
+	if errors.has(id):
+		return _error_mat
+	return null
 
 
 # --- hover: what is under the mouse, its limits and its size ----------------------------------
@@ -603,6 +642,8 @@ func _unhandled_input(event: InputEvent) -> void:
 						_edit(selected[0])
 				KEY_A:
 					animate = not animate
+				KEY_V:
+					values_root.visible = not values_root.visible
 				KEY_L: labels_root.visible = not labels_root.visible
 				KEY_I: insulation_root.visible = not insulation_root.visible
 				KEY_R: rack_root.visible = not rack_root.visible
@@ -611,6 +652,90 @@ func _unhandled_input(event: InputEvent) -> void:
 				KEY_ESCAPE: _set_selection([], true)
 				KEY_EQUAL, KEY_KP_ADD: rig.zoom_at(0.8, _viewport_size() / 2.0, _viewport_size())
 				KEY_MINUS, KEY_KP_SUBTRACT: rig.zoom_at(1.25, _viewport_size() / 2.0, _viewport_size())
+
+
+## New values from DWSIM while a dynamic simulation runs: the properties merge into what the window
+## has, the dashes take the new velocities, and the alarms and errors tint their objects.
+func _apply_values(m: Dictionary) -> void:
+	for group in ["items", "lines"]:
+		var got = m.get(group, {})
+		if not (got is Dictionary):
+			continue
+		for id in got.keys():
+			if not entries.has(id):
+				continue
+			var e: Dictionary = entries[id]
+			var v: Dictionary = got[id]
+			var props: Dictionary = e["data"].get("props", {})
+			var fresh = v.get("props", {})
+			if fresh is Dictionary:
+				for k in fresh.keys():
+					props[k] = fresh[k]
+			e["data"]["props"] = props
+			if v.has("v"):
+				e["data"]["v"] = v["v"]
+				SceneBuilder.set_flow(e["node"], float(v["v"]))
+	var before := alarms.keys() + errors.keys()
+	alarms.clear()
+	for id in m.get("alarms", []):
+		alarms[str(id)] = true
+	errors.clear()
+	for id in m.get("errors", []):
+		errors[str(id)] = true
+	for id in before + alarms.keys() + errors.keys():
+		_tint(str(id), selected.has(str(id)))
+	_show_info()
+	_value_tags()
+
+
+## Small labels with the main values: temperature, pressure and flow on the lines, the first
+## values of each item under its tag (V shows them).
+func _value_tags() -> void:
+	for c in values_root.get_children():
+		c.queue_free()
+	for id in entries.keys():
+		var e: Dictionary = entries[id]
+		var props = e["data"].get("props", {})
+		if not (props is Dictionary) or props.is_empty():
+			continue
+		var text := ""
+		var at := Vector3.ZERO
+		if e["kind"] == "line":
+			var parts := []
+			for k in ["Temperature (C)", "Pressure (bar)", "Mass flow (kg/h)"]:
+				if props.has(k):
+					parts.append(str(props[k]) + " " + k.get_slice("(", 1).trim_suffix(")"))
+			text = "  ".join(parts)
+			var path: Array = e["data"].get("path", [])
+			if path.size() < 2:
+				continue
+			var mid := int(path.size() / 2)
+			at = (SceneBuilder.vec(path[mid - 1]) + SceneBuilder.vec(path[mid])) / 2.0 + Vector3(0, 0.6, 0)
+		else:
+			var lines := []
+			for k in props.keys():
+				lines.append("%s: %s" % [k, props[k]])
+				if lines.size() == 2:
+					break
+			text = "\n".join(lines)
+			var b := _node_bounds(e["node"])
+			at = Vector3(b.get_center().x, b.end.y + 0.1, b.get_center().z)
+		if text == "":
+			continue
+		var l := Label3D.new()
+		l.text = text
+		l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		l.fixed_size = true
+		l.pixel_size = 0.0007
+		l.font_size = 22
+		l.outline_size = 6
+		l.modulate = Color(0.05, 0.3, 0.55)
+		l.outline_modulate = Color(1, 1, 1, 0.85)
+		l.no_depth_test = true
+		l.render_priority = 9
+		l.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+		l.position = at
+		values_root.add_child(l)
 
 
 ## Asks DWSIM to open the editor of an object in a floating window.
@@ -758,6 +883,11 @@ func _process(delta: float) -> void:
 	info_panel.position = Vector2(size.x - info_panel.size.x - 12, card.position.y + (card.size.y + 12 if card.visible else 0))
 	toast.position = Vector2(14, size.y - 34)
 	_update_hover()
+	# the dashes of the flow are drawn by a shader, which the low-power mode does not redraw
+	OS.low_processor_usage_mode = not animate
+	get_tree().call_group("flow", "set_visible", animate)
+	for id in alarms.keys():
+		_tint(id, selected.has(id))
 	if animate:
 		var t := Time.get_ticks_msec() / 1000.0
 		for n in get_tree().get_nodes_in_group("spin"):
@@ -887,6 +1017,14 @@ func _run_offline() -> void:
 		return
 	var scene: Dictionary = parsed.get("scene", parsed) if parsed.get("type", "") == "scene.full" else parsed
 	_load_scene(scene)
+	# more messages, as DWSIM would send them (values, a selection), from "--dwsim-messages=file"
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--dwsim-messages="):
+			var more = JSON.parse_string(FileAccess.get_file_as_string(arg.get_slice("=", 1)))
+			if more is Array:
+				for msg in more:
+					if msg is Dictionary:
+						_on_message(msg)
 	if capture_dir == "":
 		return
 	if views.is_empty():

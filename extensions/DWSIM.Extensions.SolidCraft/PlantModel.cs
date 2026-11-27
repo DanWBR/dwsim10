@@ -263,6 +263,13 @@ namespace DWSIM.Extensions.SolidCraft
         public string Tag;
         public string Description;
 
+        /// <summary>
+        /// What the 3D window adds to the item's body: "fired" for a fired heater (smoke from the
+        /// stack, a glow at the burners), "flare" (a flame) or "coolingtower" (a plume of steam);
+        /// null for none.
+        /// </summary>
+        public string Style;
+
         /// <summary>Centre of the item on the ground, in world coordinates.</summary>
         public Vec3 Origin;
 

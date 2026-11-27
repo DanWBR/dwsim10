@@ -102,6 +102,26 @@ W steps through the weather and M turns the sound off and on.
 `--time=<hour> --weather=<name> --quality=<name> --mute` set them for one run (pictures, tests).
 The textures and sounds, all CC0, are listed in `assets/CREDITS.md`.
 
+## A living plant
+
+- Dashes run along every line in the direction of flow, at a pace that follows the velocity of its
+  stream (A stops all the animation).
+- While a dynamic simulation runs, DWSIM sends only the new values (a `values` message), without
+  building the geometry again: the info panel, the value labels (V) and the pace of the dashes
+  follow them. Outside dynamics new results build the scene again, since they may resize the
+  equipment and the lines.
+- A gauge in alarm blinks in red together with the object it measures; an object with an error is
+  tinted orange.
+- A fired heater (a heater above 5 MW) smokes from its stack and glows at its burners. A unit
+  operation of an extension whose name says flare burns with a flame and smoke on its tip, and
+  one that says cooling tower gives off a plume of steam.
+- Pumps hum, compressors and expanders whine, burners and flares roar; the sounds are made by the
+  window itself, and the ones nearest the middle of the view are heard, from where the camera looks.
+
+`--dwsim-messages=<file>` feeds the window, after the scene, a JSON array of messages as DWSIM
+would send them (values, a selection), and `--audio-driver Dummy` (a Godot option) runs it without
+any sound reaching the speakers.
+
 ## Licences
 
 The window is part of DWSIM (GPL 3). The Godot Engine is MIT licensed; `licenses/` holds its

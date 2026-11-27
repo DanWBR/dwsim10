@@ -338,6 +338,7 @@ func line(ln: Dictionary, insulation: Node3D) -> Node3D:
 		var s := sphere(pts[i], r, mat, 16)
 		if s != null:
 			node.add_child(s)
+	_flow(node, pts, r, Color.from_string(str(ln.get("c", "#888888")), Color.GRAY), float(ln.get("v", 0.0)))
 	var flange := material(STEEL, true)
 	for f in ln.get("fl", []):
 		if f is Array and f.size() == 2:
@@ -359,6 +360,60 @@ func line(ln: Dictionary, insulation: Node3D) -> Node3D:
 			if s != null:
 				insulation.add_child(s)
 	return node
+
+
+var _flow_shader: Shader = preload("res://shaders/flow.gdshader")
+var _flow_mats := {}
+
+
+## The pace of the dashes along a line, m/s on the screen, from the velocity of its stream.
+static func flow_speed(v: float) -> float:
+	return 0.0 if v <= 0.0 else 0.4 + minf(4.0, v) * 0.6
+
+
+## Dashes that run along the line in the direction of flow (the "flow" group, which the window
+## shows while the animation is on).
+func _flow(node: Node3D, pts: Array[Vector3], r: float, color: Color, v: float) -> void:
+	var key := color.to_html(false)
+	if not _flow_mats.has(key):
+		var m := ShaderMaterial.new()
+		m.shader = _flow_shader
+		m.set_shader_parameter("color", color.lightened(0.35))
+		_flow_mats[key] = m
+	var start := 0.0
+	for i in range(pts.size() - 1):
+		var a: Vector3 = pts[i]
+		var b: Vector3 = pts[i + 1]
+		var l := a.distance_to(b)
+		if l < 1e-4:
+			continue
+		var c := CylinderMesh.new()
+		c.top_radius = r * 1.15
+		c.bottom_radius = r * 1.15
+		c.height = l
+		c.radial_segments = 12
+		c.rings = 1
+		c.cap_top = false
+		c.cap_bottom = false
+		var mi := MeshInstance3D.new()
+		mi.mesh = c
+		mi.material_override = _flow_mats[key]
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mi.transform = Transform3D(basis_along(b - a), a + (b - a) * 0.5)
+		mi.set_instance_shader_parameter("seg_len", l)
+		mi.set_instance_shader_parameter("start", start)
+		mi.set_instance_shader_parameter("speed", flow_speed(v))
+		mi.add_to_group("flow")
+		mi.set_meta("flow", true)
+		node.add_child(mi)
+		start += l
+
+
+## A new velocity for the dashes of a line already built.
+static func set_flow(node: Node3D, v: float) -> void:
+	for mi in node.get_children():
+		if mi.has_meta("flow"):
+			(mi as GeometryInstance3D).set_instance_shader_parameter("speed", flow_speed(v))
 
 
 ## The single-tier rack: columns at each bay, cross beams and the two side beams.

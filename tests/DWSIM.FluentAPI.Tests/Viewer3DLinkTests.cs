@@ -313,6 +313,47 @@ namespace DWSIM.FluentAPI.Tests
         }
 
         [Test]
+        public void ADynamicRunSendsValuesWithoutGeometry()
+        {
+            var fs = PumpAndHeater();
+            var link = new FlowsheetLink(fs.Inner);
+            var sent = new System.Collections.Generic.List<JObject>();
+            link.MessageSent += m => sent.Add(m);
+            link.Sync();
+            Assert.That(sent.Select(m => (string)m["type"]).Where(t => t != SceneProtocol.Select).ToArray(), Is.EqualTo(new[] { SceneProtocol.SceneFull, SceneProtocol.Values }), "the scene, then its values");
+
+            fs.Inner.DynamicMode = true;
+            sent.Clear();
+            var feed = (DWSIM.Interfaces.IMaterialStream)fs.Inner.GetFlowsheetSimulationObject("1");
+            ((dynamic)feed).Phases[0].Properties.temperature = 330.0;
+            link.Sync();
+            Assert.That(sent.Select(m => (string)m["type"]).ToArray(), Is.EqualTo(new[] { SceneProtocol.Values }), "in dynamics a new result sends values only");
+            var line = sent[0]["lines"][Id(fs, "1")];
+            Assert.That(line, Is.Not.Null);
+            Assert.That((string)line["props"]["Temperature (C)"], Does.StartWith("56.9"), "330 K is 56.9 C");
+            Assert.That(sent[0]["items"][Id(fs, "P-1")]?["props"], Is.Not.Null, "the pump's operating data come along");
+
+            sent.Clear();
+            link.Sync();
+            Assert.That(sent, Is.Empty, "nothing changed, nothing is sent");
+
+            fs.Inner.GetFlowsheetSimulationObject("E-1").GraphicObject.X += 300;
+            link.Sync();
+            Assert.That(sent.Select(m => (string)m["type"]), Does.Contain(SceneProtocol.SceneDelta), "a move still changes the geometry");
+        }
+
+        [Test]
+        public void FiredHeatersAndFlaresHaveTheirStyle()
+        {
+            var fs = PumpAndHeater();
+            var heater = (DWSIM.UnitOperations.UnitOperations.Heater)fs.Inner.GetFlowsheetSimulationObject("E-1");
+            heater.DeltaQ = 8000;
+            var scene = SceneBuilder.Build(fs.Inner);
+            Assert.That((string)Item(scene, heater.Name)["style"], Is.EqualTo("fired"), "a heater of 8 MW is a fired heater");
+            Assert.That((string)Item(scene, Id(fs, "P-1"))["style"], Is.Null, "a pump has no effect");
+        }
+
+        [Test]
         public void BadCommandsAreAnsweredWithAnError()
         {
             var fs = PumpAndHeater();

@@ -36,7 +36,37 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
     {
         const string LayoutKey = "SolidCraftLayout";
 
-        public static string Compute(IFlowsheet fs)
+        /// <summary>
+        /// The structure only: what changes the geometry (objects, tags, places, turns, connections,
+        /// the 3D layout), and not the results.
+        /// </summary>
+        public static string Structure(IFlowsheet fs) => Compute(fs, false);
+
+        /// <summary>
+        /// The results only: stream conditions, energy flows, calculated flags, errors and alarms.
+        /// </summary>
+        public static string Results(IFlowsheet fs)
+        {
+            var sb = new StringBuilder();
+            foreach (var obj in fs.SimulationObjects.Values.OrderBy(o => o.Name, StringComparer.Ordinal))
+            {
+                sb.Append(obj.Name).Append(obj.Calculated ? 'c' : '-').Append(obj.ErrorMessage);
+                var ms = obj as IMaterialStream;
+                if (ms != null)
+                    sb.Append('|').Append(Round(ms.GetTemperature())).Append(',').Append(Round(ms.GetPressure()))
+                      .Append(',').Append(Round(ms.GetMassFlow()));
+                var es = obj as IEnergyStream;
+                if (es != null) sb.Append('|').Append(Round(es.GetEnergyFlow()));
+                var g = obj as IIndicator;
+                if (g != null) sb.Append('|').Append(g.HighAlarmActive || g.VeryHighAlarmActive || g.LowAlarmActive || g.VeryLowAlarmActive ? 'A' : '-');
+                sb.Append('\n');
+            }
+            return sb.ToString();
+        }
+
+        public static string Compute(IFlowsheet fs) => Compute(fs, true);
+
+        public static string Compute(IFlowsheet fs, bool results)
         {
             var sb = new StringBuilder();
             var inv = CultureInfo.InvariantCulture;
@@ -52,7 +82,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                     sb.Append("~").Append(Other(go.EnergyConnector.AttachedConnector, go));
 
                 ISimulationObject obj;
-                if (fs.SimulationObjects.TryGetValue(go.Name, out obj) && obj != null)
+                if (results && fs.SimulationObjects.TryGetValue(go.Name, out obj) && obj != null)
                 {
                     sb.Append('|').Append(obj.Calculated ? 'c' : '-');
                     var ms = obj as IMaterialStream;

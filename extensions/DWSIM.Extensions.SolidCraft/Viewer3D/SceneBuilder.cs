@@ -74,6 +74,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                     ["inst"] = item.IsInstrument,
                     ["label"] = item.Label,
                     ["props"] = WebViewer.Props(item.Properties),
+                    ["style"] = StyleOf(item),
                     ["parts"] = parts,
                     ["ports"] = Ports(item, fs)
                 });
@@ -119,6 +120,85 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                     ["top"] = model.Rack.Top, ["bay"] = PipeRack.BayLength, ["beam"] = PipeRack.BeamHeight
                 };
             return scene;
+        }
+
+        /// <summary>
+        /// The effects of an item: the builder marks fired heaters; a unit operation of an extension
+        /// whose name says flare or cooling tower gets a flame or a plume.
+        /// </summary>
+        static string StyleOf(EquipmentItem item)
+        {
+            if (!string.IsNullOrEmpty(item.Style)) return item.Style;
+            var d = ((item.Description ?? "") + " " + (item.Tag ?? "")).ToLowerInvariant();
+            if (d.Contains("flare")) return "flare";
+            if (d.Contains("cooling tower")) return "coolingtower";
+            return null;
+        }
+
+        /// <summary>
+        /// The values of the scene without its geometry, for a running dynamic simulation: the
+        /// operating data of each item, the data and velocity of each line, the energy flows, the
+        /// gauges in alarm with the objects they measure, and the objects with an error. The window
+        /// merges the properties into what it has.
+        /// </summary>
+        public static JObject Values(IFlowsheet fs, JObject scene)
+        {
+            var items = new JObject();
+            var lines = new JObject();
+            var warnings = new List<string>();
+            var itemIds = new HashSet<string>((scene?["items"] as JArray ?? new JArray()).Select(i => (string)i["id"]));
+            var lineIds = new HashSet<string>((scene?["lines"] as JArray ?? new JArray()).Select(l => (string)l["id"]).Where(id => id != null));
+            foreach (var obj in fs.SimulationObjects.Values)
+            {
+                var go = obj.GraphicObject;
+                if (go == null) continue;
+                try
+                {
+                    if (lineIds.Contains(obj.Name) && obj is IMaterialStream ms)
+                    {
+                        var run = PlantModelBuilder.SizePipe(ms, go.Tag);
+                        lines[obj.Name] = new JObject { ["props"] = WebViewer.Props(run.Properties), ["v"] = Math.Round(run.Velocity, 3), ["phase"] = run.Phase, ["c"] = run.Color };
+                    }
+                    else if (itemIds.Contains(obj.Name))
+                    {
+                        if (obj is IEnergyStream es)
+                        {
+                            items[obj.Name] = new JObject { ["props"] = new JObject { ["Energy flow (kW)"] = Math.Round(es.GetEnergyFlow(), 3).ToString(System.Globalization.CultureInfo.InvariantCulture) } };
+                        }
+                        else if (!IsBadge(go.ObjectType))
+                        {
+                            var item = PlantModelBuilder.CreateItem(obj, go.ObjectType, warnings);
+                            item.Tag = go.Tag;
+                            PlantModelBuilder.AddOperatingData(item, obj);
+                            items[obj.Name] = new JObject { ["props"] = WebViewer.Props(item.Properties) };
+                        }
+                    }
+                }
+                catch (Exception)
+                {
+                    // an object that cannot give its values now keeps the ones the window has
+                }
+            }
+            var message = SceneProtocol.Message(SceneProtocol.Values);
+            message["items"] = items;
+            message["lines"] = lines;
+            message["alarms"] = new JArray(Alarms(fs));
+            message["errors"] = new JArray(fs.SimulationObjects.Values.Where(o => !string.IsNullOrEmpty(o.ErrorMessage)).Select(o => o.Name));
+            return message;
+        }
+
+        /// <summary>The gauges with an active alarm and the objects they measure.</summary>
+        public static List<string> Alarms(IFlowsheet fs)
+        {
+            var ids = new List<string>();
+            foreach (var obj in fs.SimulationObjects.Values)
+            {
+                var g = obj as IIndicator;
+                if (g == null || !(g.VeryLowAlarmActive || g.LowAlarmActive || g.HighAlarmActive || g.VeryHighAlarmActive)) continue;
+                ids.Add(obj.Name);
+                if (!string.IsNullOrEmpty(g.SelectedObjectID)) ids.Add(g.SelectedObjectID);
+            }
+            return ids.Distinct().ToList();
         }
 
         /// <summary>The height a badge floats at when it has no place of its own, mm.</summary>

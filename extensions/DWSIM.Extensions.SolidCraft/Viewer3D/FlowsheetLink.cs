@@ -62,7 +62,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
 
         JObject scene;
         PlantModel model;
-        string fingerprint, selection;
+        string fingerprint, results, selection;
         int nextRef;
 
         /// <summary>
@@ -97,6 +97,9 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
         public JObject Scene { get { lock (gate) return scene; } }
 
         public event Action<string> Log;
+
+        /// <summary>Every message the link sends, connected window or not (for tests and logs).</summary>
+        public event Action<JObject> MessageSent;
         public event EventHandler Connected, Disconnected;
 
         /// <summary>Starts listening and looking for changes.</summary>
@@ -228,6 +231,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
         /// <summary>Sends a message to the window, when one is connected.</summary>
         public void Send(JObject message)
         {
+            try { MessageSent?.Invoke(message); } catch (Exception) { }
             lock (sendLock)
             {
                 if (writer == null) return;
@@ -260,13 +264,19 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
         /// </summary>
         public void Sync()
         {
-            JObject delta = null, select = null;
+            JObject delta = null, select = null, values = null;
             OnUi(() =>
             {
                 lock (gate)
                 {
-                    var now = FlowsheetFingerprint.Compute(fs);
-                    if (scene == null || now != fingerprint)
+                    // While a dynamic simulation runs only the values change: they go without the
+                    // geometry. Otherwise new results may resize the equipment and the lines, so the
+                    // scene is built again.
+                    var dynamic = false;
+                    try { dynamic = fs.DynamicMode; } catch (Exception) { }
+                    var now = FlowsheetFingerprint.Structure(fs);
+                    var res = FlowsheetFingerprint.Results(fs);
+                    if (scene == null || now != fingerprint || !dynamic && res != results)
                     {
                         var m = SceneBuilder.Model(fs);
                         var next = SceneBuilder.FromModel(m, fs);
@@ -274,6 +284,13 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                         scene = next;
                         model = m;
                         fingerprint = now;
+                        results = res;
+                        values = SceneBuilder.Values(fs, next);
+                    }
+                    else if (res != results)
+                    {
+                        values = SceneBuilder.Values(fs, scene);
+                        results = res;
                     }
                     var sel = string.Join("\n", Selection.Get(fs));
                     if (sel != selection)
@@ -285,6 +302,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                 }
             });
             if (delta != null) Send(delta);
+            if (values != null) Send(values);
             if (select != null) Send(select);
         }
 

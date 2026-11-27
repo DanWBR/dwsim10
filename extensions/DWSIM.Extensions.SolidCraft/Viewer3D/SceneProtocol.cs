@@ -96,6 +96,12 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
         /// <summary>{upsert, remove, lines, rack, name, warnings}: what changed in the scene (see <see cref="SceneDiff"/>).</summary>
         public const string SceneDelta = "scene.delta";
 
+        /// <summary>
+        /// {items, lines, alarms, errors}: new values without new geometry, sent while a dynamic
+        /// simulation runs (see <see cref="SceneBuilder.Values"/>).
+        /// </summary>
+        public const string Values = "values";
+
         /// <summary>{ids}: the selection, both ways.</summary>
         public const string Select = "select";
 
