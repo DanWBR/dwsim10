@@ -192,7 +192,18 @@ grid shows the cost of each kind, the hint shows the cost of what you are about 
 tip over a built object shows its cost. The bar shows the cost of the whole site, as SimCity shows
 the funds of the city, and Budget opens a panel with the count and the cost of each category.
 DWSIM works the budget out (SiteCatalog.Budget) and sends it with the scene. The costs are rough
-estimates in US dollars of 2026, for planning, not a quote.
+estimates in US dollars of 2026, for planning, not a quote. The ground the terrain brushes moved
+counts too, as a line of earthworks (the cut and fill volume times a cost per m3), and the panel
+shows the embodied CO2e of the site, from the concrete, steel and asphalt each kind of object
+takes and the diesel the earthworks burn.
+
+DWSIM keeps a summary of the site in the flowsheet (key `Plant3DSiteSummary`): the cost of each
+category, the earthworks, the materials and the CO2e. The techno-economic and life cycle tools of
+DWSIM Plus read it. In the TEA, a case can take Auxiliary Buildings (the buildings), Site
+Preparation (roads, paving, fences, nature and earthworks) and Site Facilities (safety, utilities
+and vehicles) from the site, brought to the date, place and currency of the case, instead of the
+percentages of the equipment cost. In the LCA, a study can include the construction of the site
+(its concrete, steel, asphalt and earthworks diesel) spread over the years the site serves.
 
 Terrain, the last category, shapes the ground round the plant with brushes: Raise builds it up,
 Lower digs it down, Level brings it to the height where you press, Smooth evens out bumps, Pond

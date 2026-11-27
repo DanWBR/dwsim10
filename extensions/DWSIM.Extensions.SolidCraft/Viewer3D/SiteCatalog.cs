@@ -154,11 +154,101 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             }
         }
 
+        /// <summary>The line of the budget for the ground moved by the terrain brushes.</summary>
+        public const string Earthworks = "Earthworks";
+
+        /// <summary>The estimated cost of moving earth (cut and fill), USD of 2026 per m3.</summary>
+        public const double EarthworksCostPerM3 = 12;
+
+        /// <summary>The diesel the machines burn to move one m3 of earth, kg.</summary>
+        public const double DieselPerM3 = 0.67;
+
         /// <summary>
-        /// The budget of the site: {total, items: [{cat, count, cost}]} in the order of the build
-        /// bar, the categories without objects left out; costs in whole dollars.
+        /// Rough cradle-to-gate emissions of the materials, kg CO2-eq: per m3 of ready-mixed concrete,
+        /// per t of steel, per t of hot-mix asphalt, per kg of diesel burned (upstream included).
+        /// The LCA has its own factors; these give the build bar an estimate.
         /// </summary>
-        public static JObject Budget(IEnumerable<SiteLayout.Building> items)
+        public const double Co2ePerM3Concrete = 300, Co2ePerTSteel = 1900, Co2ePerTAsphalt = 50, Co2ePerKgDiesel = 3.5;
+
+        /// <summary>
+        /// What the objects are made of, per unit, per metre of a line or per m2 of an area:
+        /// m3 of concrete, t of steel, t of asphalt. Rough quantities for planning; kinds left out
+        /// (plants, lawns, rocks) are made of nothing the LCA counts.
+        /// </summary>
+        static readonly Dictionary<string, double[]> MaterialsPer = new Dictionary<string, double[]>
+        {
+            ["controlroom"] = new[] { 50.0, 5, 0 }, ["admin"] = new[] { 220.0, 25, 0 }, ["workshop"] = new[] { 60.0, 18, 0 },
+            ["warehouse"] = new[] { 120.0, 35, 0 }, ["substation"] = new[] { 70.0, 32, 0 }, ["canteen"] = new[] { 70.0, 7, 0 },
+            ["guardhouse"] = new[] { 8.0, 0.5, 0 }, ["office"] = new[] { 300.0, 35, 0 }, ["factory"] = new[] { 160.0, 60, 0 },
+            ["plantoffice"] = new[] { 110.0, 12, 0 }, ["storehouse"] = new[] { 50.0, 15, 0 },
+            ["road"] = new[] { 0.0, 0, 1.7 }, ["path"] = new[] { 0.15, 0, 0 }, ["asphalt"] = new[] { 0.0, 0, 0.24 },
+            ["concrete"] = new[] { 0.15, 0.005, 0 }, ["parking"] = new[] { 0.0, 0, 0.24 },
+            ["fence"] = new[] { 0.02, 0.012, 0 }, ["wall"] = new[] { 0.7, 0.04, 0 }, ["gate"] = new[] { 0.5, 0.4, 0 },
+            ["barrier"] = new[] { 0.7, 0.02, 0 }, ["bund"] = new[] { 0.2, 0.01, 0 },
+            ["suv"] = new[] { 0.0, 1.5, 0 }, ["delivery"] = new[] { 0.0, 2, 0 }, ["truck"] = new[] { 0.0, 5, 0 },
+            ["firetruck"] = new[] { 0.0, 10, 0 }, ["loader"] = new[] { 0.0, 15, 0 },
+            ["hydrant"] = new[] { 0.1, 0.15, 0 }, ["extinguisher"] = new[] { 0.0, 0.01, 0 }, ["shower"] = new[] { 0.1, 0.05, 0 },
+            ["assembly"] = new[] { 0.05, 0.02, 0 }, ["windsock"] = new[] { 0.3, 0.1, 0 },
+            ["lamp"] = new[] { 0.5, 0.3, 0 }, ["flag"] = new[] { 0.3, 0.1, 0 }, ["lpgtank"] = new[] { 0.5, 0.6, 0 },
+            ["utilitybox"] = new[] { 0.2, 0.15, 0 }, ["barrel"] = new[] { 0.0, 0.02, 0 }, ["container"] = new[] { 0.0, 2.2, 0 },
+            ["dumpster"] = new[] { 0.0, 0.4, 0 }, ["watertower"] = new[] { 40.0, 15, 0 }, ["solar"] = new[] { 1.0, 1, 0 },
+            ["windturbine"] = new[] { 150.0, 60, 0 }, ["powerline"] = new[] { 0.03, 0.02, 0 },
+        };
+
+        /// <summary>How much of an object there is: 1 for a point object (its scale squared), its length for a line (m), its area for an area (m2).</summary>
+        static double Amount(SiteLayout.Building b, Entry e)
+        {
+            switch (e.Shape)
+            {
+                case Shape.Line: return b.Points == null ? 0 : SiteLayout.Length(b.Points) / 1000.0;
+                case Shape.Area: return b.Points == null || b.Points.Count < 3 ? 0 : SiteLayout.Area(b.Points) / 1e6;
+                default:
+                    var s = b.Scale > 0 ? b.Scale : 1;
+                    return s * s;
+            }
+        }
+
+        /// <summary>The materials of a site and the earth its relief moved.</summary>
+        public sealed class Materials
+        {
+            public double ConcreteM3, SteelT, AsphaltT, EarthworksM3;
+            public double DieselKg => EarthworksM3 * DieselPerM3;
+            public double Co2eKg => ConcreteM3 * Co2ePerM3Concrete + SteelT * Co2ePerTSteel + AsphaltT * Co2ePerTAsphalt + DieselKg * Co2ePerKgDiesel;
+        }
+
+        /// <summary>The volume of earth the relief moved, cut and fill, m3: the heights of the cells times their area.</summary>
+        public static double EarthworksVolume(SiteLayout.Terrain t)
+        {
+            if (t == null || SiteLayout.Check(t) != null) return 0;
+            var h = Convert.FromBase64String(t.Heights);
+            var cell = t.Cell / 1000.0;
+            double sum = 0;
+            for (var i = 0; i < t.Nx * t.Ny; i++) sum += Math.Abs(BitConverter.ToInt16(h, i * 2) / 100.0);
+            return sum * cell * cell;
+        }
+
+        public static Materials MaterialsOf(IEnumerable<SiteLayout.Building> items, SiteLayout.Terrain terrain = null)
+        {
+            var m = new Materials { EarthworksM3 = EarthworksVolume(terrain) };
+            foreach (var b in items ?? Enumerable.Empty<SiteLayout.Building>())
+            {
+                var e = Find(b?.Kind);
+                double[] q;
+                if (e == null || !MaterialsPer.TryGetValue(e.Kind, out q)) continue;
+                var a = Amount(b, e);
+                m.ConcreteM3 += q[0] * a;
+                m.SteelT += q[1] * a;
+                m.AsphaltT += q[2] * a;
+            }
+            return m;
+        }
+
+        /// <summary>
+        /// The budget of the site: {total, currency, co2e_kg, items: [{cat, count, cost}]} in the
+        /// order of the build bar, the categories without objects left out, then the earthworks of
+        /// the relief (count: m3) when there are any; costs in whole dollars.
+        /// </summary>
+        public static JObject Budget(IEnumerable<SiteLayout.Building> items, SiteLayout.Terrain terrain = null)
         {
             var list = (items ?? Enumerable.Empty<SiteLayout.Building>()).Where(b => Find(b?.Kind) != null).ToList();
             var cats = new JArray();
@@ -168,7 +258,46 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                 if (mine.Count == 0) continue;
                 cats.Add(new JObject { ["cat"] = c, ["count"] = mine.Count, ["cost"] = Math.Round(mine.Sum(CostOf)) });
             }
-            return new JObject { ["total"] = Math.Round(list.Sum(CostOf)), ["currency"] = "USD", ["items"] = cats };
+            var materials = MaterialsOf(list, terrain);
+            var total = list.Sum(CostOf);
+            if (materials.EarthworksM3 >= 1)
+            {
+                var cost = materials.EarthworksM3 * EarthworksCostPerM3;
+                cats.Add(new JObject { ["cat"] = Earthworks, ["count"] = Math.Round(materials.EarthworksM3), ["cost"] = Math.Round(cost) });
+                total += cost;
+            }
+            return new JObject { ["total"] = Math.Round(total), ["currency"] = "USD", ["co2e_kg"] = Math.Round(materials.Co2eKg), ["items"] = cats };
+        }
+
+        /// <summary>
+        /// The summary of the site that the TEA and the LCA read from the flowsheet (key
+        /// Plant3DSiteSummary): the costs by category (USD of 2026), the earthworks and the
+        /// materials. {v, currency, year, total, costs: {category: USD}, earthworks: {m3, cost},
+        /// materials: {concrete_m3, steel_t, asphalt_t, diesel_kg}, co2e_kg}.
+        /// </summary>
+        public static JObject Summary(IEnumerable<SiteLayout.Building> items, SiteLayout.Terrain terrain)
+        {
+            var budget = Budget(items, terrain);
+            var costs = new JObject();
+            foreach (var c in budget["items"].OfType<JObject>()) costs[(string)c["cat"]] = c["cost"];
+            var m = MaterialsOf(items, terrain);
+            return new JObject
+            {
+                ["v"] = 1,
+                ["currency"] = "USD",
+                ["year"] = 2026,
+                ["total"] = budget["total"],
+                ["costs"] = costs,
+                ["earthworks"] = new JObject { ["m3"] = Math.Round(m.EarthworksM3, 1), ["cost"] = Math.Round(m.EarthworksM3 * EarthworksCostPerM3) },
+                ["materials"] = new JObject
+                {
+                    ["concrete_m3"] = Math.Round(m.ConcreteM3, 2),
+                    ["steel_t"] = Math.Round(m.SteelT, 3),
+                    ["asphalt_t"] = Math.Round(m.AsphaltT, 2),
+                    ["diesel_kg"] = Math.Round(m.DieselKg, 1)
+                },
+                ["co2e_kg"] = Math.Round(m.Co2eKg)
+            };
         }
 
         /// <summary>The catalog as the window gets it in the welcome message.</summary>

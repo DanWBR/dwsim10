@@ -42,6 +42,8 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
     {
         public const string Key = "Plant3DSite";
         public const string TerrainKey = "Plant3DTerrain";
+        /// <summary>The summary of the site for the TEA and the LCA (see <see cref="SiteCatalog.Summary"/>), kept up to date here.</summary>
+        public const string SummaryKey = "Plant3DSiteSummary";
         public const string Prefix = "site:";
 
         public class Building
@@ -110,6 +112,23 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
         {
             if (site == null || !site.Adopted && site.Items.Count == 0) Write(fs, Key, null);
             else Write(fs, Key, JsonConvert.SerializeObject(site));
+            UpdateSummary(fs);
+        }
+
+        /// <summary>
+        /// Writes the summary of the site the TEA and the LCA read (key Plant3DSiteSummary), or takes
+        /// it away when there is neither a site nor a relief. Never throws.
+        /// </summary>
+        public static void UpdateSummary(IFlowsheet fs)
+        {
+            try
+            {
+                var site = LoadSite(fs);
+                var terrain = LoadTerrain(fs);
+                if (site.Items.Count == 0 && terrain == null) { Write(fs, SummaryKey, null); return; }
+                Write(fs, SummaryKey, SiteCatalog.Summary(site.Items, terrain).ToString(Formatting.None));
+            }
+            catch (Exception) { }
         }
 
         /// <summary>The objects of the site.</summary>
@@ -125,7 +144,11 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
 
         public static string Text(IFlowsheet fs) => Read(fs, Key);
 
-        public static void SetText(IFlowsheet fs, string text) => Write(fs, Key, text);
+        public static void SetText(IFlowsheet fs, string text)
+        {
+            Write(fs, Key, text);
+            UpdateSummary(fs);
+        }
 
         /// <summary>A new id for an object of a kind: site:kind:n, the first n not taken.</summary>
         public static string NewId(List<Building> site, string kind)
@@ -275,7 +298,11 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
 
         public static string TerrainText(IFlowsheet fs) => Read(fs, TerrainKey);
 
-        public static void SetTerrainText(IFlowsheet fs, string text) => Write(fs, TerrainKey, text);
+        public static void SetTerrainText(IFlowsheet fs, string text)
+        {
+            Write(fs, TerrainKey, text);
+            UpdateSummary(fs);
+        }
 
         public static Terrain LoadTerrain(IFlowsheet fs)
         {

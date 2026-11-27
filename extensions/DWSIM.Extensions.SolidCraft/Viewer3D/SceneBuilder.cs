@@ -117,7 +117,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             if (fs != null)
             {
                 var site = SiteLayout.LoadSite(fs);
-                scene["site"] = new JObject { ["adopted"] = site.Adopted, ["budget"] = SiteCatalog.Budget(site.Items) };
+                scene["site"] = new JObject { ["adopted"] = site.Adopted, ["budget"] = SiteCatalog.Budget(site.Items, SiteLayout.LoadTerrain(fs)) };
                 var terrain = SiteLayout.LoadTerrain(fs);
                 scene["terrain"] = terrain == null ? null : JObject.FromObject(terrain);
             }

@@ -81,6 +81,8 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
         {
             fs = flowsheet ?? throw new ArgumentNullException(nameof(flowsheet));
             Token = NewToken();
+            // a flowsheet saved before the summary existed gets one for the TEA and the LCA
+            SiteLayout.UpdateSummary(fs);
         }
 
         public IFlowsheet Flowsheet => fs;

@@ -132,7 +132,8 @@ func set_catalog(entries: Array) -> void:
 
 const CATEGORIES := ["Buildings", "Roads and paving", "Fences and barriers", "Nature", "Vehicles", "Safety", "Utilities", "Terrain"]
 const SHORT := {"Buildings": "Buildings", "Roads and paving": "Roads", "Fences and barriers": "Fences",
-	"Nature": "Nature", "Vehicles": "Vehicles", "Safety": "Safety", "Utilities": "Utilities", "Terrain": "Terrain"}
+	"Nature": "Nature", "Vehicles": "Vehicles", "Safety": "Safety", "Utilities": "Utilities", "Terrain": "Terrain",
+	"Earthworks": "Earthworks (m3)"}
 
 ## The brushes of the terrain: name and what it does.
 const BRUSHES := [["raise", "Raise", "Builds the ground up"], ["lower", "Lower", "Digs the ground down"],
@@ -261,6 +262,12 @@ func set_budget(b) -> void:
 	_cell("Total", false, true)
 	_cell("%d" % rows.reduce(func(a, r): return a + int(r.get("count", 0)), 0), true, true)
 	_cell(money(total), true, true)
+	# what building the site emits, from the concrete, steel, asphalt and earthworks it takes
+	var co2 := float(_budget.get("co2e_kg", 0.0))
+	if co2 > 0.0:
+		_cell("Embodied CO2e", false)
+		_cell("", true)
+		_cell("%.0f t" % (co2 / 1000.0) if co2 >= 10000.0 else "%.1f t" % (co2 / 1000.0), true)
 	budget_panel.reset_size.call_deferred()
 
 

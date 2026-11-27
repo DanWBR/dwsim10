@@ -460,6 +460,11 @@ namespace DWSIM.FluentAPI.Tests
             Assert.That((double)budget["items"][0]["cost"], Is.EqualTo(60 * 450 + 50 * 18).Within(1));
             Assert.That((int)budget["items"][1]["count"], Is.EqualTo(1));
             Assert.That(SiteCatalog.CostOf(new SiteLayout.Building { Kind = "tree", Scale = 2 }), Is.EqualTo(1000), "twice as big covers four times the ground");
+            // the summary the TEA and the LCA read: 60 m of road is 102 t of asphalt
+            var summary = Newtonsoft.Json.Linq.JObject.Parse((string)((System.Collections.Generic.IDictionary<string, object>)fs.Inner.ExtraProperties)[SiteLayout.SummaryKey]);
+            Assert.That((double)summary["costs"][SiteCatalog.Roads], Is.EqualTo(60 * 450 + 50 * 18).Within(1));
+            Assert.That((double)summary["materials"]["asphalt_t"], Is.EqualTo(102).Within(0.01));
+            Assert.That((double)summary["co2e_kg"], Is.EqualTo(102 * SiteCatalog.Co2ePerTAsphalt).Within(1));
 
             Assert.That(Type(link.Handle(Command(SceneProtocol.SiteAdd, new { kind = "castle", x = 0, y = 0 }))), Is.EqualTo(SceneProtocol.Error));
             Assert.That(Type(link.Handle(Command(SceneProtocol.SiteAdd, new { kind = "fence", points = new[] { new[] { 0, 0 } } }))), Is.EqualTo(SceneProtocol.Error), "a line needs two points");
@@ -546,6 +551,13 @@ namespace DWSIM.FluentAPI.Tests
             link.Sync();
             Assert.That((int)link.Scene["terrain"]["nx"], Is.EqualTo(3));
             Assert.That(Convert.FromBase64String((string)link.Scene["terrain"]["h"])[2], Is.EqualTo(100));
+            // one cell 1 m high on cells of 1 m: 1 m3 of earthworks in the budget and the summary
+            var earth = link.Scene["site"]["budget"]["items"].Single(c => (string)c["cat"] == SiteCatalog.Earthworks);
+            Assert.That((double)earth["count"], Is.EqualTo(1));
+            Assert.That((double)earth["cost"], Is.EqualTo(SiteCatalog.EarthworksCostPerM3));
+            var summary = Newtonsoft.Json.Linq.JObject.Parse((string)((System.Collections.Generic.IDictionary<string, object>)fs.Inner.ExtraProperties)[SiteLayout.SummaryKey]);
+            Assert.That((double)summary["earthworks"]["m3"], Is.EqualTo(1));
+            Assert.That((double)summary["materials"]["diesel_kg"], Is.EqualTo(SiteCatalog.DieselPerM3).Within(0.1));
 
             var bad = new { x0 = 0, y0 = 0, cell = 1000, nx = 3, ny = 2, h = Convert.ToBase64String(new byte[5]) };
             Assert.That((string)link.Handle(Command(SceneProtocol.Terrain, new { terrain = bad }))["type"], Is.EqualTo(SceneProtocol.Error));
