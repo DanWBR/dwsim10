@@ -27,6 +27,7 @@ var bar: PanelContainer
 var flyout: PanelContainer
 var kind := ""
 var rot := 0
+var variant := ""
 var demolishing := false
 var _catalog: Array = []
 var _category := ""
@@ -262,7 +263,7 @@ func _update_hint() -> void:
 	elif kind == "":
 		_hint.text = "Pick a category and an object to build. Drag a built object to move it, T turns it, Del demolishes it. U closes the bar."
 	elif _shape() == "point":
-		_hint.text = "Building: %s. Click to build, R turns it, Esc or the right button stops." % name
+		_hint.text = "Building: %s. Click to build, R turns it%s, Esc or the right button stops." % [name, ", V changes its look" if SiteObjects.VARIANTS.has(kind) else ""]
 	else:
 		var pts := _drawn()
 		var line := _shape() == "line"
@@ -343,11 +344,32 @@ func start(k: String) -> void:
 	stop()
 	kind = k
 	rot = 0
+	variant = ""
 	if _shape() == "point":
-		_ghost = _make_ghost({"site": k, "id": "ghost", "o": [0, 0, 0], "rot": 0})
-		_ghost.visible = false
-		_paint(true)
+		_deal()
 	_update_hint()
+
+
+## A look for the next object of a kind that has several (V picks the next one), and its ghost.
+func _deal(step := 0) -> void:
+	var list: Array = SiteObjects.VARIANTS.get(kind, [])
+	if list.is_empty():
+		variant = ""
+	elif step == 0:
+		variant = list[randi() % list.size()]
+	else:
+		variant = list[(list.find(variant) + step) % list.size()]
+	var at := Vector3.ZERO
+	var shown := false
+	if _ghost != null and is_instance_valid(_ghost):
+		at = _ghost.position
+		shown = _ghost.visible
+	_drop_ghost()
+	_ghost = _make_ghost({"site": kind, "id": "ghost", "o": [0, 0, 0], "rot": 0, "variant": variant})
+	_ghost.position = at
+	_ghost.rotation.y = deg_to_rad(rot)
+	_ghost.visible = shown
+	_paint(fits(kind, at, rot) if shown else true)
 
 
 func start_demolish() -> void:
@@ -611,6 +633,10 @@ func handle(event: InputEvent) -> bool:
 					_pts.pop_back()
 					_show_shape()
 					return true
+			KEY_V:
+				if _shape() == "point" and SiteObjects.VARIANTS.has(kind):
+					_deal(1)
+					return true
 			KEY_R:
 				if _shape() == "point":
 					rot = int(fposmod(rot + (-90 if ke.shift_pressed else 90), 360))
@@ -654,8 +680,13 @@ func _place(event: InputEvent) -> bool:
 		if not fits(kind, at, rot):
 			main._show_toast("There is no room for it there.")
 			return true
-		main.link.send({"type": "site.add", "kind": kind, "x": roundf(at.x * 1000.0), "y": roundf(-at.z * 1000.0),
-			"z": roundf(at.y * 1000.0), "rot": rot})
+		var add := {"type": "site.add", "kind": kind, "x": roundf(at.x * 1000.0), "y": roundf(-at.z * 1000.0),
+			"z": roundf(at.y * 1000.0), "rot": rot}
+		if variant != "":
+			add["variant"] = variant
+		main.link.send(add)
+		# the next one may look different
+		_deal()
 		return true
 	return false
 

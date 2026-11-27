@@ -11,9 +11,51 @@ const KENNEY := "res://assets/models/kenney/"
 const HAVEN := "res://assets/models/polyhaven/"
 const MM := 0.001
 
-## The models of the point kinds: path, and the size to scale them to (its length, or its height
-## when the third value is true); 0 keeps the model's own size.
+## The models of the point kinds, "kind" or "kind:variant": path, and the size to scale them to
+## (its length, or its height when the third value is true); 0 keeps the model's own size.
 const MODELS := {
+	"office:e": [KENNEY + "commercial/building-e.glb", 18.0, false],
+	"office:k": [KENNEY + "commercial/building-k.glb", 18.0, false],
+	"office:c": [KENNEY + "commercial/building-c.glb", 14.0, false],
+	"factory:b": [KENNEY + "industrial/building-b.glb", 24.0, false],
+	"factory:e": [KENNEY + "industrial/building-e.glb", 24.0, false],
+	"factory:m": [KENNEY + "industrial/building-m.glb", 24.0, false],
+	"plantoffice:a": [KENNEY + "industrial/building-a.glb", 14.0, false],
+	"plantoffice:o": [KENNEY + "industrial/building-o.glb", 14.0, false],
+	"storehouse:i": [KENNEY + "industrial/building-i.glb", 16.0, false],
+	"storehouse:j": [KENNEY + "industrial/building-j.glb", 16.0, false],
+	"watertower": [KENNEY + "industrial/water-tower.glb", 18.0, true],
+	"solar": [KENNEY + "industrial/solar-panel-landscape-group.glb", 10.0, false],
+	"windturbine": [KENNEY + "industrial/windmill.glb", 30.0, true],
+	"container:a": [KENNEY + "industrial/shipping-container-a.glb", 6.1, false],
+	"container:b": [KENNEY + "industrial/shipping-container-b.glb", 6.1, false],
+	"container:c": [KENNEY + "industrial/shipping-container-c.glb", 6.1, false],
+	"dumpster": [KENNEY + "roads/dumpster.glb", 2.0, false],
+	"parasol:a": [KENNEY + "commercial/detail-parasol-a.glb", 2.5, false],
+	"parasol:b": [KENNEY + "commercial/detail-parasol-b.glb", 2.5, false],
+	"tree:oak": [KENNEY + "nature/tree_oak.glb", 7.0, true],
+	"tree:default": [KENNEY + "nature/tree_default.glb", 7.0, true],
+	"tree:detailed": [KENNEY + "nature/tree_detailed.glb", 7.0, true],
+	"tree:fat": [KENNEY + "nature/tree_fat.glb", 6.5, true],
+	"tree:tall": [KENNEY + "nature/tree_tall.glb", 8.0, true],
+	"pine:a": [KENNEY + "nature/tree_pineDefaultA.glb", 9.0, true],
+	"pine:b": [KENNEY + "nature/tree_pineDefaultB.glb", 9.0, true],
+	"pine:round": [KENNEY + "nature/tree_pineRoundA.glb", 8.0, true],
+	"pine:tall": [KENNEY + "nature/tree_pineTallA.glb", 11.0, true],
+	"palm:a": [KENNEY + "nature/tree_palm.glb", 8.0, true],
+	"palm:tall": [KENNEY + "nature/tree_palmTall.glb", 10.0, true],
+	"palm:detailed": [KENNEY + "nature/tree_palmDetailedTall.glb", 9.0, true],
+	"palm:bend": [KENNEY + "nature/tree_palmBend.glb", 8.0, true],
+	"bush:a": [KENNEY + "nature/plant_bush.glb", 1.5, false],
+	"bush:large": [KENNEY + "nature/plant_bushLarge.glb", 2.2, false],
+	"bush:detailed": [KENNEY + "nature/plant_bushDetailed.glb", 1.6, false],
+	"flowers:red": [KENNEY + "nature/flower_redA.glb", 1.0, false],
+	"flowers:yellow": [KENNEY + "nature/flower_yellowA.glb", 1.0, false],
+	"flowers:purple": [KENNEY + "nature/flower_purpleA.glb", 1.0, false],
+	"rock:a": [KENNEY + "nature/rock_largeA.glb", 1.5, false],
+	"rock:b": [KENNEY + "nature/rock_largeB.glb", 1.5, false],
+	"rock:c": [KENNEY + "nature/rock_largeC.glb", 1.5, false],
+	"rock:d": [KENNEY + "nature/rock_largeD.glb", 1.5, false],
 	"suv": [KENNEY + "vehicles/suv.glb", 4.7, false],
 	"delivery": [KENNEY + "vehicles/delivery.glb", 5.6, false],
 	"truck": [KENNEY + "vehicles/truck-flat.glb", 7.0, false],
@@ -29,6 +71,22 @@ const MODELS := {
 	"utilitybox": [HAVEN + "utility_box_01/utility_box_01.gltf", 0.0, false],
 	"barrier": [HAVEN + "concrete_road_barrier/concrete_road_barrier.gltf", 0.0, false],
 }
+
+## The looks of the kinds that have several: the build bar deals one at each placement, and an
+## object saved without one gets one from its id.
+const VARIANTS := {
+	"office": ["e", "k", "c"], "factory": ["b", "e", "m"], "plantoffice": ["a", "o"], "storehouse": ["i", "j"],
+	"container": ["a", "b", "c"], "parasol": ["a", "b"], "tree": ["oak", "default", "detailed", "fat", "tall"],
+	"pine": ["a", "b", "round", "tall"], "palm": ["a", "tall", "detailed", "bend"], "bush": ["a", "large", "detailed"],
+	"flowers": ["red", "yellow", "purple"], "rock": ["a", "b", "c", "d"], "truck": ["", "box"],
+}
+
+## Plants and rocks: each one a little bigger or smaller than the next.
+const VARIED := ["tree", "pine", "palm", "bush", "flowers", "rock"]
+
+## The signs over the doors of the buildings made here.
+const SIGNS := {"admin": "ADMINISTRATION", "workshop": "MAINTENANCE WORKSHOP", "warehouse": "WAREHOUSE",
+	"substation": "SUBSTATION", "canteen": "CANTEEN", "guardhouse": "GATE"}
 
 ## Walls, roof and size (w, d, h, m) of the buildings that are made here.
 const BUILDINGS := {
@@ -72,7 +130,21 @@ const FALLBACK := {
 	"windsock": ["point", 1, 1, 8], "cone": ["point", 0.4, 0.4, 0.7], "lamp": ["point", 0.4, 0.4, 9],
 	"flag": ["point", 0.3, 0.3, 10], "lpgtank": ["point", 3, 1.2, 1.4], "utilitybox": ["point", 1, 0.5, 1.5],
 	"barrel": ["point", 0.6, 0.6, 0.9], "crate": ["point", 1.2, 1.2, 1.2],
+	"office": ["point", 18, 12, 10], "factory": ["point", 24, 18, 10], "plantoffice": ["point", 14, 10, 6],
+	"storehouse": ["point", 16, 12, 7], "pine": ["point", 4, 4, 9], "palm": ["point", 4, 4, 8], "bush": ["point", 1.5, 1.5, 1.2],
+	"flowers": ["point", 1, 1, 0.4], "container": ["point", 6.1, 2.44, 2.6], "dumpster": ["point", 2, 1.2, 1.3],
+	"parasol": ["point", 2.5, 2.5, 2.5], "watertower": ["point", 6, 6, 18], "solar": ["point", 10, 6, 2],
+	"windturbine": ["point", 8, 8, 30], "powerline": ["line", 2, 0, 12],
 }
+
+
+## The look of an object: its own variant, or one picked from its id for an object saved without one.
+static func variant_of(it: Dictionary, kind: String) -> String:
+	var v := str(it.get("variant", ""))
+	if v == "" and VARIANTS.has(kind):
+		var list: Array = VARIANTS[kind]
+		v = list[absi(_seed(it)) % list.size()]
+	return v
 
 
 static func entry(kind: String) -> Dictionary:
@@ -226,15 +298,24 @@ static func build(node: Node3D, it: Dictionary) -> void:
 		return
 	node.rotation.y = deg_to_rad(float(it.get("rot", 0)))
 	var body := Node3D.new()
+	if kind in VARIED:
+		scale *= 0.85 + 0.3 * float(absi(_seed(it)) % 1000) / 1000.0
 	body.scale = Vector3.ONE * scale
 	node.add_child(body)
+	var look := kind + ":" + variant_of(it, kind)
 	if kind == "controlroom":
 		ControlRoomModel.build(body)
 		node.set_meta("door", ControlRoomModel.DOOR * scale)
-	elif MODELS.has(kind + ":" + str(it.get("variant", ""))):
-		_model(body, MODELS[kind + ":" + str(it.get("variant", ""))])
+	elif MODELS.has(look):
+		_model(body, MODELS[look])
 	elif MODELS.has(kind):
 		_model(body, MODELS[kind])
+		if kind == "windturbine":
+			# the rotor turns about its hub while the plant runs
+			for b in body.find_children("blades", "", true, false):
+				b.add_to_group("spin")
+				b.set_meta("spin", 1.6)
+				b.set_meta("spin_axis", Vector3.RIGHT)
 	elif BUILDINGS.has(kind):
 		_building(body, kind)
 	else:
@@ -260,6 +341,8 @@ static func _model(parent: Node3D, spec: Array) -> void:
 		return
 	var n: Node3D = ps.instantiate()
 	parent.add_child(n)
+	if "/nature/" in str(spec[0]):
+		_tone_node(n)
 	var size: float = spec[1]
 	if size > 0.0:
 		var b := _bounds_of(n)
@@ -322,9 +405,110 @@ static func _building(parent: Node3D, kind: String) -> void:
 		_box(parent, Vector3(4.5, 4.5, 0.08), Vector3(0, 2.25, d / 2.0 + 0.02), _mat("#9aa0a6"))
 	else:
 		_box(parent, Vector3(1.1, 2.2, 0.06), Vector3(w / 2.0 - 1.4, 1.1, d / 2.0 + 0.01), _mat("#4c535c"))
-	if kind == "substation":
-		for i in 3:
-			_box(parent, Vector3(1.6, 2.0, 1.4), Vector3(-w / 2.0 + 2.0 + i * 2.6, 1.0, d / 2.0 + 1.8), _mat("#7d8a7a"))
+	_details(parent, kind, w, d, h)
+
+
+## A name over the door, on the front of a building.
+static func _sign(parent: Node3D, text: String, at: Vector3, size := 48) -> void:
+	var label := Label3D.new()
+	label.text = text
+	label.font_size = size
+	label.pixel_size = 0.01
+	label.modulate = Color(0.12, 0.17, 0.26)
+	label.outline_size = 3
+	label.outline_modulate = Color(1, 1, 1, 0.8)
+	label.position = at
+	parent.add_child(label)
+
+
+## What makes each building made here look like what it is.
+static func _details(parent: Node3D, kind: String, w: float, d: float, h: float) -> void:
+	var front := d / 2.0
+	if SIGNS.has(kind):
+		_sign(parent, SIGNS[kind], Vector3(0, h - 0.6 if kind != "guardhouse" else h - 0.5, front + 0.05), 48 if w > 6.0 else 28)
+	match kind:
+		"admin":
+			# an entrance canopy and units on the roof
+			_box(parent, Vector3(4.0, 0.2, 2.5), Vector3(0, 3.2, front + 1.25), _mat("#5c636d"))
+			for sx in [-1.0, 1.0]:
+				_rod(parent, 0.08, 3.2, Vector3(sx * 1.8, 1.6, front + 2.3), _mat("steel"))
+			for i in 3:
+				_box(parent, Vector3(1.6, 1.0, 1.2), Vector3(-w / 4.0 + i * w / 4.0, h + 0.75, -d / 4.0), _mat("#a7adb3"))
+		"workshop":
+			_box(parent, Vector3(4.5, 4.2, 0.1), Vector3(-w / 2.0 + 3.5, 2.1, front + 0.03), _mat("#3f6c96"))
+			for i in 3:
+				_box(parent, Vector3(1.2, 0.15, d * 0.7), Vector3(-w / 2.0 + 3.0 + i * (w - 6.0) / 2.0, h + 0.3, 0), _mat("glass"))
+		"warehouse":
+			_box(parent, Vector3(w * 0.8, 1.2, 2.5), Vector3(0, 0.6, front + 1.25), _mat("concrete"))
+			for sx in [-1.0, 1.0]:
+				_box(parent, Vector3(4.0, 4.0, 0.1), Vector3(sx * w / 4.0, 3.2, front + 0.03), _mat("#9aa0a6"))
+		"substation":
+			# a fenced yard of transformers in front, with a high voltage sign
+			var yard := 6.0
+			var a := Vector3(-w / 2.0, 0, front + 0.3)
+			var b := Vector3(w / 2.0, 0, front + 0.3)
+			var c := Vector3(w / 2.0, 0, front + yard)
+			var e := Vector3(-w / 2.0, 0, front + yard)
+			_fence(parent, b, c, 2.2)
+			_fence(parent, c, e, 2.2)
+			_fence(parent, e, a, 2.2)
+			for sx in [-1.0, 1.0]:
+				var at := Vector3(sx * w / 4.0, 0, front + yard / 2.0)
+				_box(parent, Vector3(2.2, 2.4, 1.8), at + Vector3(0, 1.2, 0), _mat("#6f7d6c"))
+				for k in 5:
+					_box(parent, Vector3(0.08, 1.8, 1.9), at + Vector3(-1.2 + k * 0.6, 1.1, 0), _mat("#5e6a5c"))
+				for k in 3:
+					_rod(parent, 0.08, 0.7, at + Vector3(-0.6 + k * 0.6, 2.75, 0), _mat("#c9c2a8"))
+			_box(parent, Vector3(0.6, 0.6, 0.02), Vector3(0, 1.6, front + yard + 0.05), _mat("yellow"))
+		"canteen":
+			_box(parent, Vector3(w * 0.7, 0.12, 2.0), Vector3(0, 2.8, front + 1.0), _mat("green"))
+			for i in 2:
+				_model_at(parent, MODELS["parasol:a"], Vector3(-3.0 + i * 6.0, 0, front + 4.5))
+		"guardhouse":
+			for side in [Vector3(w / 2.0 + 0.01, 0, 0), Vector3(-w / 2.0 - 0.01, 0, 0)]:
+				var g := _box(parent, Vector3(0.06, 1.0, d * 0.7), side + Vector3(0, 1.7, 0), _mat("glass"))
+				g.add_to_group("night_glow")
+
+
+static func _model_at(parent: Node3D, spec: Array, at: Vector3) -> void:
+	var holder := Node3D.new()
+	holder.position = at
+	parent.add_child(holder)
+	_model(holder, spec)
+
+
+## A power line: a pole at each point of the line and every 35 m between, and three wires from
+## pole to pole at the height of the cross arm.
+static func _power_line(parent: Node3D, pts: PackedVector3Array) -> void:
+	var poles := PackedVector3Array()
+	var dirs := []
+	for i in range(1, pts.size()):
+		var a := pts[i - 1]
+		var b := pts[i]
+		var n := maxi(1, int(ceil(a.distance_to(b) / 35.0)))
+		for k in n:
+			poles.append(a.lerp(b, float(k) / n))
+			dirs.append((b - a).normalized())
+	poles.append(pts[-1])
+	dirs.append((pts[-1] - pts[-2]).normalized() if pts.size() > 1 else Vector3.RIGHT)
+	var spec := [KENNEY + "roads/electricity-pole.glb", 12.0, true]
+	var arm := 11.2
+	for i in poles.size():
+		var holder := Node3D.new()
+		holder.position = poles[i]
+		# the cross arm across the line
+		holder.basis = Basis.looking_at(dirs[i], Vector3.UP)
+		parent.add_child(holder)
+		_model(holder, spec)
+	var wire := _mat("#2b2d30")
+	for i in range(1, poles.size()):
+		var across := Vector3.UP.cross(dirs[i - 1]).normalized()
+		var across2 := Vector3.UP.cross(dirs[i]).normalized()
+		for off in [-1.1, 0.0, 1.1]:
+			var a: Vector3 = poles[i - 1] + across * off + Vector3(0, arm, 0)
+			var b: Vector3 = poles[i] + across2 * off + Vector3(0, arm, 0)
+			var r := _rod(parent, 0.02, a.distance_to(b), (a + b) / 2.0, wire)
+			r.basis = SceneBuilder.basis_along((b - a).normalized())
 
 
 static func tree_meshes() -> Array:
@@ -341,9 +525,89 @@ static func tree_meshes() -> Array:
 	return [tm, cm]
 
 
-## Trees at the given places, in two multimeshes (trunks and crowns), seeded so they look the same each time.
+static var _trees := []
+
+## Natural tones for the bright colours of the Nature Kit, by material name.
+const TONES := {"leafsGreen": Color(0.3, 0.5, 0.17), "leafsDark": Color(0.17, 0.35, 0.16), "grass": Color(0.34, 0.52, 0.19),
+	"woodBark": Color(0.42, 0.3, 0.2), "woodBarkDark": Color(0.33, 0.24, 0.17), "dirt": Color(0.47, 0.38, 0.28)}
+static var _toned := {}
+
+
+## The material in a natural tone, for a Nature Kit material that has one; the same material otherwise.
+static func _tone(m: Material) -> Material:
+	if m == null or not TONES.has(m.resource_name):
+		return m
+	if not _toned.has(m.resource_name):
+		var t := (m as BaseMaterial3D).duplicate() as BaseMaterial3D
+		t.albedo_color = TONES[m.resource_name]
+		t.roughness = 0.9
+		_toned[m.resource_name] = t
+	return _toned[m.resource_name]
+
+
+static func _tone_node(n: Node) -> void:
+	for mi in n.find_children("*", "MeshInstance3D", true, false):
+		var m := mi as MeshInstance3D
+		for i in m.mesh.get_surface_count():
+			var t := _tone(m.mesh.surface_get_material(i))
+			if t != m.mesh.surface_get_material(i):
+				m.set_surface_override_material(i, t)
+
+
+## The meshes of the Nature Kit trees for woods and rows: [mesh, its transform in the model, height].
+static func nature_trees() -> Array:
+	if not _trees.is_empty():
+		return _trees
+	for v in ["oak", "default", "detailed", "fat", "tall", "pineDefaultA", "pineRoundA"]:
+		var ps := _scene(KENNEY + "nature/tree_" + v + ".glb")
+		if ps == null:
+			continue
+		var n: Node3D = ps.instantiate()
+		var found := n.find_children("*", "MeshInstance3D", true, false)
+		if not found.is_empty():
+			var mi := found[0] as MeshInstance3D
+			var t := Transform3D.IDENTITY
+			var p: Node = mi
+			while p != null and p != n:
+				if p is Node3D:
+					t = (p as Node3D).transform * t
+				p = p.get_parent()
+			var mesh := mi.mesh.duplicate() as Mesh
+			for i in mesh.get_surface_count():
+				mesh.surface_set_material(i, _tone(mesh.surface_get_material(i)))
+			_trees.append([mesh, t, maxf((t * mi.get_aabb()).size.y, 0.01)])
+		n.free()
+	return _trees
+
+
+## Trees at the given places, seeded so they look the same each time: Nature Kit trees in one
+## multimesh per model, or, without them, trunks and crowns made here.
 static func _forest(parent: Node3D, spots: PackedVector3Array, rng: RandomNumberGenerator) -> void:
 	if spots.is_empty():
+		return
+	var kinds := nature_trees()
+	if not kinds.is_empty():
+		var groups := []
+		for k in kinds.size():
+			groups.append([])
+		for p in spots:
+			var k := rng.randi() % kinds.size()
+			var h := rng.randf_range(5.0, 9.0)
+			var s: float = h / float(kinds[k][2])
+			var t := Transform3D(Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3.ONE * s), p) * (kinds[k][1] as Transform3D)
+			groups[k].append(t)
+		for k in kinds.size():
+			if groups[k].is_empty():
+				continue
+			var mm := MultiMesh.new()
+			mm.transform_format = MultiMesh.TRANSFORM_3D
+			mm.mesh = kinds[k][0]
+			mm.instance_count = groups[k].size()
+			for i in groups[k].size():
+				mm.set_instance_transform(i, groups[k][i])
+			var mmi := MultiMeshInstance3D.new()
+			mmi.multimesh = mm
+			parent.add_child(mmi)
 		return
 	var meshes := tree_meshes()
 	var trunks := MultiMesh.new()
@@ -537,6 +801,8 @@ static func _line(node: Node3D, kind: String, pts: PackedVector3Array, it: Dicti
 		"fence":
 			for s in segs:
 				_fence(node, s[0], s[1], 2.2)
+		"powerline":
+			_power_line(node, pts)
 		"wall":
 			for s in segs:
 				_strip(node, s[0], s[1], w, 2.5, 0.0, _mat("wall"))

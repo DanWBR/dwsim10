@@ -72,6 +72,10 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             P("substation", "Electrical Substation", Buildings, 12, 8, 4, 650000),
             P("canteen", "Canteen", Buildings, 14, 10, 4, 300000),
             P("guardhouse", "Guardhouse", Buildings, 4, 4, 3, 45000),
+            P("office", "Office Building", Buildings, 18, 12, 10, 1400000),
+            P("factory", "Factory Hall", Buildings, 24, 18, 10, 1800000),
+            P("plantoffice", "Plant Office", Buildings, 14, 10, 6, 600000),
+            P("storehouse", "Storage Shed", Buildings, 16, 12, 7, 250000),
 
             L("road", "Road", Roads, 7, 0, 450),
             L("path", "Footpath", Roads, 1.5, 0, 60),
@@ -92,6 +96,10 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             A("woods", "Woods", Nature, 3),
             A("grass", "Lawn", Nature, 6),
             P("rock", "Rock", Nature, 1.5, 1.5, 1, 150),
+            P("pine", "Pine", Nature, 4, 4, 9, 300),
+            P("palm", "Palm Tree", Nature, 4, 4, 8, 400),
+            P("bush", "Bush", Nature, 1.5, 1.5, 1.2, 60),
+            P("flowers", "Flowers", Nature, 1, 1, 0.4, 40),
 
             P("suv", "Car", Vehicles, 4.8, 2, 1.8, 45000),
             P("delivery", "Delivery Van", Vehicles, 5.5, 2.1, 2.4, 55000),
@@ -112,6 +120,13 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             P("utilitybox", "Electrical Cabinet", Utilities, 1, 0.5, 1.5, 2500),
             P("barrel", "Drum", Utilities, 0.6, 0.6, 0.9, 80),
             P("crate", "Crate", Utilities, 1.2, 1.2, 1.2, 120),
+            P("container", "Shipping Container", Utilities, 6.1, 2.44, 2.6, 4000),
+            P("dumpster", "Dumpster", Utilities, 2, 1.2, 1.3, 1200),
+            P("parasol", "Parasol Table", Utilities, 2.5, 2.5, 2.5, 600),
+            P("watertower", "Water Tower", Utilities, 6, 6, 18, 400000),
+            P("solar", "Solar Array", Utilities, 10, 6, 2, 25000),
+            P("windturbine", "Wind Turbine", Utilities, 8, 8, 30, 1200000),
+            L("powerline", "Power Line", Utilities, 2, 12, 120),
         };
 
         public static Entry Find(string kind) => Entries.FirstOrDefault(e => e.Kind == kind);

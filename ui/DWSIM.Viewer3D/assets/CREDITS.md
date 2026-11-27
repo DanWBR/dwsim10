@@ -30,6 +30,10 @@ Scaled down to 512 x 512. The equipment keeps its own colours; these maps add th
 |---|---|
 | `models/kenney/vehicles` | Car Kit 3.1 by Kenney (www.kenney.nl), CC0; licence text in the folder |
 | `models/kenney/people` | Mini Characters 2.0 by Kenney (www.kenney.nl), CC0; licence text in the folder |
+| `models/kenney/industrial` | City Kit (Industrial) by Kenney (www.kenney.nl), CC0: seven buildings, water tower, solar panel group, windmill, three shipping containers; licence text in the folder |
+| `models/kenney/commercial` | City Kit (Commercial) by Kenney (www.kenney.nl), CC0: three buildings and two parasols; licence text in the folder |
+| `models/kenney/roads` | City Kit (Roads) by Kenney (www.kenney.nl), CC0: electricity pole and dumpster; licence text in the folder |
+| `models/kenney/nature` | Nature Kit by Kenney (www.kenney.nl), CC0: trees, pines, palms, bushes, flowers and rocks; the window shades their leaves, grass and bark in natural tones; licence text in the folder |
 | `models/polyhaven/*` | Poly Haven (https://polyhaven.com), CC0: Barrel 01, Fire Hydrant, Korean Fire Extinguisher 01, Utility Box 01, Small LPG Tank, Wooden Crate 01, Concrete Road Barrier; glTF at 1K with the textures scaled down to 512 x 512 |
 
 ## Ambient sounds (OpenGameArt, CC0)

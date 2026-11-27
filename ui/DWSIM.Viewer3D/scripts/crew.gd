@@ -172,9 +172,10 @@ func _spawn() -> void:
 	var bubble := Label3D.new()
 	bubble.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	bubble.fixed_size = true
-	bubble.pixel_size = 0.0008
-	bubble.font_size = 22
-	bubble.outline_size = 8
+	bubble.pixel_size = 0.0009
+	bubble.font_size = 32
+	bubble.outline_size = 6
+	bubble.outline_render_priority = 10
 	bubble.modulate = Color(0.08, 0.2, 0.4)
 	bubble.outline_modulate = Color(1, 1, 1, 0.92)
 	bubble.no_depth_test = true

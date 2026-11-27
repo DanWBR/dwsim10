@@ -158,6 +158,22 @@ name and its estimated cost. When you pick an object, a ghost of it follows the 
 The ghost is green where the object fits and red where it would stand on the equipment (or within
 1 m of it) or on another object. R turns it a quarter turn and Shift+R turns it back. A click
 builds it, and the tool stays for the next one until you press Esc or click the right button.
+Some kinds have several looks (office buildings, factory halls, sheds, containers, trees, pines,
+palms, bushes, flowers, rocks): the bar deals one at each placement, as SimCity does, and V shows
+the next one before you click.
+
+The catalog holds 56 kinds. The buildings are a control room, an administration building, a
+maintenance workshop, a warehouse with a loading dock, an electrical substation with a fenced yard
+of transformers, a canteen with parasols, a guardhouse, an office building, a factory hall, a plant
+office and a storage shed. Roads and paving have roads, footpaths, asphalt, concrete, gravel and
+parking lots. Fences and barriers have chain-link fences, concrete walls, gates, road barriers and
+tank bunds. Nature has trees, pines, palms, rows of trees, hedges, bushes, flowers, rocks, lawns
+and woods. Vehicles has cars, delivery vans, trucks, a fire truck and a front loader. Safety has
+fire hydrants, extinguishers, safety showers, assembly points, windsocks and traffic cones.
+Utilities has lamp posts, flagpoles, LPG tanks, electrical cabinets, drums, crates, shipping
+containers, dumpsters, parasol tables, a water tower, solar arrays, a wind turbine whose rotor turns
+while the plant runs, and power lines (a pole every 35 m with three wires). The buildings made in
+the window carry their names over the door, and their windows light up at night.
 Once an object is built, you drag it to move it, T turns it and Del demolishes it, and Ctrl+Z
 undoes each step.
 

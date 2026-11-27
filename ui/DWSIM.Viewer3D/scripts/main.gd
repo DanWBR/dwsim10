@@ -472,13 +472,16 @@ func _add_item(it: Dictionary) -> void:
 	label.text = str(it.get("tag", ""))
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.fixed_size = true
-	label.pixel_size = 0.0009
-	label.font_size = 26
-	label.outline_size = 8
+	# dark text with a white border; below 32 px the letters of the distance-field font go thin and
+	# the border swallows them
+	label.pixel_size = 0.0011
+	label.font_size = 32
+	label.outline_size = 6
 	label.modulate = Color(0.08, 0.1, 0.13)
-	label.outline_modulate = Color(1, 1, 1, 0.85)
+	label.outline_modulate = Color(1, 1, 1, 0.9)
 	label.no_depth_test = true
 	label.render_priority = 10
+	label.outline_render_priority = 9
 	var b := _node_bounds(node)
 	label.position = Vector3(b.get_center().x, b.end.y + 0.6, b.get_center().z)
 	labels_root.add_child(label)
@@ -827,13 +830,14 @@ func _value_tags() -> void:
 		l.text = text
 		l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		l.fixed_size = true
-		l.pixel_size = 0.0007
-		l.font_size = 22
+		l.pixel_size = 0.0009
+		l.font_size = 32
 		l.outline_size = 6
 		l.modulate = Color(0.05, 0.3, 0.55)
-		l.outline_modulate = Color(1, 1, 1, 0.85)
+		l.outline_modulate = Color(1, 1, 1, 0.9)
 		l.no_depth_test = true
 		l.render_priority = 9
+		l.outline_render_priority = 8
 		l.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 		l.position = at
 		values_root.add_child(l)
@@ -1071,7 +1075,7 @@ func _process(delta: float) -> void:
 	if animate:
 		var t := Time.get_ticks_msec() / 1000.0
 		for n in get_tree().get_nodes_in_group("spin"):
-			(n as Node3D).rotate_object_local(Vector3.UP, float(n.get_meta("spin", 1.0)) * delta)
+			(n as Node3D).rotate_object_local(n.get_meta("spin_axis", Vector3.UP), float(n.get_meta("spin", 1.0)) * delta)
 		for n in get_tree().get_nodes_in_group("blink"):
 			(n as Node3D).visible = fmod(t * float(n.get_meta("rate", 1.0)) + float(n.get_meta("phase", 0.0)), 1.0) < 0.6
 	if crew != null and crew.panel != null:
