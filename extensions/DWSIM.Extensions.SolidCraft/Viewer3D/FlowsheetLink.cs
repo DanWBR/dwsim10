@@ -368,6 +368,8 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             {
                 case SceneProtocol.Place: return Place(m);
                 case SceneProtocol.LayoutReset: return ResetLayout(m);
+                case SceneProtocol.Undo: return Undo(true);
+                case SceneProtocol.Redo: return Undo(false);
                 case SceneProtocol.Add: return Add(m);
                 case SceneProtocol.Connect: return Connect(m);
                 case SceneProtocol.Disconnect: return Disconnect(m);
@@ -382,19 +384,35 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             }
         }
 
+        /// <summary>
+        /// Moves or turns items: one item (id, x, y, z, rot) or several at once ("items", an array
+        /// of those), which undo as one step. Lengths in mm, the turn in degrees (quarter turns).
+        /// </summary>
         JObject Place(JObject m)
         {
-            var id = (string)m["id"];
-            if (id == null || !fs.SimulationObjects.ContainsKey(id)) return Error("there is no object '" + id + "'", SceneProtocol.Place);
-            var layout = PlantLayout.Load(fs);
-            layout[id] = new Placement
+            var list = m["items"] as JArray ?? new JArray(m.DeepClone());
+            var places = new List<KeyValuePair<string, Placement>>();
+            foreach (var t in list.OfType<JObject>())
             {
-                X = Math.Round((double?)m["x"] ?? 0),
-                Y = Math.Round((double?)m["y"] ?? 0),
-                Z = Math.Round((double?)m["z"] ?? 0),
-                Rot = QuarterTurn((double?)m["rot"] ?? 0)
-            };
-            Snapshot(SnapshotType.ObjectLayout);
+                var id = (string)t["id"];
+                if (id == null || !fs.SimulationObjects.ContainsKey(id)) return Error("there is no object '" + id + "'", SceneProtocol.Place);
+                double x, y, z;
+                if (!Finite(t["x"], out x) || !Finite(t["y"], out y) || !Finite(t["z"] ?? 0, out z))
+                    return Error("the place of '" + id + "' is not a number", SceneProtocol.Place);
+                if (z < MinElevation || z > MaxElevation)
+                    return Error("an elevation must lie between " + MinElevation / 1000 + " and " + MaxElevation / 1000 + " m", SceneProtocol.Place);
+                places.Add(new KeyValuePair<string, Placement>(id, new Placement
+                {
+                    X = Math.Round(x),
+                    Y = Math.Round(y),
+                    Z = Math.Round(z),
+                    Rot = QuarterTurn((double?)t["rot"] ?? 0)
+                }));
+            }
+            if (places.Count == 0) return Error("nothing to place", SceneProtocol.Place);
+            var layout = PlantLayout.Load(fs);
+            Remember();
+            foreach (var kv in places) layout[kv.Key] = kv.Value;
             PlantLayout.Save(fs, layout);
             return null;
         }
@@ -403,11 +421,60 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
         {
             var layout = PlantLayout.Load(fs);
             var ids = m["ids"] as JArray;
-            Snapshot(SnapshotType.ObjectLayout);
+            Remember();
             if (ids == null) layout.Clear();
             else foreach (var id in ids) layout.Remove((string)id);
             PlantLayout.Save(fs, layout);
             return null;
+        }
+
+        /// <summary>The lowest and highest elevation an item may be placed at, mm.</summary>
+        public const double MinElevation = -50000, MaxElevation = 300000;
+
+        // The 3D layout keeps its own undo history, separate from the flowsheet's: the window's
+        // Ctrl+Z takes back the last move made in 3D and nothing of the 2D drawing.
+        const int UndoDepth = 100;
+        readonly List<string> undo = new List<string>(), redo = new List<string>();
+
+        void Remember()
+        {
+            undo.Add(LayoutText());
+            if (undo.Count > UndoDepth) undo.RemoveAt(0);
+            redo.Clear();
+        }
+
+        JObject Undo(bool back)
+        {
+            var from = back ? undo : redo;
+            var to = back ? redo : undo;
+            if (from.Count == 0) return Error(back ? "there is nothing to undo" : "there is nothing to redo", back ? SceneProtocol.Undo : SceneProtocol.Redo);
+            to.Add(LayoutText());
+            var text = from[from.Count - 1];
+            from.RemoveAt(from.Count - 1);
+            var props = fs.ExtraProperties as IDictionary<string, object>;
+            if (props != null)
+            {
+                if (text == null) props.Remove(LayoutKey);
+                else props[LayoutKey] = text;
+            }
+            return null;
+        }
+
+        const string LayoutKey = "SolidCraftLayout";
+
+        string LayoutText()
+        {
+            var props = fs.ExtraProperties as IDictionary<string, object>;
+            object value;
+            return props != null && props.TryGetValue(LayoutKey, out value) && value != null ? value.ToString() : null;
+        }
+
+        static bool Finite(JToken t, out double value)
+        {
+            value = 0;
+            if (t == null || (t.Type != JTokenType.Float && t.Type != JTokenType.Integer)) return false;
+            value = (double)t;
+            return !double.IsNaN(value) && !double.IsInfinity(value);
         }
 
         JObject Add(JObject m)

@@ -104,6 +104,50 @@ namespace DWSIM.FluentAPI.Tests
         }
 
         [Test]
+        public void MovesInTheWindowUndoAsOneStepEach()
+        {
+            var fs = PumpAndHeater();
+            var link = new FlowsheetLink(fs.Inner);
+            var p = Id(fs, "P-1");
+            var e = Id(fs, "E-1");
+            string Type(JObject a) => (string)a["type"];
+
+            var batch = new JObject
+            {
+                ["type"] = SceneProtocol.Place,
+                ["items"] = new JArray(
+                    new JObject { ["id"] = p, ["x"] = 1000, ["y"] = 0, ["z"] = 0, ["rot"] = 0 },
+                    new JObject { ["id"] = e, ["x"] = 5000, ["y"] = 0, ["z"] = 2500, ["rot"] = 270 })
+            };
+            Assert.That(Type(link.Handle(batch)), Is.EqualTo(SceneProtocol.Ack));
+            var layout = PlantLayout.Load(fs.Inner);
+            Assert.That(layout[e].Z, Is.EqualTo(2500), "the elevation is kept");
+            Assert.That(layout[e].Rot, Is.EqualTo(270));
+
+            link.Handle(Command(SceneProtocol.Place, new { id = p, x = 3000, y = 0, z = 0, rot = 0 }));
+            Assert.That(PlantLayout.Load(fs.Inner)[p].X, Is.EqualTo(3000));
+
+            Assert.That(Type(link.Handle(Command(SceneProtocol.Undo))), Is.EqualTo(SceneProtocol.Ack));
+            Assert.That(PlantLayout.Load(fs.Inner)[p].X, Is.EqualTo(1000), "undo takes back the last move");
+            link.Handle(Command(SceneProtocol.Undo));
+            Assert.That(PlantLayout.Load(fs.Inner), Is.Empty, "the two items of the batch go back together");
+            Assert.That(Type(link.Handle(Command(SceneProtocol.Undo))), Is.EqualTo(SceneProtocol.Error), "nothing is left to undo");
+
+            link.Handle(Command(SceneProtocol.Redo));
+            Assert.That(PlantLayout.Load(fs.Inner).Count, Is.EqualTo(2));
+            link.Handle(Command(SceneProtocol.Redo));
+            Assert.That(PlantLayout.Load(fs.Inner)[p].X, Is.EqualTo(3000));
+
+            link.Handle(Command(SceneProtocol.Undo));
+            link.Handle(Command(SceneProtocol.Place, new { id = p, x = 7000, y = 0, z = 0, rot = 0 }));
+            Assert.That(Type(link.Handle(Command(SceneProtocol.Redo))), Is.EqualTo(SceneProtocol.Error), "a new move ends what could be redone");
+
+            Assert.That(Type(link.Handle(Command(SceneProtocol.Place, new { id = p, x = 0, y = 0, z = 900000, rot = 0 }))), Is.EqualTo(SceneProtocol.Error), "an elevation of 900 m is refused");
+            Assert.That(Type(link.Handle(Command(SceneProtocol.Place, new { id = p, x = "far", y = 0 }))), Is.EqualTo(SceneProtocol.Error), "a place must be a number");
+            Assert.That(PlantLayout.Load(fs.Inner)[p].X, Is.EqualTo(7000), "a refused move changes nothing");
+        }
+
+        [Test]
         public void TheWindowCanAddConnectRenameAndDelete()
         {
             var fs = PumpAndHeater();

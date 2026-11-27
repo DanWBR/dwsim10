@@ -18,6 +18,11 @@ const SHORTCUTS := [
 	["I", "Insulation"],
 	["R", "Pipe rack"],
 	["G", "Grid"],
+	["Drag", "Move on the 0.5 m grid (Alt: freely)"],
+	["Arrows", "Nudge 0.5 m (Shift: 0.1 m)"],
+	["PgUp / PgDn", "Raise / lower 0.5 m"],
+	["T / Shift+T", "Turn the selection"],
+	["Ctrl+Z / Ctrl+Y", "Undo / redo a move"],
 	["Esc", "Clear the selection"],
 	["F1", "This card"],
 ]
@@ -26,6 +31,7 @@ const KEY_VIEWS := {KEY_1: "IsoSE", KEY_2: "IsoSW", KEY_3: "IsoNW", KEY_4: "IsoN
 var link: DwsimLink
 var rig: CameraRig
 var builder := SceneBuilder.new()
+var editor: LayoutEditor
 
 var world: Node3D
 var items_root: Node3D
@@ -63,6 +69,11 @@ func _ready() -> void:
 	get_window().title = "DWSIM 3D"
 	_build_world()
 	_build_hud()
+	editor = LayoutEditor.new(self)
+	add_child(editor)
+	var edit_panel := editor.build_panel(_panel_style())
+	edit_panel.theme = _light_theme()
+	hud.add_child(edit_panel)
 	rig = CameraRig.new()
 	add_child(rig)
 	link = DwsimLink.new()
@@ -75,6 +86,15 @@ func _ready() -> void:
 	_highlight.albedo_color = Color(0.24, 0.5, 0.84, 0.38)
 	_highlight.no_depth_test = false
 	_run_offline()
+	var test_item := ""
+	var test_out := ""
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--selftest-item="):
+			test_item = arg.get_slice("=", 1)
+		elif arg.begins_with("--selftest-out="):
+			test_out = arg.get_slice("=", 1)
+	if test_item != "" and test_out != "":
+		add_child(SelfTest.new(self, test_item, test_out))
 
 
 # --- world -----------------------------------------------------------------------------------
@@ -389,6 +409,8 @@ func _pick(screen: Vector2) -> String:
 # --- input -----------------------------------------------------------------------------------
 
 func _unhandled_input(event: InputEvent) -> void:
+	if editor != null and editor.handle(event):
+		return
 	if event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
 		if mb.pressed:
@@ -489,6 +511,33 @@ func _panel_style(alpha := 0.92) -> StyleBoxFlat:
 	return s
 
 
+## Light input fields and buttons for the panels (Godot's own theme is dark).
+func _light_theme() -> Theme:
+	var t := Theme.new()
+	var dark := Color(0.11, 0.15, 0.2)
+	var box := func(bg: Color, border: Color) -> StyleBoxFlat:
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = bg
+		sb.border_color = border
+		sb.set_border_width_all(1)
+		sb.set_corner_radius_all(4)
+		sb.content_margin_left = 8
+		sb.content_margin_right = 8
+		sb.content_margin_top = 3
+		sb.content_margin_bottom = 3
+		return sb
+	t.set_stylebox("normal", "LineEdit", box.call(Color(1, 1, 1), Color(0.78, 0.81, 0.85)))
+	t.set_stylebox("focus", "LineEdit", box.call(Color(1, 1, 1), Color(0.24, 0.5, 0.84)))
+	t.set_color("font_color", "LineEdit", dark)
+	t.set_color("caret_color", "LineEdit", dark)
+	t.set_stylebox("normal", "Button", box.call(Color(0.95, 0.96, 0.97), Color(0.78, 0.81, 0.85)))
+	t.set_stylebox("hover", "Button", box.call(Color(0.9, 0.93, 0.97), Color(0.24, 0.5, 0.84)))
+	t.set_stylebox("pressed", "Button", box.call(Color(0.84, 0.89, 0.96), Color(0.24, 0.5, 0.84)))
+	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+		t.set_color(c, "Button", dark)
+	return t
+
+
 func _build_hud() -> void:
 	hud = CanvasLayer.new()
 	add_child(hud)
@@ -547,6 +596,8 @@ func _process(delta: float) -> void:
 	card.position = Vector2(size.x - card.size.x - 12, 12)
 	info_panel.position = Vector2(size.x - info_panel.size.x - 12, card.position.y + (card.size.y + 12 if card.visible else 0))
 	toast.position = Vector2(14, size.y - 34)
+	if editor != null and editor.panel != null:
+		editor.panel.position = Vector2(size.x - editor.panel.size.x - 12, size.y - editor.panel.size.y - 12)
 	if _toast_time > 0.0:
 		_toast_time -= delta
 		if _toast_time <= 0.0:
@@ -574,6 +625,8 @@ func _update_title() -> void:
 
 
 func _show_info() -> void:
+	if editor != null:
+		editor.refresh()
 	if selected.is_empty():
 		info_panel.visible = false
 		return

@@ -42,8 +42,17 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
         /// <summary>{token, version}: the first message of the window.</summary>
         public const string Hello = "hello";
 
-        /// <summary>{id, x, y, z, rot}: the window moved or turned an item (rot in degrees, quarter turns).</summary>
+        /// <summary>
+        /// {id, x, y, z, rot}, or {items: [those]}: the window moved or turned items (rot in degrees,
+        /// quarter turns); several items at once undo as one step.
+        /// </summary>
         public const string Place = "place";
+
+        /// <summary>Takes back the last change of the 3D layout (place or layout.reset).</summary>
+        public const string Undo = "undo";
+
+        /// <summary>Makes again the change the last undo took back.</summary>
+        public const string Redo = "redo";
 
         /// <summary>{ids}: the items go back to the place the flowsheet drawing gives them; no ids for all of them.</summary>
         public const string LayoutReset = "layout.reset";
