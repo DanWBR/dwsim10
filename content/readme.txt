@@ -91,6 +91,7 @@ Version 10.3.1
 - [FIX] Drawings: the revision and status of the CAD settings replaced the ones of the document in the title block (a fire water drawing of revision A came out as revision 0)
 - [FIX] PFR: when the reactions ran on the liquid or the vapour of a two-phase stream and the flash left that phase with slightly more of a compound than the whole stream, every volume step added the difference to the outlet, so the products came out above the reactants consumed and the duty carried the excess
 - [FIX] Flowsheet: in the dark theme, the property table that shows when the pointer rests on an object had a white panel behind light text
+- [FIX] Drawings: when the document's revision differed from the CAD settings, the revision table took the description of the settings ("ORIGINAL ISSUE"); the fire water documents now have their own revision description. The ISO title block also cut identification numbers longer than 24 characters
 
 Version 10.3.0
 

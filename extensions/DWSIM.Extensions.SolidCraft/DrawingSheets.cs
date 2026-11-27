@@ -51,7 +51,7 @@ namespace DWSIM.Extensions.SolidCraft
     public class TitleData
     {
         // the revision and status are the document's own; when they are empty, the settings fill them in
-        public string Owner = "", Project = "", Area = "", Title = "", Subtitle = "", Number = "", Revision = "",
+        public string Owner = "", Project = "", Area = "", Title = "", Subtitle = "", Number = "", Revision = "", RevisionText = "",
             DocumentType = "", Status = "", Scale = "NOT TO SCALE", Date = "", Sheet = "1/1",
             PreparedBy = "", CheckedBy = "", ApprovedBy = "", Department = "", Language = "en";
     }
@@ -366,7 +366,8 @@ namespace DWSIM.Extensions.SolidCraft
                         d.Rect(x0, 0, 0, height);
                         foreach (var y in new[] { 9.0, 18, 33 }) d.Line(x0, y, 0, y);
                         foreach (var x in new[] { 70.0, 100, 145, 160 }) d.Line(x0 + x, 0, x0 + x, 9);
-                        Cell(d, x0, 9, "IDENTIFICATION NUMBER"); d.Attribute("NUMBER", x0 + 35, 1.5, 3.5, "BC");
+                        // 3 mm so that a number of 28 characters stays below the field label
+                        Cell(d, x0, 9, "IDENTIFICATION NUMBER"); d.Attribute("NUMBER", x0 + 35, 1.0, 3.0, "BC");
                         Cell(d, x0 + 70, 9, "REV."); d.Attribute("REVISION", x0 + 85, 1.5, 3.5, "BC");
                         Cell(d, x0 + 100, 9, "DATE OF ISSUE"); d.Attribute("DATE", x0 + 122.5, 1.5, 2.5, "BC");
                         Cell(d, x0 + 145, 9, "LANG."); d.Attribute("LANGUAGE", x0 + 152.5, 1.5, 2.5, "BC");
@@ -415,13 +416,18 @@ namespace DWSIM.Extensions.SolidCraft
         /// The texts of the title block: the drawing's own (<paramref name="t"/>) with the title block
         /// fields of the settings over them where they are filled in. The revision and the status go the
         /// other way, because the settings always carry one: the document's own win when it has them.
+        /// The description of the settings belongs to the revision of the settings, so it only fills in
+        /// when the document doesn't have a description and its revision is the one of the settings.
         /// </summary>
         public static Dictionary<string, string> Attributes(TitleData t, SheetSize size, DrawingStyle style)
         {
             var o = ExportOptions.Load();
             string Pick(string option, string own) => string.IsNullOrWhiteSpace(option) ? own : option.Trim();
             var number = string.IsNullOrWhiteSpace(o.ProjectNumber) ? t.Number : o.ProjectNumber.Trim() + "-" + t.Number;
-            var revision = Pick(t.Revision, Pick(o.Revision, "0"));
+            var settingsRevision = Pick(o.Revision, "0");
+            var revision = Pick(t.Revision, settingsRevision);
+            var revisionText = !string.IsNullOrWhiteSpace(t.RevisionText) ? t.RevisionText.Trim()
+                : revision == settingsRevision ? Pick(o.RevisionText, "ORIGINAL ISSUE") : "";
             return new Dictionary<string, string>
             {
                 ["PROJECT"] = Fit(t.Project, style == DrawingStyle.ISO ? 20 : style == DrawingStyle.ASME ? 30 : 40),
@@ -430,7 +436,7 @@ namespace DWSIM.Extensions.SolidCraft
                 ["AREA"] = Pick(o.Area, t.Area),
                 ["TITLE"] = t.Title,
                 ["SUBTITLE"] = t.Subtitle,
-                ["NUMBER"] = Fit(number, style == DrawingStyle.ISO ? 24 : 28),
+                ["NUMBER"] = Fit(number, 28),
                 ["REVISION"] = revision,
                 ["DOCUMENTTYPE"] = t.DocumentType,
                 ["STATUS"] = Pick(t.Status, o.Status),
@@ -444,7 +450,8 @@ namespace DWSIM.Extensions.SolidCraft
                 ["APPROVEDBY"] = Pick(o.ApprovedBy, t.ApprovedBy),
                 ["DEPARTMENT"] = Pick(o.Department, t.Department),
                 ["REVISION0"] = revision,
-                ["REVISIONTEXT"] = Pick(o.RevisionText, "ORIGINAL ISSUE"),
+                // the description column is 82 mm wide (96 mm in ASME), about 50 characters of 2.5 mm
+                ["REVISIONTEXT"] = Fit(revisionText, style == DrawingStyle.ASME ? 58 : 48),
                 ["REVISIONDATE"] = t.Date
             };
         }
