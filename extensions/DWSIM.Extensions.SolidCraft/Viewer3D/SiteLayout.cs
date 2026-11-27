@@ -203,8 +203,12 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             var e = SiteCatalog.Find(b.Kind);
             if (b.Points == null || b.Points.Count == 0)
             {
-                var r = Math.Max(e?.W ?? 1, e?.D ?? 1) * 500.0 * (b.Scale > 0 ? b.Scale : 1);
-                return b.X + r >= x0 && b.X - r <= x1 && b.Y + r >= y0 && b.Y - r <= y1;
+                // the footprint turned with the object, as the bounds of the turned rectangle
+                var k = 500.0 * (b.Scale > 0 ? b.Scale : 1);
+                double w = (e?.W ?? 1) * k, d = (e?.D ?? 1) * k, a = b.Rot * Math.PI / 180.0;
+                double hx = Math.Abs(Math.Cos(a)) * w + Math.Abs(Math.Sin(a)) * d;
+                double hy = Math.Abs(Math.Sin(a)) * w + Math.Abs(Math.Cos(a)) * d;
+                return b.X + hx >= x0 && b.X - hx <= x1 && b.Y + hy >= y0 && b.Y - hy <= y1;
             }
             var pts = b.Points;
             var closed = e?.Shape == SiteCatalog.Shape.Area;

@@ -159,8 +159,21 @@ The ghost is green where the object fits and red where it would stand on the equ
 1 m of it) or on another object. R turns it a quarter turn and Shift+R turns it back. A click
 builds it, and the tool stays for the next one until you press Esc or click the right button.
 Once an object is built, you drag it to move it, T turns it and Del demolishes it, and Ctrl+Z
-undoes each step. Roads, fences and areas show in the grid already; they are drawn by dragging the
-mouse, which comes in the next step.
+undoes each step.
+
+A road, a footpath, a fence, a wall, a hedge or a row of trees is a line. If you press and drag,
+the line runs straight from where you pressed to where you let go. If you click instead, each click
+adds a point, and a double click or Enter finishes the line; Backspace takes the last point back
+and Shift holds the run to steps of 45 degrees. Paving, gravel, a lawn, woods, a parking lot or a
+tank bund is an area: drag a rectangle, or click the corners of an outline and finish with a double
+click or Enter. While you draw, the window shows the object as it will be, with its length or area
+and its estimated cost in the hint, and paints it red if it would cross the equipment (DWSIM is
+then not asked to build it).
+
+Demolish is the bulldozer. When you click an object of the site, it goes; when you drag a
+rectangle, every object of the site that the rectangle touches goes, a road or a fence if any part
+of it crosses the rectangle, and an area if the rectangle lies inside it. The bulldozer leaves the
+equipment alone; Del takes equipment out of the flowsheet.
 
 Until the bar is opened for the first time, the window draws the site above by itself, from the
 bounds of the plant. When the bar opens, that site becomes objects of the flowsheet (DWSIM keeps

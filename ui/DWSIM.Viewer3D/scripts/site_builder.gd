@@ -1,28 +1,39 @@
 ## The build bar of the site, in the manner of SimCity 3000 (U opens and closes it): a row of
 ## categories at the bottom of the window; a category opens a grid of the objects in it, each with
-## a picture made in the window, its name and its estimated cost. When you pick a point object, a
-## ghost of it follows the mouse on a 1 m grid, green where it fits and red where it would stand on
-## the equipment or on another object; R turns it a quarter (Shift+R back), a click builds it, and
-## the tool stays until you press Esc or click the right button. The objects go to DWSIM
-## (site.add), which keeps them with the flowsheet and sends the scene back.
-## The first time the bar opens, the site the window drew by itself becomes objects (site.adopt),
-## so the user can move, turn or demolish them like the rest.
+## a picture made in the window, its name and its estimated cost.
+##  - A point object (a building, a tree, a car): a ghost of it follows the mouse on a 1 m grid,
+##    green where it fits and red where it would stand on the equipment or on another object; R
+##    turns it a quarter (Shift+R back) and a click builds it.
+##  - A line (a road, a fence, a wall, a hedge, a row of trees): press and drag for a straight run,
+##    or click point after point and finish with a double click or Enter; Backspace takes the last
+##    point back and Shift holds the run to steps of 45 degrees.
+##  - An area (paving, gravel, a lawn, woods, a parking lot, a bund): drag a rectangle, or click
+##    the corners of an outline and finish with a double click or Enter.
+## Lines and areas show as they are drawn, with their length or area and their cost, red where they
+## would cross the equipment. The tool stays until you press Esc or click the right button.
+## Demolish is the bulldozer: a click takes away one object of the site, a dragged rectangle all
+## those it touches; the equipment stays. Everything goes to DWSIM (site.add, site.remove), which
+## keeps it with the flowsheet and sends the scene back. The first time the bar opens, the site the
+## window drew by itself becomes objects (site.adopt), so the user can change it like the rest.
 class_name SiteBuilder
 extends Node
 
 const GRID := 1.0
 const THUMB := Vector2i(112, 84)
+const DRAG_PIXELS := 6.0
 
 var main: Node3D
 var bar: PanelContainer
 var flyout: PanelContainer
 var kind := ""
 var rot := 0
+var demolishing := false
 var _catalog: Array = []
 var _category := ""
 var _grid: GridContainer
 var _hint: Label
 var _cat_buttons := {}
+var _demolish_button: Button
 var _ghost: Node3D
 var _ok := true
 var _ok_mat: StandardMaterial3D
@@ -34,6 +45,15 @@ var _stage: SubViewport
 var _stage_root: Node3D
 var _stage_cam: Camera3D
 var _busy := false
+# drawing a line or an area, and the bulldozer's rectangle
+var _pts: Array = []
+var _cursor = null
+var _pressed := false
+var _dragging := false
+var _press_at := Vector2.ZERO
+var _start := Vector3.ZERO
+var _shown := ""
+var _rect: MeshInstance3D
 
 
 func _init(owner_main: Node3D) -> void:
@@ -43,6 +63,11 @@ func _init(owner_main: Node3D) -> void:
 func _ready() -> void:
 	_ok_mat = _ghost_mat(Color(0.25, 0.85, 0.35, 0.45))
 	_bad_mat = _ghost_mat(Color(0.95, 0.2, 0.15, 0.45))
+	_rect = MeshInstance3D.new()
+	_rect.mesh = BoxMesh.new()
+	_rect.material_override = _ghost_mat(Color(0.95, 0.3, 0.1, 0.3))
+	_rect.visible = false
+	add_child(_rect)
 	# the stage the pictures of the objects are taken on: a world of its own, out of sight
 	_stage = SubViewport.new()
 	_stage.size = THUMB
@@ -113,7 +138,22 @@ func build_bar(style: StyleBox) -> PanelContainer:
 		b.pressed.connect(func(): _open_category(c))
 		row.add_child(b)
 		_cat_buttons[c] = b
+	row.add_child(VSeparator.new())
+	_demolish_button = Button.new()
+	_demolish_button.text = "Demolish"
+	_demolish_button.toggle_mode = true
+	_demolish_button.focus_mode = Control.FOCUS_NONE
+	_demolish_button.tooltip_text = "The bulldozer: click an object of the site, or drag a rectangle over several"
+	_demolish_button.pressed.connect(func():
+		if demolishing:
+			stop()
+		else:
+			start_demolish())
+	row.add_child(_demolish_button)
 	_hint = Label.new()
+	# the hint wraps at the width of the buttons, so a long one does not stretch the bar
+	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_hint.custom_minimum_size = Vector2(1, 0)
 	_hint.add_theme_font_size_override("font_size", 11)
 	_hint.add_theme_color_override("font_color", Color(0.27, 0.32, 0.38))
 	vb.add_child(_hint)
@@ -188,7 +228,6 @@ func _fill(c: String) -> void:
 		if str(e.get("cat", "")) != c:
 			continue
 		var k := str(e.get("kind", ""))
-		var shape := str(e.get("shape", "point"))
 		var unit := str(e.get("unit", "each"))
 		var b := Button.new()
 		b.name = "site_" + k
@@ -204,21 +243,40 @@ func _fill(c: String) -> void:
 			b.icon = _thumbs[k]
 		else:
 			_queue.append(k)
-		if shape == "point":
-			b.pressed.connect(func(): start(k))
-		else:
-			b.disabled = true
-			b.tooltip_text = "Roads, fences and areas are drawn by dragging the mouse; that tool comes in the next step."
+		b.pressed.connect(func(): start(k))
 		_grid.add_child(b)
+
+
+func _shape() -> String:
+	return SiteObjects.shape_of(kind) if kind != "" else ""
 
 
 func _update_hint() -> void:
 	if _hint == null:
 		return
-	if kind != "":
-		_hint.text = "Building: %s. Click to build, R turns it, Esc or the right button stops." % str(SiteObjects.entry(kind).get("name", kind))
-	else:
+	if bar != null:
+		bar.reset_size.call_deferred()
+	var name := str(SiteObjects.entry(kind).get("name", kind))
+	if demolishing:
+		_hint.text = "Demolish: click an object of the site, or drag a rectangle over several. The equipment stays. Esc stops."
+	elif kind == "":
 		_hint.text = "Pick a category and an object to build. Drag a built object to move it, T turns it, Del demolishes it. U closes the bar."
+	elif _shape() == "point":
+		_hint.text = "Building: %s. Click to build, R turns it, Esc or the right button stops." % name
+	else:
+		var pts := _drawn()
+		var line := _shape() == "line"
+		var size := _length(pts) if line else _area(pts)
+		var cost := size * float(SiteObjects.entry(kind).get("cost", 0.0))
+		var what := ("%s: %d m, about %s." % [name, int(roundf(size)), money(cost)]) if line else ("%s: %d m2, about %s." % [name, int(roundf(size)), money(cost)])
+		if pts.size() < 2:
+			what = "%s: %s." % [name, "press and drag for a straight run, or click point after point" if line else "drag a rectangle, or click the corners of an outline"]
+		if _dragging:
+			_hint.text = what + " Release to build."
+		elif _pts.size() > 0:
+			_hint.text = what + " Click to add a point, double click or Enter to finish, Backspace takes a point back, Esc cancels."
+		else:
+			_hint.text = what + " Esc or the right button stops."
 
 
 # --- pictures of the objects ---------------------------------------------------------------------
@@ -279,16 +337,53 @@ func _shoot(k: String) -> void:
 	_busy = false
 
 
-# --- placing -----------------------------------------------------------------------------------
+# --- the tools -------------------------------------------------------------------------------------
 
 func start(k: String) -> void:
 	stop()
 	kind = k
 	rot = 0
-	_ghost = Node3D.new()
-	main.add_child(_ghost)
-	SiteObjects.build(_ghost, {"site": k, "id": "ghost", "o": [0, 0, 0], "rot": 0})
-	for n in _ghost.find_children("*", "", true, false):
+	if _shape() == "point":
+		_ghost = _make_ghost({"site": k, "id": "ghost", "o": [0, 0, 0], "rot": 0})
+		_ghost.visible = false
+		_paint(true)
+	_update_hint()
+
+
+func start_demolish() -> void:
+	stop()
+	demolishing = true
+	_demolish_button.button_pressed = true
+	_update_hint()
+
+
+func stop() -> void:
+	kind = ""
+	demolishing = false
+	if _demolish_button != null:
+		_demolish_button.button_pressed = false
+	_drop_ghost()
+	_pts.clear()
+	_cursor = null
+	_pressed = false
+	_dragging = false
+	_shown = ""
+	_rect.visible = false
+	_update_hint()
+
+
+func _drop_ghost() -> void:
+	if _ghost != null and is_instance_valid(_ghost):
+		_ghost.queue_free()
+	_ghost = null
+
+
+## A ghost of an object: drawn like the object, see-through, without lights or shadows.
+func _make_ghost(it: Dictionary) -> Node3D:
+	var g := Node3D.new()
+	main.add_child(g)
+	SiteObjects.build(g, it)
+	for n in g.find_children("*", "", true, false):
 		for gname in ["lamp_head", "lamp_light", "night_glow"]:
 			if n.is_in_group(gname):
 				n.remove_from_group(gname)
@@ -296,17 +391,7 @@ func start(k: String) -> void:
 			(n as Light3D).visible = false
 		if n is GeometryInstance3D:
 			(n as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_ghost.visible = false
-	_paint(true)
-	_update_hint()
-
-
-func stop() -> void:
-	kind = ""
-	if _ghost != null and is_instance_valid(_ghost):
-		_ghost.queue_free()
-	_ghost = null
-	_update_hint()
+	return g
 
 
 func _paint(ok: bool) -> void:
@@ -340,59 +425,210 @@ static func half_extent(k: String, turn: float, scale := 1.0) -> Vector2:
 	return Vector2(absf(cos(a)) * w + absf(sin(a)) * d, absf(sin(a)) * w + absf(cos(a)) * d) / 2.0
 
 
+## The footprints (x, z) of the equipment, with 1 m round each.
+func _equipment() -> Array:
+	var out := []
+	for id in main.entries.keys():
+		var e: Dictionary = main.entries[id]
+		var d: Dictionary = e["data"]
+		if e["kind"] != "item" or not is_instance_valid(e["node"]) or d.has("site") or bool(d.get("badge", false)):
+			continue
+		var b: AABB = main._node_bounds(e["node"]).grow(1.0)
+		out.append(Rect2(Vector2(b.position.x, b.position.z), Vector2(b.size.x, b.size.z)))
+	return out
+
+
 ## Whether a point object fits at a place: clear of the equipment (with 1 m round it) and of the other point objects.
 func fits(k: String, at: Vector3, turn: float) -> bool:
 	var h := half_extent(k, turn)
-	var mine := Rect2(Vector2(at.x - h.x, at.z - h.y), h * 2.0)
+	var mine := Rect2(Vector2(at.x - h.x, at.z - h.y), h * 2.0).grow(-0.02)
+	for r in _equipment():
+		if mine.intersects(r):
+			return false
 	for id in main.entries.keys():
 		var e: Dictionary = main.entries[id]
-		if e["kind"] != "item" or not is_instance_valid(e["node"]):
-			continue
 		var d: Dictionary = e["data"]
-		var other: Rect2
-		if d.has("site"):
-			if str(d.get("shape", "point")) != "point":
-				continue
-			var n: Node3D = e["node"]
-			var oh := half_extent(str(d["site"]), float(d.get("rot", 0)), float(d.get("scale", 1.0)))
-			other = Rect2(Vector2(n.position.x - oh.x, n.position.z - oh.y), oh * 2.0)
-		else:
-			if bool(d.get("badge", false)):
-				continue
-			var b: AABB = main._node_bounds(e["node"]).grow(1.0)
-			other = Rect2(Vector2(b.position.x, b.position.z), Vector2(b.size.x, b.size.z))
-		if mine.grow(-0.02).intersects(other):
+		if e["kind"] != "item" or not d.has("site") or str(d.get("shape", "point")) != "point" or not is_instance_valid(e["node"]):
+			continue
+		var n: Node3D = e["node"]
+		var oh := half_extent(str(d["site"]), float(d.get("rot", 0)), float(d.get("scale", 1.0)))
+		if mine.intersects(Rect2(Vector2(n.position.x - oh.x, n.position.z - oh.y), oh * 2.0)):
 			return false
 	return true
 
 
+## Whether a line (or, closed, an area) keeps clear of the equipment.
+func shape_fits(pts: Array, closed: bool) -> bool:
+	var flat := PackedVector2Array()
+	for p in pts:
+		flat.append(Vector2(p.x, p.z))
+	for r in _equipment():
+		var corners := [r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)]
+		for p in flat:
+			if r.has_point(p):
+				return false
+		if closed and flat.size() >= 3:
+			for c in corners:
+				if Geometry2D.is_point_in_polygon(c, flat):
+					return false
+		var n := flat.size() if closed else flat.size() - 1
+		for i in n:
+			var a := flat[i]
+			var b := flat[(i + 1) % flat.size()]
+			for k in 4:
+				if Geometry2D.segment_intersects_segment(a, b, corners[k], corners[(k + 1) % 4]) != null:
+					return false
+	return true
+
+
 func _snap(g: Vector3) -> Vector3:
-	var step := GRID if float(SiteObjects.entry(kind).get("w", 1.0)) >= 1.0 else GRID / 2.0
+	var step := GRID
+	if _shape() == "point" and float(SiteObjects.entry(kind).get("w", 1.0)) < 1.0:
+		step = GRID / 2.0
 	return Vector3(snappedf(g.x, step), _ground_y(), snappedf(g.z, step))
 
 
-## The input of the bar: U, and while placing the mouse, R, Esc and the right button. True when it took the event.
+## Holds a run from the last point to steps of 45 degrees (Shift).
+static func _steady(from: Vector3, to: Vector3) -> Vector3:
+	var d := to - from
+	var a := snappedf(atan2(d.z, d.x), PI / 4.0)
+	var l := Vector2(d.x, d.z).length()
+	return from + Vector3(cos(a) * l, 0.0, sin(a) * l)
+
+
+## The points drawn so far and the cursor: the whole run while dragging, the rectangle for an area.
+func _drawn() -> Array:
+	if _dragging and _cursor != null:
+		if _shape() == "area":
+			var a: Vector3 = _start
+			var b: Vector3 = _cursor
+			return [a, Vector3(b.x, a.y, a.z), b, Vector3(a.x, a.y, b.z)]
+		return [_start, _cursor]
+	var pts := _pts.duplicate()
+	if _cursor != null and not pts.is_empty() and (_cursor as Vector3).distance_to(pts[-1]) > 0.01:
+		pts.append(_cursor)
+	return pts
+
+
+static func _length(pts: Array) -> float:
+	var s := 0.0
+	for i in range(1, pts.size()):
+		s += (pts[i] as Vector3).distance_to(pts[i - 1])
+	return s
+
+
+static func _area(pts: Array) -> float:
+	if pts.size() < 3:
+		return 0.0
+	var s := 0.0
+	for i in pts.size():
+		var a: Vector3 = pts[i]
+		var b: Vector3 = pts[(i + 1) % pts.size()]
+		s += a.x * b.z - b.x * a.z
+	return absf(s) / 2.0
+
+
+static func _to_dwsim(p: Vector3) -> Array:
+	return [roundf(p.x * 1000.0), roundf(-p.z * 1000.0)]
+
+
+## Draws the line or the area as it stands, green or red; rebuilt only when the points change.
+func _show_shape() -> void:
+	var pts := _drawn()
+	var key := str(pts)
+	if key == _shown:
+		return
+	_shown = key
+	_drop_ghost()
+	var line := _shape() == "line"
+	if pts.size() >= 2 and (line or pts.size() >= 3):
+		var list := []
+		for p in pts:
+			list.append(_to_dwsim(p))
+		_ghost = _make_ghost({"site": kind, "id": "ghost", "o": [list[0][0], list[0][1], roundf(_ground_y() * 1000.0)],
+			"points": list, "shape": _shape()})
+		_ghost.position = pts[0]
+		_paint(shape_fits(pts, not line))
+	_update_hint()
+
+
+func _finish() -> void:
+	var pts := _drawn() if _dragging else _pts.duplicate()
+	var line := _shape() == "line"
+	var size := _length(pts) if line else _area(pts)
+	_pts.clear()
+	_dragging = false
+	_pressed = false
+	if (line and (pts.size() < 2 or size < 1.0)) or (not line and (pts.size() < 3 or size < 1.0)):
+		_shown = ""
+		_drop_ghost()
+		_update_hint()
+		return
+	if not shape_fits(pts, not line):
+		main._show_toast("It would cross the equipment.")
+		_shown = ""
+		_drop_ghost()
+		_update_hint()
+		return
+	var list := []
+	for p in pts:
+		list.append(_to_dwsim(p))
+	main.link.send({"type": "site.add", "kind": kind, "points": list, "z": roundf(_ground_y() * 1000.0)})
+	_shown = ""
+	_drop_ghost()
+	_update_hint()
+
+
+# --- input ---------------------------------------------------------------------------------------
+
+## The input of the bar: U, and while a tool is on the mouse and its keys. True when it took the event.
 func handle(event: InputEvent) -> bool:
 	if event is InputEventKey and event.pressed and not event.echo:
-		var key := (event as InputEventKey).keycode
-		if key == KEY_U and not (event as InputEventKey).ctrl_pressed:
+		var ke := event as InputEventKey
+		if ke.keycode == KEY_U and not ke.ctrl_pressed:
 			toggle()
 			return true
-		if kind == "":
+		if kind == "" and not demolishing:
 			return false
-		match key:
+		match ke.keycode:
 			KEY_ESCAPE:
-				stop()
+				if not _pts.is_empty() or _dragging:
+					_pts.clear()
+					_dragging = false
+					_pressed = false
+					_shown = ""
+					_drop_ghost()
+					_update_hint()
+				else:
+					stop()
 				return true
+			KEY_ENTER, KEY_KP_ENTER:
+				if _shape() == "line" or _shape() == "area":
+					_finish()
+					return true
+			KEY_BACKSPACE:
+				if not _pts.is_empty():
+					_pts.pop_back()
+					_show_shape()
+					return true
 			KEY_R:
-				rot = int(fposmod(rot + (-90 if (event as InputEventKey).shift_pressed else 90), 360))
-				if _ghost != null:
-					_ghost.rotation.y = deg_to_rad(rot)
-					_paint(fits(kind, _ghost.position, rot))
-				return true
+				if _shape() == "point":
+					rot = int(fposmod(rot + (-90 if ke.shift_pressed else 90), 360))
+					if _ghost != null:
+						_ghost.rotation.y = deg_to_rad(rot)
+						_paint(fits(kind, _ghost.position, rot))
+					return true
 		return false
+	if demolishing:
+		return _demolish(event)
 	if kind == "":
 		return false
+	if _shape() == "point":
+		return _place(event)
+	return _draw(event)
+
+
+func _place(event: InputEvent) -> bool:
 	if event is InputEventMouseMotion:
 		var g = _ground((event as InputEventMouseMotion).position)
 		if _ghost != null:
@@ -420,5 +656,115 @@ func handle(event: InputEvent) -> bool:
 			return true
 		main.link.send({"type": "site.add", "kind": kind, "x": roundf(at.x * 1000.0), "y": roundf(-at.z * 1000.0),
 			"z": roundf(at.y * 1000.0), "rot": rot})
+		return true
+	return false
+
+
+func _draw(event: InputEvent) -> bool:
+	if event is InputEventMouseMotion:
+		var mm := event as InputEventMouseMotion
+		var g = _ground(mm.position)
+		if g == null:
+			return false
+		var p := _snap(g)
+		var anchor = _start if _dragging or (_pressed and _pts.size() <= 1) else (_pts[-1] if not _pts.is_empty() else null)
+		if mm.shift_pressed and anchor != null and _shape() == "line":
+			p = _snap(_steady(anchor, p))
+		_cursor = p
+		if _pressed and not _dragging and mm.position.distance_to(_press_at) > DRAG_PIXELS and _pts.size() == 1:
+			_dragging = true
+			_pts.clear()
+		_show_shape()
+		return false
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
+			if not _pts.is_empty() or _dragging:
+				_pts.clear()
+				_dragging = false
+				_pressed = false
+				_shown = ""
+				_drop_ghost()
+				_update_hint()
+			else:
+				stop()
+			return true
+		if mb.button_index != MOUSE_BUTTON_LEFT:
+			return false
+		var g = _ground(mb.position)
+		if mb.pressed:
+			if g == null:
+				return true
+			var p := _snap(g)
+			if mb.double_click:
+				if _pts.is_empty() or p.distance_to(_pts[-1]) > 0.01:
+					_pts.append(p)
+				_finish()
+				return true
+			if _pts.is_empty():
+				_start = p
+				_press_at = mb.position
+				_pressed = true
+				_pts.append(p)
+			elif p.distance_to(_pts[-1]) > 0.01:
+				_pts.append(p)
+			_cursor = p
+			_show_shape()
+			return true
+		# released: a drag builds at once; a click goes on adding points
+		_pressed = false
+		if _dragging:
+			_finish()
+		return true
+	return false
+
+
+func _demolish(event: InputEvent) -> bool:
+	if event is InputEventMouseMotion:
+		var mm := event as InputEventMouseMotion
+		if _pressed:
+			if not _dragging and mm.position.distance_to(_press_at) > DRAG_PIXELS:
+				_dragging = true
+			var g = _ground(mm.position)
+			if _dragging and g != null:
+				_cursor = g
+				var a: Vector3 = _start
+				var b: Vector3 = g
+				(_rect.mesh as BoxMesh).size = Vector3(maxf(absf(b.x - a.x), 0.1), 0.3, maxf(absf(b.z - a.z), 0.1))
+				_rect.position = Vector3((a.x + b.x) / 2.0, _ground_y() + 0.15, (a.z + b.z) / 2.0)
+				_rect.visible = true
+		return false
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
+			stop()
+			return true
+		if mb.button_index != MOUSE_BUTTON_LEFT:
+			return false
+		if mb.pressed:
+			var g = _ground(mb.position)
+			_pressed = g != null
+			_dragging = false
+			_press_at = mb.position
+			if g != null:
+				_start = g
+			return true
+		_rect.visible = false
+		if not _pressed:
+			return true
+		_pressed = false
+		if _dragging and _cursor != null:
+			_dragging = false
+			var a: Vector3 = _start
+			var b: Vector3 = _cursor
+			main.link.send({"type": "site.remove", "rect": [roundf(a.x * 1000.0), roundf(-a.z * 1000.0), roundf(b.x * 1000.0), roundf(-b.z * 1000.0)]})
+			return true
+		var id: String = main._pick(mb.position)
+		if id == "":
+			return true
+		if (main.entries[id]["data"] as Dictionary).has("site"):
+			main.link.send({"type": "site.remove", "ids": [id]})
+		else:
+			main._show_toast("The bulldozer leaves the equipment alone; Del takes it out of the flowsheet.")
 		return true
 	return false
