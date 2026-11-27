@@ -61,6 +61,14 @@ namespace DWSIM.Drawing.SkiaSharp.PlantDesigner
 
         private void Raise() { var h = Changed; if (h != null) h(this, EventArgs.Empty); }
 
+        /// <summary>Replaces the whole drawing (read again from its source) as one undo step.</summary>
+        public void ReplaceWith(PlantDrawing d)
+        {
+            Checkpoint();
+            Drawing = d.Clone();
+            Raise();
+        }
+
         /// <summary>Runs an edit as one undo step. If the edit throws, the drawing goes back to where it was.</summary>
         public T Edit<T>(Func<T> edit)
         {
