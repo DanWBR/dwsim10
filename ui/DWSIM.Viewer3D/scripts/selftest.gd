@@ -21,6 +21,8 @@ func _ready() -> void:
 	DirAccess.make_dir_recursive_absolute(out_dir)
 	if item_id == "build":
 		_run_build()
+	elif item_id == "site":
+		_run_site()
 	elif item_id.begins_with("edit:"):
 		_run_edit(item_id.substr(5))
 	else:
@@ -135,6 +137,108 @@ func _run_build() -> void:
 	await _wait(2.5)
 	await _shot("build_3_final")
 	main.link.send({"type": "select", "ids": [cooler]})
+
+
+## The build bar self-test ("site"): opens the bar (the window's own site becomes objects), picks
+## categories and objects with clicks, builds two trees (the second turned with R), a car and an
+## administration building, checks that the ghost turns red over the equipment, deletes a tree with
+## Delete and undoes it, and writes what the site holds to selftest_site.json.
+func _run_site() -> void:
+	OS.low_processor_usage_mode = false
+	for i in 600:
+		if not main.entries.is_empty():
+			break
+		await _wait(0.1)
+	await _wait(1.0)
+	_key(KEY_ESCAPE)
+	_key(KEY_F1)
+	await _shot("site_0_before")
+	_key(KEY_U)
+	for i in 100:
+		if main.site_adopted:
+			break
+		await _wait(0.1)
+	await _wait(1.0)
+	await _shot("site_1_adopted")
+	var cam: Camera3D = main.rig.camera
+	var box: AABB = main._bounds()
+	var y := box.position.y
+	var c := box.get_center()
+	var sb: SiteBuilder = main.site_builder
+
+	await _click((sb._cat_buttons["Nature"] as Button).get_global_rect().get_center())
+	await _wait(3.0)
+	await _shot("site_2_nature", false)
+	await _click((sb._grid.get_node("site_tree") as Button).get_global_rect().get_center())
+	await _wait(0.3)
+	var spot := Vector3(c.x - 8.0, y, box.end.z + 10.0)
+	_mouse_move(cam.unproject_position(spot), 0)
+	await _wait(0.5)
+	await _shot("site_3_ghost", false)
+	await _click(cam.unproject_position(spot))
+	await _wait(1.5)
+	_key(KEY_R)
+	var spot2 := Vector3(c.x - 14.0, y, box.end.z + 10.0)
+	_mouse_move(cam.unproject_position(spot2), 0)
+	await _wait(0.3)
+	await _click(cam.unproject_position(spot2))
+	await _wait(1.5)
+	# over the equipment the ghost turns red and the click builds nothing
+	_mouse_move(cam.unproject_position(c), 0)
+	await _wait(0.3)
+	var red: bool = not sb._ok
+	await _shot("site_4_red", false)
+	await _click(cam.unproject_position(c))
+	await _wait(1.0)
+	_key(KEY_ESCAPE)
+
+	await _click((sb._cat_buttons["Vehicles"] as Button).get_global_rect().get_center())
+	await _wait(2.0)
+	await _click((sb._grid.get_node("site_suv") as Button).get_global_rect().get_center())
+	var spot3 := Vector3(c.x - 20.0, y, box.end.z + 10.0)
+	_mouse_move(cam.unproject_position(spot3), 0)
+	await _wait(0.3)
+	await _click(cam.unproject_position(spot3))
+	await _wait(1.5)
+	_key(KEY_ESCAPE)
+	await _click((sb._cat_buttons["Buildings"] as Button).get_global_rect().get_center())
+	await _wait(3.0)
+	await _shot("site_5_buildings", false)
+	await _click((sb._grid.get_node("site_admin") as Button).get_global_rect().get_center())
+	var spot4 := Vector3(box.end.x + 30.0, y, c.z)
+	_mouse_move(cam.unproject_position(spot4), 0)
+	await _wait(0.3)
+	await _click(cam.unproject_position(spot4))
+	await _wait(1.5)
+	_key(KEY_ESCAPE)
+	await _wait(0.5)
+	await _shot("site_6_built")
+
+	# Delete takes a tree away, Ctrl+Z brings it back
+	var tree := ""
+	for id in main.entries.keys():
+		if str(main.entries[id]["data"].get("site", "")) == "tree":
+			tree = id
+	main._set_selection([tree], true)
+	_key(KEY_DELETE)
+	await _wait(2.0)
+	var after_delete: bool = main.entries.has(tree)
+	_key(KEY_Z, true)
+	await _wait(2.0)
+	var counts := {}
+	for id in main.entries.keys():
+		var k := str(main.entries[id]["data"].get("site", ""))
+		if k != "":
+			counts[k] = int(counts.get(k, 0)) + 1
+	var rots := []
+	for id in main.entries.keys():
+		if str(main.entries[id]["data"].get("site", "")) == "tree":
+			rots.append(int(main.entries[id]["data"].get("rot", 0)))
+	var f := FileAccess.open(out_dir.path_join("selftest_site.json"), FileAccess.WRITE)
+	f.store_string(JSON.stringify({"adopted": main.site_adopted, "counts": counts, "red_over_equipment": red,
+		"deleted": not after_delete, "back_after_undo": main.entries.has(tree), "tree_rots": rots}))
+	f.close()
+	await _shot("site_7_done")
 
 
 func _port(id: String, kind: String) -> Node3D:

@@ -82,7 +82,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
 
             L("fence", "Chain-link Fence", Fences, 0.1, 2.4, 85),
             L("wall", "Concrete Wall", Fences, 0.25, 2.5, 260),
-            P("gate", "Gate", Fences, 6, 0.3, 2.4, 6500),
+            P("gate", "Gate", Fences, 8, 0.3, 2.4, 6500),
             P("barrier", "Road Barrier", Fences, 2, 0.6, 0.8, 400),
             A("bund", "Tank Bund", Fences, 120),
 

@@ -145,9 +145,28 @@ The equipment keeps the sizes and colours the simulation gives it, with surface 
 (scratched paint, bare metal grain, ribbed cladding on insulation; off at Low quality), concrete
 foundations under it and caged ladders up tall columns and vessels. Around the plant stand a
 chain-link fence with a gate and an access road, parked vehicles and a fire truck, a front loader,
-a storage corner, fire hydrants round the pad, extinguishers by pumps and compressors, and trees
-on the grass outside. O shows or hides the site. `--capture-zoom=<k>` takes k times more in the
-pictures and `--capture-clean` leaves the panels out.
+a storage corner, fire hydrants round the pad, extinguishers by pumps and compressors, lamp posts,
+and woods on the grass outside. O shows or hides the site. `--capture-zoom=<k>` takes k times more
+in the pictures and `--capture-clean` leaves the panels out.
+
+## Building the site
+
+U opens the build bar at the bottom of the window, in the manner of SimCity 3000. It has seven
+categories: Buildings, Roads, Fences, Nature, Vehicles, Safety and Utilities. When you click a
+category, a grid of its objects opens above the bar, each with a picture made in the window, its
+name and its estimated cost. When you pick an object, a ghost of it follows the mouse on a 1 m grid.
+The ghost is green where the object fits and red where it would stand on the equipment (or within
+1 m of it) or on another object. R turns it a quarter turn and Shift+R turns it back. A click
+builds it, and the tool stays for the next one until you press Esc or click the right button.
+Once an object is built, you drag it to move it, T turns it and Del demolishes it, and Ctrl+Z
+undoes each step. Roads, fences and areas show in the grid already; they are drawn by dragging the
+mouse, which comes in the next step.
+
+Until the bar is opened for the first time, the window draws the site above by itself, from the
+bounds of the plant. When the bar opens, that site becomes objects of the flowsheet (DWSIM keeps
+them in its extra properties, key `Plant3DSite`, and the window sends them with `site.adopt`), so
+the user can move, turn or demolish the fence, the cars or the woods like anything built later. A
+flowsheet that was never edited this way keeps the site the window draws.
 
 ## The control room and the rounds
 

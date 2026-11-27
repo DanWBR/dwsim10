@@ -1,5 +1,5 @@
 ## The surroundings of the plant: the sun and the moon by the hour, the sky, the ground (a concrete
-## pad under the plant, a gravel band around it, grass beyond), lamp posts and aircraft warning
+## pad under the plant, a gravel band around it, grass beyond), the lamps of the site and aircraft warning
 ## lights that come on at night, the weather (cloud, rain, storm, snow, fog, with wind), the
 ## ambient sounds that go with the hour and the weather, and the quality of the picture.
 ## The settings are kept between runs (user://environment.cfg).
@@ -38,7 +38,6 @@ var gravel: MeshInstance3D
 var _ground_mat: StandardMaterial3D
 var _pad_mat: StandardMaterial3D
 var _gravel_mat: StandardMaterial3D
-var _lamps_root: Node3D
 var _beacons_root: Node3D
 var _rain: GPUParticles3D
 var _snow: GPUParticles3D
@@ -91,8 +90,6 @@ func _ready() -> void:
 	gravel.mesh = PlaneMesh.new()
 	gravel.material_override = _gravel_mat
 	add_child(gravel)
-	_lamps_root = Node3D.new()
-	add_child(_lamps_root)
 	_beacons_root = Node3D.new()
 	add_child(_beacons_root)
 	_rain = _particles(true)
@@ -232,7 +229,7 @@ func _particles(rain: bool) -> GPUParticles3D:
 	return p
 
 
-## The pad, the gravel band, the lamp posts and the warning lights, for the plant's bounds.
+## The pad, the gravel band and the warning lights, for the plant's bounds.
 func fit(box: AABB) -> void:
 	var c := box.get_center()
 	var y := box.position.y
@@ -240,73 +237,27 @@ func fit(box: AABB) -> void:
 	pad.position = Vector3(c.x, y + 0.012, c.z)
 	(gravel.mesh as PlaneMesh).size = Vector2(box.size.x + 30.0, box.size.z + 30.0)
 	gravel.position = Vector3(c.x, y + 0.006, c.z)
-	_place_lamps(box)
 	_place_beacons()
 	_apply()
 
 
-func _place_lamps(box: AABB) -> void:
-	for c in _lamps_root.get_children():
-		c.queue_free()
-	var x0 := box.position.x - 7.0
-	var x1 := box.end.x + 7.0
-	var z0 := box.position.z - 7.0
-	var z1 := box.end.z + 7.0
-	var spots := []
-	var nx := maxi(1, int(ceil((x1 - x0) / 28.0)))
-	var nz := maxi(1, int(ceil((z1 - z0) / 28.0)))
-	for i in nx + 1:
-		var x := lerpf(x0, x1, float(i) / nx)
-		spots.append([Vector3(x, 0, z0), Vector3(0, 0, 1)])
-		spots.append([Vector3(x, 0, z1), Vector3(0, 0, -1)])
-	for j in range(1, nz):
-		var z := lerpf(z0, z1, float(j) / nz)
-		spots.append([Vector3(x0, 0, z), Vector3(1, 0, 0)])
-		spots.append([Vector3(x1, 0, z), Vector3(-1, 0, 0)])
-	var pole_mat := StandardMaterial3D.new()
-	pole_mat.albedo_color = Color(0.45, 0.47, 0.5)
-	pole_mat.metallic = 0.6
-	pole_mat.roughness = 0.45
-	for s in spots.slice(0, 24):
-		var at: Vector3 = s[0]
-		at.y = box.position.y
-		var inward: Vector3 = s[1]
-		var lamp := Node3D.new()
-		lamp.position = at
-		_lamps_root.add_child(lamp)
-		var pole := MeshInstance3D.new()
-		var cm := CylinderMesh.new()
-		cm.top_radius = 0.06
-		cm.bottom_radius = 0.09
-		cm.height = 9.0
-		pole.mesh = cm
-		pole.material_override = pole_mat
-		pole.position = Vector3(0, 4.5, 0)
-		lamp.add_child(pole)
-		var head := MeshInstance3D.new()
-		var hb := BoxMesh.new()
-		hb.size = Vector3(0.7, 0.15, 0.35)
-		head.mesh = hb
-		var hm := StandardMaterial3D.new()
-		hm.albedo_color = Color(0.3, 0.31, 0.33)
-		hm.emission_enabled = true
-		hm.emission = Color(1.0, 0.86, 0.62)
-		hm.emission_energy_multiplier = 0.0
-		head.material_override = hm
-		head.position = Vector3(0, 9.0, 0) + inward * 0.6
-		head.set_meta("lamp", hm)
-		lamp.add_child(head)
-		var light := SpotLight3D.new()
-		light.light_color = Color(1.0, 0.86, 0.62)
-		light.spot_range = 30.0
-		light.spot_angle = 58.0
-		light.light_energy = 0.0
-		light.shadow_enabled = false
-		light.position = head.position + Vector3(0, -0.1, 0)
-		# down, and a little in towards the plant
-		light.basis = Basis.looking_at((Vector3.DOWN + inward * 0.35).normalized(), inward)
-		light.add_to_group("lamp_light")
-		lamp.add_child(light)
+var _lamps_on := false
+
+
+## Lights the lamps and the windows of the site at night, and puts them out by day; called again
+## whenever the site is built anew.
+func relight() -> void:
+	for n in get_tree().get_nodes_in_group("lamp_light"):
+		(n as SpotLight3D).light_energy = 3.5 if _lamps_on else 0.0
+	# the lamp posts are objects of the site (site_objects.gd)
+	for head in get_tree().get_nodes_in_group("lamp_head"):
+		if head.has_meta("lamp"):
+			(head.get_meta("lamp") as StandardMaterial3D).emission_energy_multiplier = 3.0 if _night else 0.0
+	_beacons_root.visible = _night
+	for n in get_tree().get_nodes_in_group("night_glow"):
+		var gm := (n as MeshInstance3D).material_override as StandardMaterial3D
+		if gm != null:
+			gm.emission_energy_multiplier = float(gm.get_meta("night_glow", 1.5)) if _night else 0.0
 
 
 ## A blinking red light on top of each item taller than 15 m, lit at night.
@@ -453,16 +404,8 @@ func _apply() -> void:
 			m.albedo_color = base
 			m.roughness = 1.0
 
-	for n in get_tree().get_nodes_in_group("lamp_light"):
-		(n as SpotLight3D).light_energy = 3.5 if _night or (weather == Weather.FOG and el < 8.0) else 0.0
-	for head in _lamps_root.find_children("*", "MeshInstance3D", true, false):
-		if head.has_meta("lamp"):
-			(head.get_meta("lamp") as StandardMaterial3D).emission_energy_multiplier = 3.0 if _night else 0.0
-	_beacons_root.visible = _night
-	for n in get_tree().get_nodes_in_group("night_glow"):
-		var gm := (n as MeshInstance3D).material_override as StandardMaterial3D
-		if gm != null:
-			gm.emission_energy_multiplier = float(gm.get_meta("night_glow", 1.5)) if _night else 0.0
+	_lamps_on = _night or (weather == Weather.FOG and el < 8.0)
+	relight()
 	if _time_label != null:
 		_time_label.text = "%02d:%02d" % [int(hour), int(fmod(hour, 1.0) * 60.0)]
 
