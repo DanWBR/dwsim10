@@ -28,6 +28,8 @@ var cycle_speed := 0.0
 var weather := Weather.CLEAR
 var wind := 3.0
 var quality := Quality.MEDIUM
+## Whether the window asks the system for HDR output, on a display that has it.
+var hdr_display := false
 var sound_on := true
 var volume := 0.6
 ## Seconds the flyby stays on each unit (B in the window, and the recorded videos).
@@ -106,6 +108,7 @@ func _ready() -> void:
 	_load_settings()
 	_apply_args()
 	set_quality(quality)
+	set_hdr_display(hdr_display)
 	_apply()
 
 
@@ -124,6 +127,7 @@ func _load_settings() -> void:
 	sound_on = bool(cfg.get_value("env", "sound", sound_on))
 	volume = float(cfg.get_value("env", "volume", volume))
 	flyby_hold = clampf(float(cfg.get_value("env", "flyby_hold", flyby_hold)), 1.0, 30.0)
+	hdr_display = bool(cfg.get_value("env", "hdr_display", hdr_display))
 
 
 func save_settings() -> void:
@@ -135,6 +139,7 @@ func save_settings() -> void:
 	cfg.set_value("env", "sound", sound_on)
 	cfg.set_value("env", "volume", volume)
 	cfg.set_value("env", "flyby_hold", flyby_hold)
+	cfg.set_value("env", "hdr_display", hdr_display)
 	cfg.save(SETTINGS)
 
 
@@ -252,12 +257,12 @@ func relight() -> void:
 	# the lamp posts are objects of the site (site_objects.gd)
 	for head in get_tree().get_nodes_in_group("lamp_head"):
 		if head.has_meta("lamp"):
-			(head.get_meta("lamp") as StandardMaterial3D).emission_energy_multiplier = 3.0 if _night else 0.0
+			(head.get_meta("lamp") as StandardMaterial3D).emission_energy_multiplier = 8.0 if _night else 0.0
 	_beacons_root.visible = _night
 	for n in get_tree().get_nodes_in_group("night_glow"):
 		var gm := (n as MeshInstance3D).material_override as StandardMaterial3D
 		if gm != null:
-			gm.emission_energy_multiplier = float(gm.get_meta("night_glow", 1.5)) if _night else 0.0
+			gm.emission_energy_multiplier = 1.8 * float(gm.get_meta("night_glow", 1.5)) if _night else 0.0
 
 
 ## A blinking red light on top of each item taller than 15 m, lit at night.
@@ -268,7 +273,7 @@ func _place_beacons() -> void:
 	mat.albedo_color = Color(0.9, 0.1, 0.08)
 	mat.emission_enabled = true
 	mat.emission = Color(1.0, 0.12, 0.08)
-	mat.emission_energy_multiplier = 4.0
+	mat.emission_energy_multiplier = 10.0
 	for id in main.entries.keys():
 		var e: Dictionary = main.entries[id]
 		if e["kind"] != "item" or bool(e["data"].get("badge", false)):
@@ -300,6 +305,19 @@ func set_weather(w: int) -> void:
 	weather = w
 	_apply()
 	save_settings()
+
+
+## Whether the system can show this window in HDR (Godot asks the display driver).
+func hdr_supported() -> bool:
+	return DisplayServer.has_feature(DisplayServer.FEATURE_HDR_OUTPUT) and DisplayServer.window_is_hdr_output_supported()
+
+
+## Asks for HDR output, or goes back to the usual range; the choice is kept even where the display
+## cannot do it, for the next display that can.
+func set_hdr_display(on: bool) -> void:
+	hdr_display = on
+	if hdr_supported():
+		main.get_window().hdr_output_requested = on
 
 
 func set_quality(q: int) -> void:
@@ -544,6 +562,18 @@ func build_panel(style: StyleBox) -> PanelContainer:
 	g.add_child(_options(QUALITY_NAMES, quality, func(i):
 		set_quality(i)
 		save_settings()))
+	_label(g, "HDR display")
+	var hdr := CheckBox.new()
+	hdr.focus_mode = Control.FOCUS_NONE
+	hdr.button_pressed = hdr_display and hdr_supported()
+	hdr.disabled = not hdr_supported()
+	hdr.text = "on" if hdr_supported() else "not on this display"
+	hdr.add_theme_color_override("font_color", Color(0.11, 0.15, 0.2))
+	hdr.tooltip_text = "Sends the picture to the display in high dynamic range, so lamps, flames and the sun can be brighter than white."
+	hdr.toggled.connect(func(on):
+		set_hdr_display(on)
+		save_settings())
+	g.add_child(hdr)
 	_label(g, "Sound")
 	var srow := HBoxContainer.new()
 	srow.size_flags_horizontal = Control.SIZE_EXPAND_FILL

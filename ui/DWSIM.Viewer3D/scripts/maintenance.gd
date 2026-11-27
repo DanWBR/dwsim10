@@ -196,7 +196,7 @@ func _effects(task: String, fwd: Vector3) -> Node3D:
 				pm.spread = 70.0
 				pm.initial_velocity_min = 1.0
 				pm.initial_velocity_max = 2.6
-				pm.color = Color(1.0, 0.92, 0.7)
+				pm.color = Color(4.0, 3.7, 2.8)
 			"grinding":
 				p.amount = 140
 				p.lifetime = 0.45
@@ -204,7 +204,7 @@ func _effects(task: String, fwd: Vector3) -> Node3D:
 				pm.spread = 22.0
 				pm.initial_velocity_min = 3.5
 				pm.initial_velocity_max = 6.0
-				pm.color = Color(1.0, 0.62, 0.2)
+				pm.color = Color(3.5, 2.2, 0.7)
 			_:
 				p.amount = 16
 				p.lifetime = 0.3
@@ -214,7 +214,7 @@ func _effects(task: String, fwd: Vector3) -> Node3D:
 				pm.spread = 80.0
 				pm.initial_velocity_min = 1.0
 				pm.initial_velocity_max = 2.5
-				pm.color = Color(1.0, 0.75, 0.35)
+				pm.color = Color(3.0, 2.2, 1.0)
 		p.process_material = pm
 		var q := QuadMesh.new()
 		q.size = Vector2(0.07, 0.07)
@@ -240,9 +240,12 @@ func _effects(task: String, fwd: Vector3) -> Node3D:
 		var s := SphereMesh.new()
 		s.radius = 0.06
 		s.height = 0.12
+		# the arc is the brightest thing on the plant: it blooms
 		var glow := StandardMaterial3D.new()
-		glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		glow.albedo_color = Color(0.85, 0.92, 1.0)
+		glow.emission_enabled = true
+		glow.emission = Color(0.8, 0.9, 1.0)
+		glow.emission_energy_multiplier = 16.0
 		var mi := MeshInstance3D.new()
 		mi.name = "arc"
 		mi.mesh = s

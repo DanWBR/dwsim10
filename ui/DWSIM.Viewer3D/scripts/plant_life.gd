@@ -164,11 +164,13 @@ func _flame(at: Vector3) -> GPUParticles3D:
 	var ct := CurveTexture.new()
 	ct.curve = shrink
 	pm.scale_curve = ct
+	# the core of a flame is far brighter than daylight on a wall: HDR colours, so it blooms
 	var ramp := Gradient.new()
-	ramp.set_color(0, Color(1.0, 0.95, 0.6, 1.0))
-	ramp.add_point(0.4, Color(1.0, 0.55, 0.12, 0.9))
+	ramp.set_color(0, Color(4.0, 3.4, 1.8, 1.0))
+	ramp.add_point(0.4, Color(3.0, 1.5, 0.3, 0.9))
 	ramp.set_color(ramp.get_point_count() - 1, Color(0.6, 0.12, 0.05, 0.0))
 	var gt := GradientTexture1D.new()
+	gt.use_hdr = true
 	gt.gradient = ramp
 	pm.color_ramp = gt
 	p.process_material = pm

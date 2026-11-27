@@ -195,9 +195,12 @@ func _ready() -> void:
 	_hover_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	_hover_mat.albedo_color = Color(1.0, 0.78, 0.25, 0.22)
 	_alarm_mat = StandardMaterial3D.new()
-	_alarm_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_alarm_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	_alarm_mat.albedo_color = Color(1.0, 0.12, 0.08, 0.55)
+	# an alarm shines, and blooms
+	_alarm_mat.emission_enabled = true
+	_alarm_mat.emission = Color(1.0, 0.1, 0.06)
+	_alarm_mat.emission_energy_multiplier = 3.0
 	_error_mat = StandardMaterial3D.new()
 	_error_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_error_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -252,8 +255,18 @@ func _build_world() -> void:
 	env.ssao_enabled = true
 	env.ssao_radius = 1.5
 	env.ssao_intensity = 1.6
+	# bloom: only what is brighter than the lit scene (lamps, flames, the arc, alarms) glows; the
+	# scene is drawn in HDR and the glow takes the light above the threshold before tone mapping
 	env.glow_enabled = true
-	env.glow_intensity = 0.25
+	env.glow_intensity = 0.9
+	env.glow_strength = 1.0
+	env.glow_bloom = 0.0
+	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SCREEN
+	env.glow_hdr_threshold = 1.3
+	env.glow_hdr_scale = 2.0
+	env.glow_hdr_luminance_cap = 16.0
+	for lv in 7:
+		env.set_glow_level(lv, [0.0, 1.0, 1.0, 0.9, 0.7, 0.4, 0.0][lv])
 	var we := WorldEnvironment.new()
 	we.environment = env
 	world_env = env
