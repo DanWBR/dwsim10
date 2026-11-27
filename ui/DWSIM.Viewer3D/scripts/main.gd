@@ -95,6 +95,8 @@ var sun: DirectionalLight3D
 ## id -> {node, data, kind ("item" or "line"), label}
 var entries := {}
 var scene_name := ""
+## How many full scenes the window has drawn (a flowsheet of streams alone has no items, but has a scene).
+var scenes_loaded := 0
 var warnings: Array = []
 var selected: Array = []
 
@@ -420,6 +422,7 @@ func _load_scene(scene: Dictionary) -> void:
 	for id in entries.keys():
 		_remove_entry(id)
 	entries.clear()
+	scenes_loaded += 1
 	scene_name = str(scene.get("name", scene_name))
 	_read_site(scene.get("site"))
 	# the relief first, so the objects of the site sit on it

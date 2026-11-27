@@ -24,7 +24,7 @@ func _ready() -> void:
 
 func _run() -> void:
 	# the link up and the scene drawn
-	if not await _wait(func(): return main.link != null and main.link.state == "connected" and main.entries.size() > 0, 90.0):
+	if not await _wait(func(): return main.link != null and main.link.state == "connected" and main.scenes_loaded > 0, 90.0):
 		_done("no scene from DWSIM")
 		return
 	await get_tree().create_timer(1.0).timeout

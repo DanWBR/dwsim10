@@ -338,9 +338,61 @@ namespace DWSIM.Extensions.SolidCraft
                         return item;
                     }
 
+                case ObjectType.CapeOpenUO:
+                    if (IsCapeOpenColumn(obj)) return CapeOpenColumn(obj, tag, warnings);
+                    return Generic(obj, warnings);
+
                 default:
                     return Generic(obj, warnings);
             }
+        }
+
+        /// <summary>A CAPE-OPEN unit that is a column: ChemSep, or one whose name or description says column.</summary>
+        static bool IsCapeOpenColumn(ISimulationObject obj)
+        {
+            var info = (obj as CapeOpenUO)?._seluo;
+            if (info == null) return false;
+            var text = (info.TypeName + " " + info.Name + " " + info.Description).ToLowerInvariant();
+            return text.Contains("chemsep") || text.Contains("column") || text.Contains("distill") || text.Contains("absorber");
+        }
+
+        /// <summary>
+        /// A CAPE-OPEN column (ChemSep) as a tower. Its stages are not published to DWSIM, so the
+        /// diameter comes from the feed: a vapour traffic of 1.5 times the molar feed at the mean feed
+        /// temperature and pressure, through the F-factor of <see cref="ColumnDiameterFromVapor"/>; the
+        /// height is that of 25 stages, the diameter is at least 1 m (a small trayed column), and the
+        /// column gets a condenser and a reboiler.
+        /// </summary>
+        static EquipmentItem CapeOpenColumn(ISimulationObject obj, string tag, List<string> warnings)
+        {
+            const double R = 8.314, mw = 0.05;
+            double n = 0, t = 0, p = 0;
+            foreach (var s in InletStreams(obj))
+            {
+                var f = Finite(s.GetMolarFlow());
+                if (f <= 0) continue;
+                n += f;
+                t += f * Finite(s.GetTemperature());
+                p += f * Finite(s.GetPressure());
+            }
+            double d = 1500;
+            if (n > 0 && t > 0 && p > 0)
+            {
+                t /= n;
+                p /= n;
+                var q = 1.5 * n * R * t / p;
+                var rho = p * mw / (R * t);
+                d = Clamp(Math.Sqrt(4 * (q * Math.Sqrt(rho) / 2 / 0.85) / Math.PI), 1.0, 6) * 1000;
+            }
+            const int stages = 25;
+            var h = Math.Max(stages * 600 + 2000, 3 * d);
+            var item = EquipmentTemplates.VerticalVessel(d, h, 3000, EquipmentTemplates.ColumnShell, 0.5);
+            EquipmentTemplates.AddColumnAuxiliaries(item, d, true, true);
+            if (Options == null || Options.Platforms) EquipmentTemplates.AddPlatforms(item, d);
+            Describe(item, "Diameter (mm)", d, true);
+            Describe(item, "Height T/T (mm)", h, true);
+            warnings.Add(tag + ": CAPE-OPEN column drawn from its feed (25 stages, vapour 1.5 times the feed).");
+            return item;
         }
 
         /// <summary>
