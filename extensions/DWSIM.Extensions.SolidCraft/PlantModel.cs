@@ -448,6 +448,19 @@ namespace DWSIM.Extensions.SolidCraft
         /// <summary>The pipe rack, when a line runs on it.</summary>
         public PipeRack Rack;
 
+        /// <summary>
+        /// The access lanes through a compact plant, kept clear of equipment: (true, x0, x1) for a lane
+        /// along Y between those X, (false, y0, y1) for a lane along X. Lines cross them overhead.
+        /// </summary>
+        public List<Tuple<bool, double, double>> AccessLanes = new List<Tuple<bool, double, double>>();
+
+        /// <summary>
+        /// The supports of the lines that run overhead off the rack: the top of the post under the
+        /// lowest line it holds (mm), and the direction the lines run there (X, Y), with the width of
+        /// the crossbar under them as Z (mm).
+        /// </summary>
+        public List<Tuple<Vec3, Vec3>> Supports = new List<Tuple<Vec3, Vec3>>();
+
         /// <summary>The simulation's compounds, so a data update can clear the ones a line no longer carries.</summary>
         public List<string> Compounds = new List<string>();
 

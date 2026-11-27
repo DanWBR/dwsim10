@@ -127,6 +127,13 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                     ["x0"] = model.Rack.X0, ["x1"] = model.Rack.X1, ["y0"] = model.Rack.Y0, ["w"] = model.Rack.Width,
                     ["top"] = model.Rack.Top, ["bay"] = PipeRack.BayLength, ["beam"] = PipeRack.BeamHeight
                 };
+            // the posts under the lines that run overhead off the rack: [x, y, z of the lowest pipe bottom, dx, dy, crossbar width]
+            if (model.Supports.Count > 0)
+            {
+                if (scene["rack"] == null || scene["rack"].Type == JTokenType.Null) scene["rack"] = new JObject();
+                scene["rack"]["supports"] = new JArray(model.Supports.Select(s => new JArray(
+                    Math.Round(s.Item1.X), Math.Round(s.Item1.Y), Math.Round(s.Item1.Z), Math.Round(s.Item2.X, 3), Math.Round(s.Item2.Y, 3), Math.Round(s.Item2.Z))));
+            }
             return scene;
         }
 

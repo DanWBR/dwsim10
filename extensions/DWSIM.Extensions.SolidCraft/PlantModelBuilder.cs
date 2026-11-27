@@ -122,7 +122,9 @@ namespace DWSIM.Extensions.SolidCraft
                 }
 
             LayOutRack(model);
+            BridgeLowLines(model);
             model.Pipes.RemoveAll(r => r.Path.Count < 2);
+            PlaceSupports(model);
 
             // the hydraulics along each route, kept with the line in SolidCraft too
             foreach (var run in model.Pipes)
@@ -1139,11 +1141,20 @@ namespace DWSIM.Extensions.SolidCraft
             var gap = model.Options.ItemGap * 1000;
             switch (model.Options.LayoutKind)
             {
-                case PlantLayoutKind.Compact: Packed(model, gap); break;
-                case PlantLayoutKind.Medium: Packed(model, 3 * gap + 3000); break;
+                case PlantLayoutKind.Compact: Packed(model, Math.Max(gap, Walkway), true); break;
+                case PlantLayoutKind.Medium: Packed(model, 3 * gap + 3000, false); break;
                 default: Scaled(model, gap); break;
             }
         }
+
+        /// <summary>The least clear space between two items of a compact plant (mm): people, and a forklift, reach every item.</summary>
+        const double Walkway = 3000;
+
+        /// <summary>The width of the access lanes through a compact plant (mm), for a fire truck or a mobile crane.</summary>
+        const double AccessLane = 6000;
+
+        /// <summary>A compact plant gets one access lane each way per this length of plant (mm), and none under <see cref="LaneFrom"/>.</summary>
+        const double LaneEvery = 40000, LaneFrom = 25000;
 
         /// <summary>Canvas distance under which two items count as one column (or one row) of the flowsheet.</summary>
         const double SameLine = 20;
@@ -1154,7 +1165,7 @@ namespace DWSIM.Extensions.SolidCraft
         /// wide as the largest item in it plus <paramref name="gap"/>. Items that share a column
         /// and a row stand side by side. Stream icons map between the columns and rows.
         /// </summary>
-        static void Packed(PlantModel model, double gap)
+        static void Packed(PlantModel model, double gap, bool slide)
         {
             var items = model.Equipment.Where(e => !e.Placed).ToList();
             if (items.Count == 0) { Scaled(model, gap); return; }
@@ -1207,6 +1218,29 @@ namespace DWSIM.Extensions.SolidCraft
                 }
             }
 
+            // compact: the grid leaves most of its cells empty on a large flowsheet, so the items
+            // slide toward the middle, along X and then along Y, until they meet the items they
+            // overlap across; the columns and rows the streams map through follow them
+            if (slide && items.Count > 1)
+            {
+                // small steps on both axes in turn, so the plant shrinks in both and keeps its shape;
+                // the gap is at least a walkway, so the free space between the items is a network of
+                // aisles that reaches every one of them
+                for (var pass = 0; pass < 14; pass++)
+                {
+                    Slide(items, gap, true, 0.15);
+                    Slide(items, gap, false, 0.15);
+                }
+                // and access lanes across the plant, each way
+                model.AccessLanes.Clear();
+                Lanes(model, items, true);
+                Lanes(model, items, false);
+                for (var c = 0; c < colCentre.Length; c++)
+                    colCentre[c] = items.Where((e, i) => col[i] == c).Average(e => e.FootprintCentre.X);
+                for (var r = 0; r < rowCentre.Length; r++)
+                    rowCentre[r] = items.Where((e, i) => row[i] == r).Average(e => e.FootprintCentre.Y);
+            }
+
             // the canvas to plot plan map for the stream icons: through the column and row centres,
             // and on past the outer ones
             double Mean(List<int> index, IEnumerable<double> pos, int k) => pos.Where((p, i) => index[i] == k).Average();
@@ -1221,6 +1255,255 @@ namespace DWSIM.Extensions.SolidCraft
             model.Scale = spanX > 1 ? totalX / spanX : 15;
             model.CanvasOriginX = (items.Min(e => e.CanvasX) + items.Max(e => e.CanvasX)) / 2;
             model.CanvasOriginY = (items.Min(e => e.CanvasY) + items.Max(e => e.CanvasY)) / 2;
+        }
+
+        /// <summary>
+        /// Slides the items toward the middle of the plant along X (or Y), the ones nearest the
+        /// middle first: each one stops <paramref name="gap"/> short of the items that it overlaps
+        /// across (along the other axis) and that lie on its way, so no item passes another and none
+        /// moves away from the middle. An item moves at most <paramref name="step"/> of its distance
+        /// to the middle.
+        /// </summary>
+        static void Slide(List<EquipmentItem> items, double gap, bool alongX, double step)
+        {
+            double C(EquipmentItem e) => alongX ? e.FootprintCentre.X : e.FootprintCentre.Y;
+            double H(EquipmentItem e) => alongX ? e.FootprintX : e.FootprintY;
+            double OC(EquipmentItem e) => alongX ? e.FootprintCentre.Y : e.FootprintCentre.X;
+            double OH(EquipmentItem e) => alongX ? e.FootprintY : e.FootprintX;
+            var settled = new List<EquipmentItem>();
+            foreach (var e in items.OrderBy(e => Math.Abs(C(e))).ToList())
+            {
+                var c = C(e);
+                var target = 0.0;
+                foreach (var o in settled)
+                {
+                    if (Math.Abs(OC(o) - OC(e)) >= OH(o) + OH(e) + gap) continue;
+                    if (c >= 0 && C(o) < c) target = Math.Max(target, C(o) + H(o) + gap + H(e));
+                    else if (c < 0 && C(o) > c) target = Math.Min(target, C(o) - H(o) - gap - H(e));
+                }
+                var moved = c >= 0 ? Math.Min(c, Math.Max(target, c * (1 - step))) : Math.Max(c, Math.Min(target, c * (1 - step)));
+                var d = Math.Round(moved - c);
+                if (d != 0) e.Origin = e.Origin + (alongX ? new Vec3(d, 0, 0) : new Vec3(0, d, 0));
+                settled.Add(e);
+            }
+        }
+
+        /// <summary>
+        /// Opens access lanes <see cref="AccessLane"/> wide across the plant: lanes along Y spread
+        /// over the plant's width when <paramref name="acrossX"/>, else lanes along X spread over its
+        /// depth, one per <see cref="LaneEvery"/> (none on a plant smaller than <see cref="LaneFrom"/>).
+        /// Each lane goes where the fewest items stand across it, near its even place; the items on
+        /// either side move apart, and an item that stood across the lane moves wholly to the side of
+        /// its centre.
+        /// </summary>
+        static void Lanes(PlantModel model, List<EquipmentItem> items, bool acrossX)
+        {
+            double Lo(EquipmentItem e) => acrossX ? e.FootprintCentre.X - e.FootprintX : e.FootprintCentre.Y - e.FootprintY;
+            double Hi(EquipmentItem e) => acrossX ? e.FootprintCentre.X + e.FootprintX : e.FootprintCentre.Y + e.FootprintY;
+            var min = items.Min(Lo);
+            var max = items.Max(Hi);
+            var extent = max - min;
+            if (extent < LaneFrom) return;
+            var n = Math.Max(1, (int)Math.Floor(extent / LaneEvery));
+            var lanes = new List<double>();
+            for (var k = 1; k <= n; k++)
+            {
+                var even = min + extent * k / (n + 1);
+                var reach = extent / (2.0 * (n + 1));
+                var best = even;
+                var fewest = int.MaxValue;
+                for (var p = even - reach; p <= even + reach; p += 500)
+                {
+                    var across = items.Count(e => Lo(e) < p && Hi(e) > p);
+                    if (across < fewest || across == fewest && Math.Abs(p - even) < Math.Abs(best - even))
+                    {
+                        fewest = across;
+                        best = p;
+                    }
+                }
+                lanes.Add(best);
+            }
+            // which side of each lane every item is on, for the lane's band once they have moved
+            var right = lanes.Select(p => items.Where(e => (Lo(e) + Hi(e)) / 2 >= p).ToList()).ToList();
+            foreach (var e in items)
+            {
+                var c = (Lo(e) + Hi(e)) / 2;
+                double shift = 0;
+                foreach (var p in lanes)
+                    shift += c >= p ? AccessLane / 2 + Math.Max(0, p - Lo(e)) : -(AccessLane / 2 + Math.Max(0, Hi(e) - p));
+                shift = Math.Round(shift);
+                if (shift != 0) e.Origin = e.Origin + (acrossX ? new Vec3(shift, 0, 0) : new Vec3(0, shift, 0));
+            }
+            for (var k = 0; k < lanes.Count; k++)
+            {
+                var r = right[k];
+                var left = items.Except(r).ToList();
+                if (r.Count == 0 || left.Count == 0) continue;
+                model.AccessLanes.Add(Tuple.Create(acrossX, left.Max(Hi), r.Min(Lo)));
+            }
+        }
+
+        /// <summary>Clear height under a line that crosses a walkway (mm), above the 2.1 m minimum headroom.</summary>
+        const double Headroom = 2500;
+
+        /// <summary>Clear height under a line that crosses an access lane (mm), for a fire truck or a crane.</summary>
+        const double LaneHeadroom = 5000;
+
+        /// <summary>
+        /// Lines off the rack (between neighbouring items, and out to the battery limit) are routed
+        /// at nozzle height, across the walkways and lanes between the items. Every stretch that runs
+        /// flat below <see cref="Headroom"/> for more than 0.5 m goes up on a pipe bridge: the line
+        /// rises at the start of the stretch, crosses at the bridge height (<see cref="Headroom"/>
+        /// clear, or <see cref="LaneHeadroom"/> where it crosses an access lane) and drops at its end.
+        /// The legs into the nozzles stay as they are, and a battery-limit end stays up, with its
+        /// blind flange.
+        /// </summary>
+        static void BridgeLowLines(PlantModel model)
+        {
+            foreach (var run in model.Pipes)
+            {
+                if (run.OnRack || run.From == run.To || run.Path == null || run.Path.Count < 2) continue;
+                var nozzleAtStart = run.From != "battery limit";
+                var nozzleAtEnd = run.To != "battery limit";
+                // the simplified path joins the leg out of a nozzle to the run in line with it: the
+                // leg (the stub length) is split off again, so only the run beyond it goes up
+                var p = new List<Vec3>(run.Path);
+                var stub = Math.Max(800, 4 * run.OuterDiameter);
+                if (nozzleAtStart) SplitLeg(p, 0, 1, stub);
+                if (nozzleAtEnd) SplitLeg(p, p.Count - 1, p.Count - 2, stub);
+                var first = nozzleAtStart ? 1 : 0;
+                var last = nozzleAtEnd ? p.Count - 2 : p.Count - 1;
+                var cover = run.OuterDiameter / 2 + run.Insulation;
+                var output = new List<Vec3>();
+                for (var k = 0; k < first; k++) output.Add(p[k]);
+                var i = first;
+                var changed = false;
+                while (i <= last)
+                {
+                    var j = i;
+                    while (j + 1 <= last && Math.Abs(p[j + 1].Z - p[i].Z) < 1) j++;
+                    double length = 0;
+                    for (var k = i; k < j; k++) length += Math.Sqrt(Math.Pow(p[k + 1].X - p[k].X, 2) + Math.Pow(p[k + 1].Y - p[k].Y, 2));
+                    if (j > i && length > 500 && p[i].Z - cover < Headroom)
+                    {
+                        var h = (CrossesLane(model, p, i, j) ? LaneHeadroom : Headroom) + cover;
+                        if (i > 0) output.Add(p[i]);
+                        for (var k = i; k <= j; k++) output.Add(new Vec3(p[k].X, p[k].Y, h));
+                        if (j < p.Count - 1) output.Add(p[j]);
+                        // a battery-limit end that went up takes its blind flange with it
+                        foreach (var end in new[] { i == 0 ? 0 : -1, j == p.Count - 1 ? j : -1 })
+                        {
+                            if (end < 0) continue;
+                            var f = run.Flanges.FindIndex(t => (t.Item1 - p[end]).Length < 1);
+                            if (f >= 0) run.Flanges[f] = Tuple.Create(new Vec3(p[end].X, p[end].Y, h), run.Flanges[f].Item2);
+                        }
+                        changed = true;
+                    }
+                    else
+                    {
+                        for (var k = i; k <= j; k++) output.Add(p[k]);
+                    }
+                    i = j + 1;
+                }
+                for (var k = last + 1; k < p.Count; k++) output.Add(p[k]);
+                if (changed) run.Path = Simplify(output);
+            }
+        }
+
+        /// <summary>Puts a point on the flat segment from the nozzle end to its neighbour, the stub length away from the nozzle, when the segment is longer than that.</summary>
+        static void SplitLeg(List<Vec3> p, int nozzle, int next, double stub)
+        {
+            var a = p[nozzle];
+            var b = p[next];
+            var d = b - a;
+            if (Math.Abs(d.Z) > 1 || d.Length < stub + 500) return;
+            var cut = a + d.Normalized() * stub;
+            p.Insert(Math.Max(nozzle, next), cut);
+        }
+
+        /// <summary>
+        /// The supports of the overhead stretches of the lines off the rack. Each flat segment above
+        /// head height gets a point on a 6 m grid along its direction (the same grid for the whole
+        /// plant, so parallel lines line up), or one at its middle when it is short; the points at
+        /// one grid place whose lines lie less than 2 m apart become one frame, a post with a
+        /// crossbar under all of them. No support stands on an item, on the rack (its frames hold
+        /// those lines) or in an access lane.
+        /// </summary>
+        static void PlaceSupports(PlantModel model)
+        {
+            model.Supports.Clear();
+            const double every = 6000, join = 2000;
+            var rack = model.Rack;
+            bool OnRack(double x, double y) => rack != null && x >= rack.X0 && x <= rack.X1 && y >= rack.Y0 - 500 && y <= rack.Y0 + rack.Width + 500;
+            bool OnItem(double x, double y) => model.Equipment.Any(e => e.Visible
+                && Math.Abs(x - e.FootprintCentre.X) < e.FootprintX + 300 && Math.Abs(y - e.FootprintCentre.Y) < e.FootprintY + 300);
+            bool InLane(double x, double y) => model.AccessLanes.Any(l => (l.Item1 ? x : y) > l.Item2 && (l.Item1 ? x : y) < l.Item3);
+
+            // (along X?, grid place) -> the points: across coordinate, pipe bottom
+            var points = new Dictionary<Tuple<bool, long>, List<Tuple<double, double>>>();
+            foreach (var run in model.Pipes)
+            {
+                if (run.From == run.To || run.Path == null) continue;
+                var cover = run.OuterDiameter / 2 + run.Insulation;
+                for (var k = 0; k + 1 < run.Path.Count; k++)
+                {
+                    var a = run.Path[k];
+                    var b = run.Path[k + 1];
+                    if (Math.Abs(b.Z - a.Z) > 1 || a.Z - cover < 1500) continue;
+                    bool alongX;
+                    if (Math.Abs(b.Y - a.Y) < 1 && Math.Abs(b.X - a.X) >= 1) alongX = true;
+                    else if (Math.Abs(b.X - a.X) < 1 && Math.Abs(b.Y - a.Y) >= 1) alongX = false;
+                    else continue;
+                    var lo = Math.Min(alongX ? a.X : a.Y, alongX ? b.X : b.Y);
+                    var hi = Math.Max(alongX ? a.X : a.Y, alongX ? b.X : b.Y);
+                    var across = alongX ? a.Y : a.X;
+                    var places = new List<double>();
+                    for (var g = Math.Ceiling((lo + 500) / every) * every; g <= hi - 500; g += every) places.Add(g);
+                    if (places.Count == 0) places.Add((lo + hi) / 2);
+                    foreach (var g in places)
+                    {
+                        var x = alongX ? g : across;
+                        var y = alongX ? across : g;
+                        if (OnRack(x, y) || OnItem(x, y) || InLane(x, y)) continue;
+                        var key = Tuple.Create(alongX, (long)Math.Round(g));
+                        if (!points.TryGetValue(key, out var list)) points[key] = list = new List<Tuple<double, double>>();
+                        list.Add(Tuple.Create(across, a.Z - cover));
+                    }
+                }
+            }
+
+            foreach (var kv in points)
+            {
+                var alongX = kv.Key.Item1;
+                double g = kv.Key.Item2;
+                var sorted = kv.Value.OrderBy(t => t.Item1).ToList();
+                var start = 0;
+                for (var i = 1; i <= sorted.Count; i++)
+                {
+                    if (i < sorted.Count && sorted[i].Item1 - sorted[i - 1].Item1 < join) continue;
+                    var group = sorted.GetRange(start, i - start);
+                    var mid = (group.First().Item1 + group.Last().Item1) / 2;
+                    var top = group.Min(t => t.Item2);
+                    var span = group.Last().Item1 - group.First().Item1 + 600;
+                    var at = alongX ? new Vec3(g, mid, top) : new Vec3(mid, g, top);
+                    // the direction of the lines, and the width of the crossbar in its length
+                    model.Supports.Add(Tuple.Create(at, alongX ? new Vec3(1, 0, span) : new Vec3(0, 1, span)));
+                    start = i;
+                }
+            }
+        }
+
+        /// <summary>Whether the flat stretch i..j of a path crosses or runs in an access lane.</summary>
+        static bool CrossesLane(PlantModel model, List<Vec3> p, int i, int j)
+        {
+            for (var k = i; k < j; k++)
+                foreach (var lane in model.AccessLanes)
+                {
+                    var a = lane.Item1 ? p[k].X : p[k].Y;
+                    var b = lane.Item1 ? p[k + 1].X : p[k + 1].Y;
+                    if (Math.Max(a, b) > lane.Item2 && Math.Min(a, b) < lane.Item3) return true;
+                }
+            return false;
         }
 
         /// <summary>A canvas coordinate on the plot plan, between the packed columns (rows) or past the outer ones.</summary>

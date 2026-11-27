@@ -615,7 +615,10 @@ func _set_rack(k) -> void:
 	for c in rack_root.get_children():
 		c.queue_free()
 	if k is Dictionary:
-		rack_root.add_child(builder.rack(k))
+		if k.has("x0"):
+			rack_root.add_child(builder.rack(k))
+		if k.has("supports"):
+			rack_root.add_child(builder.supports(k["supports"]))
 
 
 func _node_bounds(node: Node3D) -> AABB:

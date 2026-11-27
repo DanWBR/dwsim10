@@ -471,6 +471,38 @@ static func set_flow(node: Node3D, v: float) -> void:
 
 
 ## The single-tier rack: columns at each bay, cross beams and the two side beams.
+## The supports of the overhead lines off the rack: a steel post from the ground to the lowest
+## line it holds, with a crossbar across the lines on top (each entry [x, y, z, dx, dy, width], mm).
+func supports(list: Array) -> Node3D:
+	var node := Node3D.new()
+	node.name = "supports"
+	var steel := material(STEEL, true)
+	for s in list:
+		if not (s is Array) or s.size() < 5:
+			continue
+		var top := vec([s[0], s[1], s[2]])
+		if top.y < 0.5:
+			continue
+		var post := MeshInstance3D.new()
+		var pm := BoxMesh.new()
+		pm.size = Vector3(0.16, top.y - 0.08, 0.16)
+		post.mesh = pm
+		post.material_override = steel
+		post.position = Vector3(top.x, (top.y - 0.08) / 2.0, top.z)
+		node.add_child(post)
+		var along := dir([s[3], s[4], 0])
+		var across := Vector3(-along.z, 0, along.x)
+		var bar := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = Vector3(maxf(0.9, float(s[5]) * 0.001 if s.size() > 5 else 0.9), 0.12, 0.12)
+		bar.mesh = bm
+		bar.material_override = steel
+		bar.position = Vector3(top.x, top.y - 0.06, top.z)
+		bar.rotation.y = atan2(-across.z, across.x)
+		node.add_child(bar)
+	return node
+
+
 func rack(k: Dictionary) -> Node3D:
 	var node := Node3D.new()
 	node.name = "rack"
