@@ -1156,10 +1156,21 @@ Namespace Reactors
                                         m0 = ims.Phases(2).Compounds(sb.CompName).MolarFlow.GetValueOrDefault + ims.Phases(7).Compounds(sb.CompName).MolarFlow.GetValueOrDefault
                                 End Select
 
-                                If m0 = 0.0# Then m0 = 0.0000000001
+                                Dim mtotal = ims.Phases(0).Compounds(sb.CompName).MolarFlow.GetValueOrDefault
 
-                                m0nr = ims.Phases(0).Compounds(sb.CompName).MolarFlow.GetValueOrDefault - m0
-                                If m0nr < 0.0# Then m0nr = 0.0
+                                'a flash's phase flows add up to the stream's only within its tolerance, so the reacting
+                                'phase can carry a hair more of a compound than the whole stream: the step then starts from
+                                'the stream's flow, and the reacting and non-reacting parts always add up to it
+                                If m0 > mtotal Then m0 = mtotal
+
+                                m0nr = mtotal - m0
+
+                                'a compound the phase doesn't carry starts from a tiny flow so that the rate sees a
+                                'concentration; the non-reacting part gives it back, so the step doesn't create it
+                                If m0 = 0.0# Then
+                                    m0 = 0.0000000001
+                                    m0nr -= 0.0000000001
+                                End If
 
                                 If Not N0.ContainsKey(sb.CompName) Then
                                     N0.Add(sb.CompName, m0)
@@ -1443,15 +1454,15 @@ Namespace Reactors
                             'compute new mole flows
                             For Each s2 As Compound In ims.Phases(0).Compounds.Values
                                 If N.ContainsKey(s2.Name) Then
-                                    Nsum += N(s2.Name) + Nnr(s2.Name)
+                                    Nsum += Math.Max(0.0#, N(s2.Name) + Nnr(s2.Name))
                                 Else
                                     Nsum += s2.MolarFlow.GetValueOrDefault
                                 End If
                             Next
                             For Each s2 As Compound In ims.Phases(0).Compounds.Values
                                 If N.ContainsKey(s2.Name) Then
-                                    s2.MoleFraction = (N(s2.Name) + Nnr(s2.Name)) / Nsum
-                                    s2.MolarFlow = N(s2.Name) + Nnr(s2.Name)
+                                    s2.MoleFraction = Math.Max(0.0#, N(s2.Name) + Nnr(s2.Name)) / Nsum
+                                    s2.MolarFlow = Math.Max(0.0#, N(s2.Name) + Nnr(s2.Name))
                                 Else
                                     s2.MoleFraction = ims.Phases(0).Compounds(s2.Name).MolarFlow.GetValueOrDefault / Nsum
                                     s2.MolarFlow = ims.Phases(0).Compounds(s2.Name).MolarFlow.GetValueOrDefault
