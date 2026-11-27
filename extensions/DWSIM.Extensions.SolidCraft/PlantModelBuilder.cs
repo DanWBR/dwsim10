@@ -307,6 +307,12 @@ namespace DWSIM.Extensions.SolidCraft
                             var ds = Clamp(1.3 * dt * Math.Sqrt(n) + 100, 300, 6000);
                             item = EquipmentTemplates.VerticalVessel(ds, Clamp(l, 1000, 30000), 2000 + ds / 2, EquipmentTemplates.Reactor, 0.5);
                         }
+                        else if (dt > 1500)
+                        {
+                            // one tube wider than a pipe is a vessel; a wide reactor given as one tube stays within the vessel sizes
+                            var dv = Clamp(dt, 300, 6000);
+                            item = EquipmentTemplates.VerticalVessel(dv, Clamp(l, 1000, 30000), 2000 + dv / 2, EquipmentTemplates.Reactor, 0.5);
+                        }
                         else
                         {
                             item = EquipmentTemplates.PipeSpool(Math.Max(50, dt), Clamp(l, 1000, 30000), EquipmentTemplates.Reactor);

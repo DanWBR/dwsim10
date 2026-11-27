@@ -233,6 +233,13 @@ func _ready() -> void:
 		test_out = OS.get_environment("DWSIM_VIEWER3D_SELFTEST_OUT")
 	if test_item != "" and test_out != "":
 		add_child(SelfTest.new(self, test_item, test_out))
+	# "--bake-site": the 3D view of a sample, made once and saved with it (see SiteBake)
+	if "--bake-site" in OS.get_cmdline_user_args():
+		var bake_out := ""
+		for arg in OS.get_cmdline_user_args():
+			if arg.begins_with("--bake-out="):
+				bake_out = arg.get_slice("=", 1)
+		add_child(SiteBake.new(self, bake_out))
 
 
 # --- world -----------------------------------------------------------------------------------

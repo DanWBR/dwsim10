@@ -258,6 +258,16 @@ them in its extra properties, key `Plant3DSite`, and the window sends them with 
 the user can move, turn or demolish the fence, the cars or the woods like anything built later. A
 flowsheet that was never edited this way keeps the site the window draws.
 
+The samples come with their site already made. `-- --bake-site [--bake-out=<folder>]` does it:
+once DWSIM has sent the scene, the window adopts the site it draws by itself together with the
+buildings of a plant in front of the gate, on both sides of a longer road (a guardhouse, the
+administration building with flags, a parking lot, the canteen, a lawn with the assembly point,
+the maintenance workshop, the warehouse with containers and the substation with its power line),
+with lamp posts and rows of trees along the road, safety showers and a windsock on the plant, and
+the woods kept clear of the buildings. When DWSIM sends the adopted site back, the window saves
+IsoSE.png in the folder, writes bake.txt (ok, or what went wrong) and quits. A flowsheet whose site
+was already adopted keeps it.
+
 ## The control room and the rounds
 
 The palette has a Site group with a Control Room. When you place one, it becomes a building of the
