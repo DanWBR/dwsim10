@@ -169,8 +169,7 @@ func stop() -> void:
 	main.sun.directional_shadow_max_distance = _shadow_reach
 	main.labels_root.visible = _labels_before
 	main.values_root.visible = _values_before
-	for label in main.labels_root.get_children():
-		label.visible = true
+	main.refresh_labels()
 	main.rig.camera.make_current()
 	finished.emit()
 

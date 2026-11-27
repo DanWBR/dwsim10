@@ -53,8 +53,10 @@ With the mouse over an item or a line, the window tints it, draws a box at its l
 through the other items too) and shows its tag and size (width x depth x height). Left click selects (Ctrl adds), a double click opens the item's editor, Shift+F frames it, right drag turns the view, middle
 drag (or Shift + right drag) moves the view, and the wheel zooms. Keys 1 to 4 are the isometric views,
 5 is the plan, 6 and 7 the front and right side, Q and E turn the view by 90 degrees, F fits the
-plant, L, I, R and G show or hide the labels, insulation, pipe rack and grid, and F1 the card of
-shortcuts.
+plant, I, R and G show or hide the insulation, pipe rack and grid, and F1 the card of shortcuts.
+Only the selected items show their tags, so that the tags do not crowd the plant; L (or All labels
+in the panel, which the window keeps between runs) shows the tags of every item, and
+`--all-labels` does the same for one run (pictures).
 
 ## Editing the layout
 

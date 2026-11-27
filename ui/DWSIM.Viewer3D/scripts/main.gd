@@ -18,7 +18,7 @@ const SHORTCUTS := [
 	["6 / 7", "Front / right side"],
 	["Q / E", "Turn 90 degrees"],
 	["F", "Fit the plant"],
-	["L", "Labels"],
+	["L", "All labels (else the selected ones)"],
 	["I", "Insulation"],
 	["R", "Pipe rack"],
 	["G", "Grid"],
@@ -576,6 +576,7 @@ func _add_item(it: Dictionary) -> void:
 	label.position = Vector3(b.get_center().x, b.end.y + 0.6, b.get_center().z)
 	labels_root.add_child(label)
 	entries[id] = {"node": node, "data": it, "kind": "item", "label": label}
+	label.visible = _label_shown(id)
 
 
 func _remove_entry(id: String) -> void:
@@ -639,9 +640,24 @@ func _set_selection(ids: Array, tell_dwsim: bool) -> void:
 			selected.append(s)
 			_tint(s, true)
 	_show_info()
+	refresh_labels()
 	if tell_dwsim:
 		var real := selected.filter(func(id): return not str(id).begins_with("line#"))
 		link.send({"type": "select", "ids": real})
+
+
+## The tags of the items: all of them when the panel says so (L), else only those of the selection,
+## so that the tags do not crowd the plant.
+func refresh_labels() -> void:
+	for id in entries.keys():
+		var label = entries[id].get("label")
+		if label != null and is_instance_valid(label):
+			label.visible = _label_shown(id)
+
+
+func _label_shown(id: String) -> bool:
+	var all := surroundings != null and surroundings.all_labels
+	return all or selected.has(id)
 
 
 func _tint(id: String, on: bool) -> void:
@@ -841,7 +857,9 @@ func _unhandled_input(event: InputEvent) -> void:
 					site_root.visible = props.visible
 				KEY_K:
 					crew.panel.visible = not crew.panel.visible
-				KEY_L: labels_root.visible = not labels_root.visible
+				KEY_L:
+					surroundings.set_all_labels(not surroundings.all_labels)
+					surroundings.save_settings()
 				KEY_I: insulation_root.visible = not insulation_root.visible
 				KEY_R: rack_root.visible = not rack_root.visible
 				KEY_G: grid.visible = not grid.visible

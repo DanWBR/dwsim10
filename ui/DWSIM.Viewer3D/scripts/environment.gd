@@ -30,6 +30,9 @@ var wind := 3.0
 var quality := Quality.MEDIUM
 ## Whether the window asks the system for HDR output, on a display that has it.
 var hdr_display := false
+## Whether every item shows its tag, or only the selected ones (L, or All labels in the panel).
+var all_labels := false
+var _labels_box: CheckBox
 var sound_on := true
 var volume := 0.6
 ## Seconds the flyby stays on each unit (B in the window, and the recorded videos).
@@ -128,6 +131,7 @@ func _load_settings() -> void:
 	volume = float(cfg.get_value("env", "volume", volume))
 	flyby_hold = clampf(float(cfg.get_value("env", "flyby_hold", flyby_hold)), 1.0, 30.0)
 	hdr_display = bool(cfg.get_value("env", "hdr_display", hdr_display))
+	all_labels = bool(cfg.get_value("env", "all_labels", all_labels))
 
 
 func save_settings() -> void:
@@ -140,6 +144,7 @@ func save_settings() -> void:
 	cfg.set_value("env", "volume", volume)
 	cfg.set_value("env", "flyby_hold", flyby_hold)
 	cfg.set_value("env", "hdr_display", hdr_display)
+	cfg.set_value("env", "all_labels", all_labels)
 	cfg.save(SETTINGS)
 
 
@@ -159,6 +164,8 @@ func _apply_args() -> void:
 				quality = q
 		elif arg == "--mute":
 			sound_on = false
+		elif arg == "--all-labels":
+			all_labels = true
 
 
 # --- materials and pieces --------------------------------------------------------------------
@@ -305,6 +312,14 @@ func set_weather(w: int) -> void:
 	weather = w
 	_apply()
 	save_settings()
+
+
+## Shows the tags of all items, or only of the selected ones.
+func set_all_labels(on: bool) -> void:
+	all_labels = on
+	if _labels_box != null:
+		_labels_box.set_pressed_no_signal(on)
+	main.refresh_labels()
 
 
 ## Whether the system can show this window in HDR (Godot asks the display driver).
@@ -562,6 +577,17 @@ func build_panel(style: StyleBox) -> PanelContainer:
 	g.add_child(_options(QUALITY_NAMES, quality, func(i):
 		set_quality(i)
 		save_settings()))
+	_label(g, "Labels")
+	_labels_box = CheckBox.new()
+	_labels_box.focus_mode = Control.FOCUS_NONE
+	_labels_box.button_pressed = all_labels
+	_labels_box.text = "all (L)"
+	_labels_box.add_theme_color_override("font_color", Color(0.11, 0.15, 0.2))
+	_labels_box.tooltip_text = "Shows the tag of every item. When it is off, only the selected items show their tags."
+	_labels_box.toggled.connect(func(on):
+		set_all_labels(on)
+		save_settings())
+	g.add_child(_labels_box)
 	_label(g, "HDR display")
 	var hdr := CheckBox.new()
 	hdr.focus_mode = Control.FOCUS_NONE
