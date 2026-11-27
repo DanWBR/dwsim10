@@ -62,6 +62,8 @@ Version 10.3.1
 - [NEW] Orange Juice Stream Analysis (Plus): reads and writes fruit, juice, FCOJ, essence, oil, emulsion, peel residue and pellet streams in the quantities of a juice plant (Brix, acidity, ratio, insoluble solids, recoverable oil, aroma), with nine presets
 - [NEW] TASTE Evaporator, Essence Recovery and Peel Oil Recovery (Plus): multiple-effect juice evaporation to a set Brix with preheaters, pasteurization and condensate flash, distillation of the first effect condensate into the water phase essence and the essence oil, and cold-pressed peel oil with a d-limonene stripper
 - [NEW] Orange juice plant in the Case Library, tutorial A16 and a User Guide part on the orange juice tools
+- [NEW] Ethanol Dehydration Reactor and Caustic Wash Tower (Plus): fixed bed dehydration of ethanol to ethylene on alumina as an adiabatic bed, an isothermal bed or a heated multitubular reactor, with by-products, the inhibition by fusel propanols and pellet effectiveness factors; and caustic washing of CO2 on stages with the carbonate speciation of the caustic
+- [NEW] Green ethylene plant in the Case Library, tutorial A17 and a User Guide part on the green ethylene tools
 - [NEW] Export 3D Plant Model: a general arrangement drawing (plan and two elevations, item tags, title block) is drawn in SolidCraft and saved as PDF
 - [NEW] Export 3D Plant Model: optional glTF model of the plant (.glb)
 - [CHG] Update check at startup: reads the latest published release of the running edition on GitHub (open edition or Patreon Edition), skips release candidates and shows its list of changes; opens the release page when download and install is off
