@@ -1,0 +1,10 @@
+DWSIM 3D
+
+The DWSIM 3D window is part of DWSIM and is free software under the GNU General Public License,
+version 3 or later (see the LICENSE file of DWSIM).
+
+It runs on the Godot Engine 4.7.2, which is MIT licensed:
+Copyright (c) 2014-present Godot Engine contributors.
+Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.
+The Godot license is in GODOT-LICENSE.txt and the licenses of the third-party components the
+engine includes are in GODOT-COPYRIGHT.txt.

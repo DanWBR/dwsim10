@@ -31,6 +31,8 @@ install -d "$staging/usr/share/mime/packages"
 
 cp -a "$publish/." "$staging/opt/dwsim/"
 chmod +x "$staging/opt/dwsim/DWSIM.UI.Desktop.Avalonia"
+# the DWSIM 3D window (Godot); it draws with Vulkan, or OpenGL where Vulkan is missing
+for v in "$staging"/opt/dwsim/viewer3d/DWSIM3D.*; do if [ -f "$v" ]; then chmod +x "$v"; fi; done
 
 # the launcher, so that the working directory does not decide whether the app finds its own files
 cat > "$staging/usr/bin/dwsim" <<'LAUNCHER'

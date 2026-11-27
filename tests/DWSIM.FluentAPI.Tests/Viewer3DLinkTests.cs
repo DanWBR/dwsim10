@@ -234,6 +234,33 @@ namespace DWSIM.FluentAPI.Tests
             }
         }
 
+        [Test]
+        public void TheLauncherRunsTheProjectFolderInTheGodotEditor()
+        {
+            var project = Path.Combine(Path.GetTempPath(), "dwsim3d-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(project);
+            File.WriteAllText(Path.Combine(project, "project.godot"), "config_version=5\n");
+            var editor = Path.Combine(project, "godot.exe");
+            File.WriteAllText(editor, "");
+            var oldPath = Environment.GetEnvironmentVariable(ViewerLauncher.PathVariable);
+            var oldGodot = Environment.GetEnvironmentVariable(ViewerLauncher.GodotVariable);
+            try
+            {
+                Environment.SetEnvironmentVariable(ViewerLauncher.PathVariable, project);
+                Environment.SetEnvironmentVariable(ViewerLauncher.GodotVariable, editor);
+                string exe, prefix;
+                Assert.That(ViewerLauncher.Resolve(out exe, out prefix), Is.True);
+                Assert.That(exe, Is.EqualTo(editor));
+                Assert.That(prefix, Is.EqualTo("--path \"" + Path.GetFullPath(project) + "\" "));
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable(ViewerLauncher.PathVariable, oldPath);
+                Environment.SetEnvironmentVariable(ViewerLauncher.GodotVariable, oldGodot);
+                Directory.Delete(project, true);
+            }
+        }
+
         sealed class TestWindow : IDisposable
         {
             public TcpClient Client;

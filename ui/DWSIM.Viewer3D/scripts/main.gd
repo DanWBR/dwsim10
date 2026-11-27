@@ -1,0 +1,674 @@
+## DWSIM 3D: shows the plant model of a DWSIM flowsheet and keeps it in step with DWSIM.
+##
+## Started by DWSIM with "-- --dwsim-port=N --dwsim-token=T", it connects back and draws the scene
+## DWSIM sends. Started with "-- --dwsim-scene=file.json" it draws a saved scene on its own, and
+## with "--capture-dir=folder --views=IsoSE,Plan" it saves those views as PNG files and quits.
+##
+## Mouse: left click selects (Ctrl adds), double click frames the item, right drag turns the view,
+## middle drag (or Shift + right drag) moves it, the wheel zooms. Keys: see SHORTCUTS.
+extends Node3D
+
+const SHORTCUTS := [
+	["1-4", "Isometric views"],
+	["5", "Plan"],
+	["6 / 7", "Front / right side"],
+	["Q / E", "Turn 90 degrees"],
+	["F", "Fit the plant"],
+	["L", "Labels"],
+	["I", "Insulation"],
+	["R", "Pipe rack"],
+	["G", "Grid"],
+	["Esc", "Clear the selection"],
+	["F1", "This card"],
+]
+const KEY_VIEWS := {KEY_1: "IsoSE", KEY_2: "IsoSW", KEY_3: "IsoNW", KEY_4: "IsoNE", KEY_5: "Plan", KEY_6: "Front", KEY_7: "Right"}
+
+var link: DwsimLink
+var rig: CameraRig
+var builder := SceneBuilder.new()
+
+var world: Node3D
+var items_root: Node3D
+var lines_root: Node3D
+var insulation_root: Node3D
+var rack_root: Node3D
+var labels_root: Node3D
+var ground: MeshInstance3D
+var grid: MeshInstance3D
+var sun: DirectionalLight3D
+
+## id -> {node, data, kind ("item" or "line"), label}
+var entries := {}
+var scene_name := ""
+var warnings: Array = []
+var selected: Array = []
+
+var hud: CanvasLayer
+var title_label: Label
+var status_label: Label
+var info_panel: PanelContainer
+var info_text: RichTextLabel
+var card: PanelContainer
+var toast: Label
+var _toast_time := 0.0
+
+var _highlight: StandardMaterial3D
+var _drag_button := MOUSE_BUTTON_NONE
+var _drag_from := Vector2.ZERO
+var _press_at := Vector2.ZERO
+var _fitted := false
+
+
+func _ready() -> void:
+	get_window().title = "DWSIM 3D"
+	_build_world()
+	_build_hud()
+	rig = CameraRig.new()
+	add_child(rig)
+	link = DwsimLink.new()
+	add_child(link)
+	link.message_received.connect(_on_message)
+	link.state_changed.connect(_on_state)
+	_highlight = StandardMaterial3D.new()
+	_highlight.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_highlight.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_highlight.albedo_color = Color(0.24, 0.5, 0.84, 0.38)
+	_highlight.no_depth_test = false
+	_run_offline()
+
+
+# --- world -----------------------------------------------------------------------------------
+
+func _build_world() -> void:
+	var env := Environment.new()
+	var sky_mat := ProceduralSkyMaterial.new()
+	sky_mat.sky_top_color = Color(0.36, 0.55, 0.80)
+	sky_mat.sky_horizon_color = Color(0.74, 0.80, 0.86)
+	sky_mat.ground_horizon_color = Color(0.74, 0.80, 0.86)
+	sky_mat.ground_bottom_color = Color(0.45, 0.47, 0.48)
+	var sky := Sky.new()
+	sky.sky_material = sky_mat
+	env.background_mode = Environment.BG_SKY
+	env.sky = sky
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+	env.ambient_light_energy = 0.8
+	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
+	env.tonemap_mode = Environment.TONE_MAPPER_AGX
+	env.ssao_enabled = true
+	env.ssao_radius = 1.5
+	env.ssao_intensity = 1.6
+	env.glow_enabled = true
+	env.glow_intensity = 0.25
+	var we := WorldEnvironment.new()
+	we.environment = env
+	add_child(we)
+
+	sun = DirectionalLight3D.new()
+	sun.light_energy = 1.25
+	sun.shadow_enabled = true
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
+	sun.directional_shadow_max_distance = 600.0
+	sun.rotation_degrees = Vector3(-50.0, -35.0, 0.0)
+	add_child(sun)
+
+	world = Node3D.new()
+	add_child(world)
+	for n in ["items", "lines", "insulation", "rack", "labels"]:
+		var node := Node3D.new()
+		node.name = n
+		world.add_child(node)
+	items_root = world.get_node("items")
+	lines_root = world.get_node("lines")
+	insulation_root = world.get_node("insulation")
+	rack_root = world.get_node("rack")
+	labels_root = world.get_node("labels")
+
+	ground = MeshInstance3D.new()
+	ground.mesh = PlaneMesh.new()
+	var gm := StandardMaterial3D.new()
+	gm.albedo_color = Color(0.62, 0.63, 0.62)
+	gm.roughness = 0.95
+	ground.material_override = gm
+	add_child(ground)
+
+	grid = MeshInstance3D.new()
+	var lm := StandardMaterial3D.new()
+	lm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	lm.albedo_color = Color(0.45, 0.47, 0.5, 0.55)
+	lm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	grid.material_override = lm
+	add_child(grid)
+
+
+## The ground and the grid under the plant, and the shadow reach, from the plant's bounds.
+func _fit_ground() -> void:
+	var box := _bounds()
+	var c := box.get_center()
+	var size: float = max(box.size.x, box.size.z) + 40.0
+	var plane := ground.mesh as PlaneMesh
+	plane.size = Vector2(4000.0, 4000.0)
+	ground.position = Vector3(c.x, box.position.y - 0.005, c.z)
+	var step := 5.0
+	var half := ceilf(size / 2.0 / step) * step
+	var im := ImmediateMesh.new()
+	im.surface_begin(Mesh.PRIMITIVE_LINES)
+	var k := -half
+	while k <= half + 0.001:
+		im.surface_add_vertex(Vector3(c.x + k, 0, c.z - half))
+		im.surface_add_vertex(Vector3(c.x + k, 0, c.z + half))
+		im.surface_add_vertex(Vector3(c.x - half, 0, c.z + k))
+		im.surface_add_vertex(Vector3(c.x + half, 0, c.z + k))
+		k += step
+	im.surface_end()
+	grid.mesh = im
+	grid.position = Vector3(0, box.position.y + 0.002, 0)
+	sun.directional_shadow_max_distance = rig.distance + box.size.length() * 1.5
+
+
+## The corners of every solid of the plant, for a tight fit of the view.
+func _corners() -> PackedVector3Array:
+	var pts := PackedVector3Array()
+	for root in [items_root, lines_root, rack_root]:
+		for mi in root.find_children("*", "MeshInstance3D", true, false):
+			var b: AABB = mi.global_transform * mi.get_aabb()
+			for i in 8:
+				pts.append(b.get_endpoint(i))
+	if pts.is_empty():
+		var b := _bounds()
+		for i in 8:
+			pts.append(b.get_endpoint(i))
+	return pts
+
+
+func _bounds() -> AABB:
+	var box := AABB()
+	var first := true
+	for root in [items_root, lines_root, rack_root]:
+		for mi in root.find_children("*", "MeshInstance3D", true, false):
+			var b: AABB = mi.global_transform * mi.get_aabb()
+			if first:
+				box = b
+				first = false
+			else:
+				box = box.merge(b)
+	if first:
+		box = AABB(Vector3(-10, 0, -10), Vector3(20, 5, 20))
+	return box
+
+
+# --- scene from DWSIM ------------------------------------------------------------------------
+
+func _on_message(m: Dictionary) -> void:
+	match str(m.get("type", "")):
+		"welcome":
+			scene_name = str(m.get("name", ""))
+			_update_title()
+		"scene.full":
+			_load_scene(m.get("scene", {}))
+		"scene.delta":
+			_apply_delta(m)
+		"select":
+			_set_selection(m.get("ids", []), false)
+		"capture":
+			_capture_for_link(m)
+		"error":
+			_show_toast("DWSIM: " + str(m.get("message", "")))
+		"bye":
+			get_tree().quit()
+
+
+func _on_state(state: String) -> void:
+	_update_title()
+	if state == "closed":
+		# DWSIM went away: nothing left to show
+		get_tree().quit()
+
+
+func _load_scene(scene: Dictionary) -> void:
+	for id in entries.keys():
+		_remove_entry(id)
+	entries.clear()
+	scene_name = str(scene.get("name", scene_name))
+	for it in scene.get("items", []):
+		if it is Dictionary:
+			_add_item(it)
+	_set_lines(scene.get("lines", []))
+	_set_rack(scene.get("rack", null))
+	warnings = scene.get("warnings", [])
+	_after_change()
+	if not _fitted:
+		_fitted = true
+		rig.fit_points(_corners(), _aspect())
+		_fit_ground()
+
+
+func _apply_delta(m: Dictionary) -> void:
+	for id in m.get("remove", []):
+		_remove_entry(str(id))
+		entries.erase(str(id))
+	for it in m.get("upsert", []):
+		if it is Dictionary:
+			var id := str(it.get("id", ""))
+			_remove_entry(id)
+			_add_item(it)
+	if m.has("lines"):
+		_set_lines(m["lines"])
+	if m.has("rack"):
+		_set_rack(m["rack"])
+	if m.has("name"):
+		scene_name = str(m["name"])
+	if m.has("warnings"):
+		warnings = m["warnings"]
+	_after_change()
+
+
+func _after_change() -> void:
+	_fit_ground()
+	_set_selection(selected.filter(func(id): return entries.has(id)), false)
+	_update_title()
+
+
+func _add_item(it: Dictionary) -> void:
+	var id := str(it.get("id", ""))
+	var node := builder.item(it)
+	items_root.add_child(node)
+	var label := Label3D.new()
+	label.text = str(it.get("tag", ""))
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.fixed_size = true
+	label.pixel_size = 0.0009
+	label.font_size = 26
+	label.outline_size = 8
+	label.modulate = Color(0.08, 0.1, 0.13)
+	label.outline_modulate = Color(1, 1, 1, 0.85)
+	label.no_depth_test = true
+	label.render_priority = 10
+	var b := _node_bounds(node)
+	label.position = Vector3(b.get_center().x, b.end.y + 0.6, b.get_center().z)
+	labels_root.add_child(label)
+	entries[id] = {"node": node, "data": it, "kind": "item", "label": label}
+
+
+func _remove_entry(id: String) -> void:
+	if not entries.has(id):
+		return
+	var e: Dictionary = entries[id]
+	if e.get("node") != null and is_instance_valid(e["node"]):
+		e["node"].queue_free()
+	if e.get("label") != null and is_instance_valid(e["label"]):
+		e["label"].queue_free()
+
+
+func _set_lines(lines: Array) -> void:
+	for id in entries.keys():
+		if entries[id]["kind"] == "line":
+			_remove_entry(id)
+			entries.erase(id)
+	for c in insulation_root.get_children():
+		c.queue_free()
+	var k := 0
+	for ln in lines:
+		if not (ln is Dictionary):
+			continue
+		var node := builder.line(ln, insulation_root)
+		lines_root.add_child(node)
+		var id = ln.get("id")
+		var key := str(id) if id != null else "line#" + str(k)
+		entries[key] = {"node": node, "data": ln, "kind": "line", "label": null}
+		k += 1
+
+
+func _set_rack(k) -> void:
+	for c in rack_root.get_children():
+		c.queue_free()
+	if k is Dictionary:
+		rack_root.add_child(builder.rack(k))
+
+
+func _node_bounds(node: Node3D) -> AABB:
+	var box := AABB()
+	var first := true
+	for mi in node.find_children("*", "MeshInstance3D", true, false):
+		var b: AABB = node.transform * (mi.transform * mi.get_aabb())
+		if first:
+			box = b
+			first = false
+		else:
+			box = box.merge(b)
+	return box
+
+
+# --- selection -------------------------------------------------------------------------------
+
+func _set_selection(ids: Array, tell_dwsim: bool) -> void:
+	for id in selected:
+		_tint(id, false)
+	selected = []
+	for id in ids:
+		var s := str(id)
+		if entries.has(s) and not selected.has(s):
+			selected.append(s)
+			_tint(s, true)
+	_show_info()
+	if tell_dwsim:
+		var real := selected.filter(func(id): return not str(id).begins_with("line#"))
+		link.send({"type": "select", "ids": real})
+
+
+func _tint(id: String, on: bool) -> void:
+	if not entries.has(id):
+		return
+	var node = entries[id]["node"]
+	if node == null or not is_instance_valid(node):
+		return
+	for mi in node.find_children("*", "MeshInstance3D", true, false):
+		mi.material_overlay = _highlight if on else null
+
+
+func _pick(screen: Vector2) -> String:
+	var cam := rig.camera
+	var from := cam.project_ray_origin(screen)
+	var dirv := cam.project_ray_normal(screen)
+	var best := INF
+	var best_id := ""
+	for id in entries.keys():
+		var node = entries[id]["node"]
+		if node == null or not is_instance_valid(node):
+			continue
+		for mi in node.find_children("*", "MeshInstance3D", true, false):
+			var box: AABB = mi.global_transform * mi.get_aabb()
+			var hit = box.intersects_ray(from, dirv)
+			if hit != null:
+				var t: float = (hit - from).dot(dirv)
+				if t < best:
+					best = t
+					best_id = id
+	return best_id
+
+
+# --- input -----------------------------------------------------------------------------------
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if mb.pressed:
+			match mb.button_index:
+				MOUSE_BUTTON_WHEEL_UP:
+					rig.zoom_at(0.85, mb.position, _viewport_size())
+				MOUSE_BUTTON_WHEEL_DOWN:
+					rig.zoom_at(1.0 / 0.85, mb.position, _viewport_size())
+				MOUSE_BUTTON_LEFT:
+					_press_at = mb.position
+					if mb.double_click:
+						var id := _pick(mb.position)
+						if id != "":
+							_focus(id)
+						else:
+							_fit_all()
+				MOUSE_BUTTON_RIGHT, MOUSE_BUTTON_MIDDLE:
+					_drag_button = mb.button_index
+					_drag_from = mb.position
+		else:
+			if mb.button_index == MOUSE_BUTTON_LEFT and mb.position.distance_to(_press_at) < 4.0 and not mb.double_click:
+				var id := _pick(mb.position)
+				if mb.ctrl_pressed and id != "":
+					var ids := selected.duplicate()
+					if ids.has(id):
+						ids.erase(id)
+					else:
+						ids.append(id)
+					_set_selection(ids, true)
+				else:
+					_set_selection([id] if id != "" else [], true)
+			if mb.button_index == _drag_button:
+				_drag_button = MOUSE_BUTTON_NONE
+	elif event is InputEventMouseMotion and _drag_button != MOUSE_BUTTON_NONE:
+		var mm := event as InputEventMouseMotion
+		var d := mm.position - _drag_from
+		_drag_from = mm.position
+		if _drag_button == MOUSE_BUTTON_MIDDLE or mm.shift_pressed:
+			rig.pan(d.x, d.y, _viewport_size().y)
+		else:
+			rig.orbit(d.x, d.y)
+	elif event is InputEventKey and event.pressed and not event.echo:
+		var k := (event as InputEventKey).keycode
+		if KEY_VIEWS.has(k):
+			rig.set_view(KEY_VIEWS[k])
+		else:
+			match k:
+				KEY_Q: rig.turn(-1)
+				KEY_E: rig.turn(1)
+				KEY_F: _fit_all()
+				KEY_L: labels_root.visible = not labels_root.visible
+				KEY_I: insulation_root.visible = not insulation_root.visible
+				KEY_R: rack_root.visible = not rack_root.visible
+				KEY_G: grid.visible = not grid.visible
+				KEY_F1: card.visible = not card.visible
+				KEY_ESCAPE: _set_selection([], true)
+				KEY_EQUAL, KEY_KP_ADD: rig.zoom_at(0.8, _viewport_size() / 2.0, _viewport_size())
+				KEY_MINUS, KEY_KP_SUBTRACT: rig.zoom_at(1.25, _viewport_size() / 2.0, _viewport_size())
+
+
+func _fit_all() -> void:
+	rig.fit_points(_corners(), _aspect())
+
+
+func _focus(id: String) -> void:
+	var node = entries[id]["node"]
+	var box := AABB()
+	var first := true
+	for mi in node.find_children("*", "MeshInstance3D", true, false):
+		var b: AABB = mi.global_transform * mi.get_aabb()
+		box = b if first else box.merge(b)
+		first = false
+	if not first:
+		var keep := rig.distance
+		rig.fit(box.grow(1.0), _aspect())
+		rig.distance = max(keep, rig.distance)
+		rig.apply()
+
+
+func _viewport_size() -> Vector2:
+	return get_viewport().get_visible_rect().size
+
+
+func _aspect() -> float:
+	var s := _viewport_size()
+	return s.x / max(s.y, 1.0)
+
+
+# --- heads-up display ------------------------------------------------------------------------
+
+func _panel_style(alpha := 0.92) -> StyleBoxFlat:
+	var s := StyleBoxFlat.new()
+	s.bg_color = Color(1, 1, 1, alpha)
+	s.border_color = Color(0.8, 0.83, 0.86)
+	s.set_border_width_all(1)
+	s.set_corner_radius_all(6)
+	s.set_content_margin_all(10)
+	return s
+
+
+func _build_hud() -> void:
+	hud = CanvasLayer.new()
+	add_child(hud)
+
+	var top := PanelContainer.new()
+	top.add_theme_stylebox_override("panel", _panel_style())
+	top.position = Vector2(12, 12)
+	var vb := VBoxContainer.new()
+	top.add_child(vb)
+	title_label = Label.new()
+	title_label.add_theme_font_size_override("font_size", 16)
+	title_label.add_theme_color_override("font_color", Color(0.11, 0.15, 0.2))
+	vb.add_child(title_label)
+	status_label = Label.new()
+	status_label.add_theme_color_override("font_color", Color(0.36, 0.42, 0.48))
+	vb.add_child(status_label)
+	hud.add_child(top)
+
+	info_panel = PanelContainer.new()
+	info_panel.add_theme_stylebox_override("panel", _panel_style())
+	info_panel.custom_minimum_size = Vector2(320, 0)
+	info_panel.visible = false
+	info_text = RichTextLabel.new()
+	info_text.bbcode_enabled = true
+	info_text.fit_content = true
+	info_text.scroll_active = false
+	info_text.custom_minimum_size = Vector2(300, 0)
+	info_text.add_theme_color_override("default_color", Color(0.11, 0.15, 0.2))
+	info_panel.add_child(info_text)
+	hud.add_child(info_panel)
+
+	card = PanelContainer.new()
+	card.add_theme_stylebox_override("panel", _panel_style(0.85))
+	var gridc := GridContainer.new()
+	gridc.columns = 2
+	gridc.add_theme_constant_override("h_separation", 14)
+	for row in SHORTCUTS:
+		for i in 2:
+			var l := Label.new()
+			l.text = row[i]
+			l.add_theme_font_size_override("font_size", 12)
+			l.add_theme_color_override("font_color", Color(0.11, 0.15, 0.2) if i == 0 else Color(0.36, 0.42, 0.48))
+			gridc.add_child(l)
+	card.add_child(gridc)
+	hud.add_child(card)
+
+	toast = Label.new()
+	toast.add_theme_color_override("font_color", Color(0.6, 0.1, 0.1))
+	toast.visible = false
+	hud.add_child(toast)
+	_update_title()
+
+
+func _process(delta: float) -> void:
+	var size := _viewport_size()
+	card.position = Vector2(size.x - card.size.x - 12, 12)
+	info_panel.position = Vector2(size.x - info_panel.size.x - 12, card.position.y + (card.size.y + 12 if card.visible else 0))
+	toast.position = Vector2(14, size.y - 34)
+	if _toast_time > 0.0:
+		_toast_time -= delta
+		if _toast_time <= 0.0:
+			toast.visible = false
+
+
+func _update_title() -> void:
+	if title_label == null:
+		return
+	title_label.text = scene_name if scene_name != "" else "DWSIM 3D"
+	var n_items := 0
+	var n_lines := 0
+	for e in entries.values():
+		if e["kind"] == "item":
+			n_items += 1
+		else:
+			n_lines += 1
+	var state := link.state if link != null else "offline"
+	var text := "%d items, %d lines" % [n_items, n_lines]
+	if state != "connected":
+		text += "  (" + state + ")"
+	if warnings.size() > 0:
+		text += "  -  %d warnings" % warnings.size()
+	status_label.text = text
+
+
+func _show_info() -> void:
+	if selected.is_empty():
+		info_panel.visible = false
+		return
+	var e: Dictionary = entries[selected[0]]
+	var d: Dictionary = e["data"]
+	var t := "[b]%s[/b]\n[color=#5d6b7a]%s[/color]\n" % [_esc(str(d.get("tag", ""))), _esc(str(d.get("desc", "")))]
+	var props = d.get("props", {})
+	if props is Dictionary:
+		t += "[table=2]"
+		for k in props.keys():
+			t += "[cell][color=#5d6b7a]%s[/color]  [/cell][cell]%s[/cell]" % [_esc(str(k)), _esc(str(props[k]))]
+		t += "[/table]"
+	if selected.size() > 1:
+		t += "\n[color=#5d6b7a]and %d more selected[/color]" % (selected.size() - 1)
+	info_text.text = t
+	info_panel.size = Vector2.ZERO
+	info_panel.visible = true
+
+
+static func _esc(s: String) -> String:
+	return s.replace("[", "[lb]")
+
+
+func _show_toast(text: String) -> void:
+	toast.text = text
+	toast.visible = true
+	_toast_time = 6.0
+
+
+# --- pictures --------------------------------------------------------------------------------
+
+## A picture of a view at a size, as PNG bytes.
+func _capture(view: String, width: int, height: int) -> PackedByteArray:
+	# the low-power mode draws only when something changes, and a window that is not on screen
+	# may not be drawn at all: draw on every frame while the picture is taken, then force a draw
+	var low := OS.low_processor_usage_mode
+	OS.low_processor_usage_mode = false
+	if width > 0 and height > 0:
+		get_window().size = Vector2i(width, height)
+	for i in 3:
+		await get_tree().process_frame
+	if view != "":
+		rig.set_view(view, false)
+	rig.fit_points(_corners(), _aspect())
+	_fit_ground()
+	for i in 3:
+		await get_tree().process_frame
+	RenderingServer.force_draw(false)
+	var img := get_viewport().get_texture().get_image()
+	OS.low_processor_usage_mode = low
+	return img.save_png_to_buffer()
+
+
+func _capture_for_link(m: Dictionary) -> void:
+	var view := str(m.get("view", ""))
+	var png: PackedByteArray = await _capture(view, int(m.get("width", 0)), int(m.get("height", 0)))
+	link.send({"type": "capture.result", "ref": m.get("ref"), "view": view, "png": Marshalls.raw_to_base64(png)})
+
+
+## Without DWSIM: draws a saved scene and, when asked, saves pictures of it and quits.
+func _run_offline() -> void:
+	var scene_file := ""
+	var capture_dir := ""
+	var views := PackedStringArray()
+	var size := Vector2i(1400, 900)
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--dwsim-scene="):
+			scene_file = arg.get_slice("=", 1)
+		elif arg.begins_with("--capture-dir="):
+			capture_dir = arg.get_slice("=", 1)
+		elif arg.begins_with("--views="):
+			views = arg.get_slice("=", 1).split(",", false)
+		elif arg.begins_with("--size="):
+			var wh := arg.get_slice("=", 1).split("x")
+			if wh.size() == 2:
+				size = Vector2i(int(wh[0]), int(wh[1]))
+	if scene_file == "":
+		return
+	var text := FileAccess.get_file_as_string(scene_file)
+	var parsed = JSON.parse_string(text)
+	if not (parsed is Dictionary):
+		push_error("not a scene: " + scene_file)
+		get_tree().quit(2)
+		return
+	var scene: Dictionary = parsed.get("scene", parsed) if parsed.get("type", "") == "scene.full" else parsed
+	_load_scene(scene)
+	if capture_dir == "":
+		return
+	if views.is_empty():
+		views = PackedStringArray(["IsoSE"])
+	DirAccess.make_dir_recursive_absolute(capture_dir)
+	for v in views:
+		var png: PackedByteArray = await _capture(v, size.x, size.y)
+		var f := FileAccess.open(capture_dir.path_join(v + ".png"), FileAccess.WRITE)
+		if f != null:
+			f.store_buffer(png)
+			f.close()
+	get_tree().quit()

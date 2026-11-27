@@ -61,6 +61,13 @@ if [ -n "${MACOS_SIGN_IDENTITY:-}" ]; then
             esac
         done
 
+    # The DWSIM 3D window is a helper app (Contents/Helpers): a bundle of its own, signed whole
+    # before the outer bundle seals it. Godot signed it ad hoc on export; this replaces that.
+    viewer="$app/Contents/Helpers/DWSIM 3D.app"
+    if [ -d "$viewer" ]; then
+        codesign --force --deep --timestamp --options runtime                  --entitlements "$here/entitlements.plist"                  --sign "$MACOS_SIGN_IDENTITY" "$viewer"
+    fi
+
     # The bundle is signed in one pass with --deep. The apphost shares its base name with data
     # files next to it (DWSIM.UI.Desktop.Avalonia.dll, .runtimeconfig.json, .deps.json), which
     # makes codesign read the executable and its siblings as a loose bundle and demand the .json be

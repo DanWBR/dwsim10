@@ -15,10 +15,57 @@ env:
 
 jobs:
 
+  # The DWSIM 3D window (a Godot program, ui/DWSIM.Viewer3D) exported once for every
+  # runtime id; the payload jobs drop it in as viewer3d/. Godot and its export templates come from
+  # the official release, checked against its SHA-512 sums, and stay in the cache.
+  viewer3d:
+    name: DWSIM 3D window
+    runs-on: ubuntu-latest
+    env:
+      GODOT_VERSION: 4.7.2
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        id: godot
+        with:
+          path: ~/godot
+          key: godot-${{ env.GODOT_VERSION }}
+
+      - name: Fetch Godot and its export templates
+        if: steps.godot.outputs.cache-hit != 'true'
+        run: |
+          base=https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable
+          mkdir -p ~/godot && cd ~/godot
+          curl -Lf --retry 3 -O "$base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          curl -Lf --retry 3 -O "$base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          curl -Lf --retry 3 -O "$base/SHA512-SUMS.txt"
+          grep -E " Godot_v${GODOT_VERSION}-stable_(linux\.x86_64\.zip|export_templates\.tpz)$" SHA512-SUMS.txt | sha512sum -c -
+          unzip -q "Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          rm "Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+
+      - name: Install the export templates
+        run: |
+          dest=~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          mkdir -p "$dest"
+          unzip -q ~/godot/Godot_v${GODOT_VERSION}-stable_export_templates.tpz -d /tmp/tpz
+          mv /tmp/tpz/templates/* "$dest/"
+
+      - name: Export
+        run: bash ui/DWSIM.Viewer3D/export.sh ~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64 viewer3d-out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: viewer3d
+          path: viewer3d-out
+          if-no-files-found: error
+          retention-days: 1
+
   # dotnet publish -r <rid> does not need a host of that architecture, so the five payloads that
   # do not need signing are all built on the same Linux runner.
   payloads:
     name: publish ${{ matrix.rid }}
+    needs: viewer3d
     runs-on: ubuntu-latest
     env:
       # a token that can read releases of the (proprietary) assistant repo; without it the app is
@@ -93,6 +140,19 @@ jobs:
           esac
           echo "native libraries kept for ${{ matrix.rid }}:"
           find publish/${{ matrix.rid }} \( -name '*.so' -o -name '*.dylib' -o -iname 'coolprop*.dll' \) -printf '  %P\n' | sort
+
+      # the DWSIM 3D window for this runtime id (the viewer3d job); the artifact round trip drops
+      # the executable bit, so it is set again
+      - uses: actions/download-artifact@v4
+        with:
+          name: viewer3d
+          path: viewer3d-out
+
+      - name: Add the DWSIM 3D window
+        run: |
+          cp -r "viewer3d-out/${{ matrix.rid }}/viewer3d" "publish/${{ matrix.rid }}/"
+          find "publish/${{ matrix.rid }}/viewer3d" -type f \( -name 'DWSIM3D.*' -o -path '*/Contents/MacOS/*' \) ! -name '*.exe' -exec chmod +x {} +
+          du -sh "publish/${{ matrix.rid }}/viewer3d"
 
       # The launcher assembly is already under extenders/ (the application build put it there). Here
       # the separate, proprietary assistant server is fetched from its own repo's latest release and
@@ -336,7 +396,8 @@ jobs:
       - name: Bundle
         run: |
           chmod +x packaging/macos/*.sh
-          packaging/macos/build-app.sh payload ${{ steps.version.outputs.value }} bundle
+          rid=${{ matrix.rid }}
+          packaging/macos/build-app.sh payload ${{ steps.version.outputs.value }} bundle "${rid#osx-}"
 
       # An empty MACOS_CERTIFICATE only means this repository has no certificate yet: the disk
       # image is still built, and says so in the log.

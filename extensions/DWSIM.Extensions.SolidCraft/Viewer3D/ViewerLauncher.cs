@@ -30,17 +30,47 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
     /// </summary>
     public static class ViewerLauncher
     {
-        /// <summary>An environment variable that points at another build of the window (a development one).</summary>
+        /// <summary>
+        /// An environment variable that points at another build of the window, or at the Godot
+        /// project folder itself (ui/DWSIM.Viewer3D), which then runs in the Godot editor that
+        /// <see cref="GodotVariable"/> points at: the way to work on the window without exporting it.
+        /// </summary>
         public const string PathVariable = "DWSIM_VIEWER3D";
+
+        /// <summary>The Godot editor (or its console build) that runs the project folder of <see cref="PathVariable"/>.</summary>
+        public const string GodotVariable = "DWSIM_GODOT";
 
         public const string FolderName = "viewer3d";
 
         /// <summary>The window's executable, or null when this installation has none.</summary>
         public static string FindExecutable()
         {
+            string exe, prefix;
+            return Resolve(out exe, out prefix) ? exe : null;
+        }
+
+        /// <summary>
+        /// The program to run and what goes before the window's own arguments: nothing for a built
+        /// window, "--path folder" for the project folder run in the Godot editor.
+        /// </summary>
+        public static bool Resolve(out string exe, out string prefix)
+        {
+            prefix = "";
+            var custom = (Environment.GetEnvironmentVariable(PathVariable) ?? "").Trim().Trim('"');
+            if (custom.Length > 0 && File.Exists(Path.Combine(custom, "project.godot")))
+            {
+                exe = (Environment.GetEnvironmentVariable(GodotVariable) ?? "").Trim().Trim('"');
+                prefix = "--path \"" + Path.GetFullPath(custom) + "\" ";
+                return File.Exists(exe);
+            }
             foreach (var candidate in Candidates())
-                if (!string.IsNullOrEmpty(candidate) && File.Exists(candidate)) return candidate;
-            return null;
+                if (!string.IsNullOrEmpty(candidate) && File.Exists(candidate))
+                {
+                    exe = candidate;
+                    return true;
+                }
+            exe = null;
+            return false;
         }
 
         /// <summary>The places the window is looked for, in order.</summary>
@@ -56,9 +86,9 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
+                // DWSIM.app keeps the window as a helper app (Contents/Helpers), next to Contents/MacOS
+                yield return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "Helpers", "DWSIM 3D.app", "Contents", "MacOS", "DWSIM 3D");
                 yield return Path.Combine(root, "DWSIM 3D.app", "Contents", "MacOS", "DWSIM 3D");
-                // inside a bundle the application folder is Contents/MacOS; the window may sit in Resources
-                yield return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "Resources", FolderName, "DWSIM 3D.app", "Contents", "MacOS", "DWSIM 3D");
             }
             else
             {
@@ -85,10 +115,10 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
         {
             if (link == null) throw new ArgumentNullException(nameof(link));
             if (link.Port == 0) throw new InvalidOperationException("the link must be started before the window");
-            var exe = executable ?? FindExecutable();
-            if (exe == null)
+            string exe = executable, prefix = "";
+            if (exe == null && !Resolve(out exe, out prefix))
                 throw new FileNotFoundException("This installation of DWSIM does not include the 3D window (" + FolderName + " folder).");
-            var info = new ProcessStartInfo(exe, Arguments(link, compatibilityRenderer))
+            var info = new ProcessStartInfo(exe, prefix + Arguments(link, compatibilityRenderer))
             {
                 UseShellExecute = false,
                 WorkingDirectory = Path.GetDirectoryName(Path.GetFullPath(exe)) ?? ""
