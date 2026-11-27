@@ -453,6 +453,14 @@ namespace DWSIM.FluentAPI.Tests
             Assert.That(Points(Item(link.Scene, "site:road:1"))[1], Is.EqualTo(new[] { 0.0, -30000.0 }));
             Assert.That(PlantLayout.Load(fs.Inner).Keys.Any(SiteLayout.IsSite), Is.False, "the equipment layout stays clean");
 
+            // the budget: a tree, 40 + 20 m of road and 50 m2 of gravel
+            var budget = link.Scene["site"]["budget"];
+            Assert.That((double)budget["total"], Is.EqualTo(250 + 60 * 450 + 50 * 18).Within(1));
+            Assert.That(budget["items"].Select(c => (string)c["cat"]), Is.EqualTo(new[] { SiteCatalog.Roads, SiteCatalog.Nature }), "in the order of the bar");
+            Assert.That((double)budget["items"][0]["cost"], Is.EqualTo(60 * 450 + 50 * 18).Within(1));
+            Assert.That((int)budget["items"][1]["count"], Is.EqualTo(1));
+            Assert.That(SiteCatalog.CostOf(new SiteLayout.Building { Kind = "tree", Scale = 2 }), Is.EqualTo(1000), "twice as big covers four times the ground");
+
             Assert.That(Type(link.Handle(Command(SceneProtocol.SiteAdd, new { kind = "castle", x = 0, y = 0 }))), Is.EqualTo(SceneProtocol.Error));
             Assert.That(Type(link.Handle(Command(SceneProtocol.SiteAdd, new { kind = "fence", points = new[] { new[] { 0, 0 } } }))), Is.EqualTo(SceneProtocol.Error), "a line needs two points");
             Assert.That(Type(link.Handle(Command(SceneProtocol.SiteAdd, new { kind = "grass", points = new[] { new[] { 0, 0 }, new[] { 500, 0 }, new[] { 500, 500 } } }))), Is.EqualTo(SceneProtocol.Error), "an area needs 1 m2");

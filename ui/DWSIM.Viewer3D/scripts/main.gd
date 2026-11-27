@@ -166,6 +166,8 @@ func _ready() -> void:
 	hud.add_child(site_bar)
 	_glass(site_builder.flyout, 0.0)
 	hud.add_child(site_builder.flyout)
+	_glass(site_builder.budget_panel)
+	hud.add_child(site_builder.budget_panel)
 	rig = CameraRig.new()
 	add_child(rig)
 	link = DwsimLink.new()
@@ -429,6 +431,8 @@ func _apply_delta(m: Dictionary) -> void:
 
 func _read_site(site) -> void:
 	site_adopted = site is Dictionary and bool(site.get("adopted", false))
+	if site_builder != null:
+		site_builder.set_budget(site.get("budget", {}) if site is Dictionary else {})
 
 
 func _after_change() -> void:
@@ -615,6 +619,9 @@ func _set_hover(id: String) -> void:
 	_hover_box.visible = true
 	var d: Dictionary = entries[id]["data"]
 	var size := "%.1f x %.1f x %.1f m" % [box.size.x, box.size.z, box.size.y] if entries[id]["kind"] == "item" else ""
+	if d.has("site"):
+		# an object of the site: its estimated cost instead of its bounds
+		size = "about " + SiteBuilder.money(SiteObjects.cost_of(d))
 	_hover_tip.text = str(d.get("tag", "")) + ("
 " + size if size != "" else "")
 	_hover_tip.size = Vector2.ZERO
@@ -1096,6 +1103,12 @@ func _process(delta: float) -> void:
 		tools.palette_panel.position = Vector2(12, title_panel.position.y + title_panel.size.y + 12)
 	if editor != null and editor.panel != null:
 		editor.panel.position = Vector2(size.x - editor.panel.size.x - 12, size.y - editor.panel.size.y - 12)
+	if site_builder != null and site_builder.budget_panel != null:
+		var bp := site_builder.budget_panel
+		var below := 12.0
+		if editor != null and editor.panel != null and editor.panel.visible:
+			below += editor.panel.size.y + 12.0
+		bp.position = Vector2(size.x - bp.size.x - 12, size.y - bp.size.y - below)
 	if _toast_time > 0.0:
 		_toast_time -= delta
 		if _toast_time <= 0.0:

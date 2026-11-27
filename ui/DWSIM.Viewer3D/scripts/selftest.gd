@@ -256,6 +256,10 @@ func _run_site() -> void:
 	_key(KEY_ESCAPE)
 	await _wait(0.3)
 	await _shot("site_9_drawn")
+	await _click(sb._budget_button.get_global_rect().get_center())
+	await _wait(0.5)
+	await _shot("site_9b_budget")
+	await _click(sb._budget_button.get_global_rect().get_center())
 
 	# the bulldozer: a click on the car built above, and a rectangle over the drums of the storage corner
 	await _click(sb._demolish_button.get_global_rect().get_center())
@@ -305,7 +309,8 @@ func _run_site() -> void:
 			rots.append(int(main.entries[id]["data"].get("rot", 0)))
 	var f := FileAccess.open(out_dir.path_join("selftest_site.json"), FileAccess.WRITE)
 	f.store_string(JSON.stringify({"adopted": main.site_adopted, "counts": counts, "red_over_equipment": red,
-		"deleted": not after_delete, "back_after_undo": main.entries.has(tree), "tree_rots": rots, "shapes": shapes}))
+		"deleted": not after_delete, "back_after_undo": main.entries.has(tree), "tree_rots": rots, "shapes": shapes,
+		"cash": sb._cash.text, "budget_total": float(sb._budget.get("total", -1.0))}))
 	f.close()
 	await _shot("site_7_done")
 	# the whole site from further away, without the panels

@@ -156,6 +156,30 @@ static func entry(kind: String) -> Dictionary:
 	return {}
 
 
+## The estimated cost of one object, USD, as DWSIM counts it (SiteCatalog.CostOf): each, per metre
+## of a line or per square metre of an area; a point object times its scale squared.
+static func cost_of(it: Dictionary) -> float:
+	var kind := str(it.get("site", it.get("kind", "")))
+	var e := entry(kind)
+	var cost := float(e.get("cost", 0.0))
+	var pts: Array = it.get("points", [])
+	match str(e.get("shape", "point")):
+		"line":
+			var l := 0.0
+			for i in range(1, pts.size()):
+				l += Vector2(float(pts[i][0]) - float(pts[i - 1][0]), float(pts[i][1]) - float(pts[i - 1][1])).length()
+			return cost * l / 1000.0
+		"area":
+			var a := 0.0
+			for i in pts.size():
+				var p = pts[i]
+				var q = pts[(i + 1) % pts.size()]
+				a += float(p[0]) * float(q[1]) - float(q[0]) * float(p[1])
+			return cost * absf(a) / 2.0 / 1.0e6
+	var s := float(it.get("scale", 1.0))
+	return cost * s * s
+
+
 static func shape_of(kind: String) -> String:
 	return str(entry(kind).get("shape", "point"))
 

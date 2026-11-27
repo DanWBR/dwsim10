@@ -186,6 +186,14 @@ click or Enter. While you draw, the window shows the object as it will be, with 
 and its estimated cost in the hint, and paints it red if it would cross the equipment (DWSIM is
 then not asked to build it).
 
+Every object of the catalog has an estimated cost: each, per metre of a line, or per square metre
+of an area (a point object scaled up costs its scale squared, since it covers more ground). The
+grid shows the cost of each kind, the hint shows the cost of what you are about to build, and the
+tip over a built object shows its cost. The bar shows the cost of the whole site, as SimCity shows
+the funds of the city, and Budget opens a panel with the count and the cost of each category.
+DWSIM works the budget out (SiteCatalog.Budget) and sends it with the scene. The costs are rough
+estimates in US dollars of 2026, for planning, not a quote.
+
 Demolish is the bulldozer. When you click an object of the site, it goes; when you drag a
 rectangle, every object of the site that the rectangle touches goes, a road or a fence if any part
 of it crosses the rectangle, and an area if the rectangle lies inside it. The bulldozer leaves the

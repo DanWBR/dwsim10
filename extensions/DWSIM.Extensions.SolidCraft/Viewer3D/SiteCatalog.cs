@@ -15,6 +15,8 @@
 //    You should have received a copy of the GNU General Public License
 //    along with DWSIM.  If not, see <http://www.gnu.org/licenses/>.
 
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json.Linq;
 
@@ -132,6 +134,42 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
         public static Entry Find(string kind) => Entries.FirstOrDefault(e => e.Kind == kind);
 
         public static string NameOf(string kind) => Find(kind)?.Name ?? kind;
+
+        /// <summary>
+        /// The estimated cost of one object of the site, USD: the cost of a point object (times its
+        /// scale squared, since a bigger one covers more ground), of a line per metre of its length
+        /// or of an area per square metre inside it. An object of an unknown kind costs nothing.
+        /// </summary>
+        public static double CostOf(SiteLayout.Building b)
+        {
+            var e = Find(b?.Kind);
+            if (e == null) return 0;
+            switch (e.Shape)
+            {
+                case Shape.Line: return b.Points == null ? 0 : e.Cost * SiteLayout.Length(b.Points) / 1000.0;
+                case Shape.Area: return b.Points == null || b.Points.Count < 3 ? 0 : e.Cost * SiteLayout.Area(b.Points) / 1e6;
+                default:
+                    var s = b.Scale > 0 ? b.Scale : 1;
+                    return e.Cost * s * s;
+            }
+        }
+
+        /// <summary>
+        /// The budget of the site: {total, items: [{cat, count, cost}]} in the order of the build
+        /// bar, the categories without objects left out; costs in whole dollars.
+        /// </summary>
+        public static JObject Budget(IEnumerable<SiteLayout.Building> items)
+        {
+            var list = (items ?? Enumerable.Empty<SiteLayout.Building>()).Where(b => Find(b?.Kind) != null).ToList();
+            var cats = new JArray();
+            foreach (var c in Categories)
+            {
+                var mine = list.Where(b => Find(b.Kind).Category == c).ToList();
+                if (mine.Count == 0) continue;
+                cats.Add(new JObject { ["cat"] = c, ["count"] = mine.Count, ["cost"] = Math.Round(mine.Sum(CostOf)) });
+            }
+            return new JObject { ["total"] = Math.Round(list.Sum(CostOf)), ["currency"] = "USD", ["items"] = cats };
+        }
 
         /// <summary>The catalog as the window gets it in the welcome message.</summary>
         public static JArray ToJson() => new JArray(Entries.Select(e => new JObject

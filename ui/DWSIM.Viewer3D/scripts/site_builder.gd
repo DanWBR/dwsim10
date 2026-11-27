@@ -35,6 +35,12 @@ var _grid: GridContainer
 var _hint: Label
 var _cat_buttons := {}
 var _demolish_button: Button
+var _cash: Label
+var _budget_button: Button
+## The budget panel: the cost of the site by category, as DWSIM counts it.
+var budget_panel: PanelContainer
+var _budget_grid: GridContainer
+var _budget: Dictionary = {}
 var _ghost: Node3D
 var _ok := true
 var _ok_mat: StandardMaterial3D
@@ -151,6 +157,20 @@ func build_bar(style: StyleBox) -> PanelContainer:
 		else:
 			start_demolish())
 	row.add_child(_demolish_button)
+	row.add_child(VSeparator.new())
+	# the cost of the site so far, as SimCity shows the city's funds
+	_cash = Label.new()
+	_cash.add_theme_font_size_override("font_size", 13)
+	_cash.add_theme_color_override("font_color", Color(0.1, 0.36, 0.2))
+	_cash.tooltip_text = "The estimated cost of the site (USD, 2026)"
+	_cash.mouse_filter = Control.MOUSE_FILTER_PASS
+	row.add_child(_cash)
+	_budget_button = Button.new()
+	_budget_button.text = "Budget"
+	_budget_button.toggle_mode = true
+	_budget_button.focus_mode = Control.FOCUS_NONE
+	_budget_button.pressed.connect(func(): budget_panel.visible = _budget_button.button_pressed)
+	row.add_child(_budget_button)
 	_hint = Label.new()
 	# the hint wraps at the width of the buttons, so a long one does not stretch the bar
 	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -173,8 +193,61 @@ func build_bar(style: StyleBox) -> PanelContainer:
 	_grid.add_theme_constant_override("v_separation", 6)
 	scroll.add_child(_grid)
 	flyout.visible = false
+
+	budget_panel = PanelContainer.new()
+	budget_panel.add_theme_stylebox_override("panel", style.duplicate())
+	budget_panel.name = "site_budget"
+	var bv := VBoxContainer.new()
+	budget_panel.add_child(bv)
+	var title := Label.new()
+	title.text = "Site budget"
+	title.add_theme_font_size_override("font_size", 14)
+	bv.add_child(title)
+	_budget_grid = GridContainer.new()
+	_budget_grid.columns = 3
+	_budget_grid.add_theme_constant_override("h_separation", 14)
+	bv.add_child(_budget_grid)
+	var note := Label.new()
+	note.text = "Rough estimates in US dollars of 2026, for planning; not a quote."
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.custom_minimum_size = Vector2(240, 0)
+	note.add_theme_font_size_override("font_size", 10)
+	note.add_theme_color_override("font_color", Color(0.4, 0.45, 0.5))
+	bv.add_child(note)
+	budget_panel.visible = false
+	set_budget({})
 	_update_hint()
 	return bar
+
+
+## The budget DWSIM sent with the scene: {total, currency, items: [{cat, count, cost}]}.
+func set_budget(b) -> void:
+	_budget = b if b is Dictionary else {}
+	var total := float(_budget.get("total", 0.0))
+	_cash.text = "Site: " + money(total)
+	for ch in _budget_grid.get_children():
+		# out of the grid at once, so the panel shrinks to the new rows
+		_budget_grid.remove_child(ch)
+		ch.queue_free()
+	var rows: Array = _budget.get("items", [])
+	for r in rows:
+		_cell(SHORT.get(str(r.get("cat", "")), str(r.get("cat", ""))), false)
+		_cell("%d" % int(r.get("count", 0)), true)
+		_cell(money(float(r.get("cost", 0.0))), true)
+	_cell("Total", false, true)
+	_cell("%d" % rows.reduce(func(a, r): return a + int(r.get("count", 0)), 0), true, true)
+	_cell(money(total), true, true)
+	budget_panel.reset_size.call_deferred()
+
+
+func _cell(text: String, right: bool, bold := false) -> void:
+	var l := Label.new()
+	l.text = text
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT if right else HORIZONTAL_ALIGNMENT_LEFT
+	l.add_theme_font_size_override("font_size", 13 if bold else 12)
+	if bold:
+		l.add_theme_color_override("font_color", Color(0.05, 0.08, 0.12))
+	_budget_grid.add_child(l)
 
 
 func toggle() -> void:
@@ -197,6 +270,8 @@ func close() -> void:
 	stop()
 	bar.visible = false
 	flyout.visible = false
+	budget_panel.visible = false
+	_budget_button.button_pressed = false
 	_category = ""
 	for b in _cat_buttons.values():
 		(b as Button).button_pressed = false
@@ -263,7 +338,8 @@ func _update_hint() -> void:
 	elif kind == "":
 		_hint.text = "Pick a category and an object to build. Drag a built object to move it, T turns it, Del demolishes it. U closes the bar."
 	elif _shape() == "point":
-		_hint.text = "Building: %s. Click to build, R turns it%s, Esc or the right button stops." % [name, ", V changes its look" if SiteObjects.VARIANTS.has(kind) else ""]
+		_hint.text = "Building: %s, about %s. Click to build, R turns it%s, Esc or the right button stops." % [name,
+			money(float(SiteObjects.entry(kind).get("cost", 0.0))), ", V changes its look" if SiteObjects.VARIANTS.has(kind) else ""]
 	else:
 		var pts := _drawn()
 		var line := _shape() == "line"
