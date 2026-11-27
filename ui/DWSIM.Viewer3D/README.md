@@ -206,6 +206,14 @@ which keeps it with the flowsheet (key `Plant3DTerrain`) and undoes it with Ctrl
 the site stand on the relief: buildings and trees at the height of the ground where they stand,
 roads, fences and power lines following the slopes, and paving, lawns and woods laid over them.
 
+Building and demolishing look and sound as in SimCity 3000. When something is built (an object of
+the site, or equipment from the palette), it rises out of the ground with a small bounce, a cloud of
+dust and a thud. When it goes, it sinks into the ground under the sound of a bulldozer, with dust,
+rubble and a crunch. The terrain brushes rumble like earthmoving machines and throw up dust where
+they work, and the buttons of the build bar click. A change of many objects at once (a scene that
+loads, the site adopted) passes quietly. The sounds are made in the window, like the other sounds
+of the plant, and follow the sound setting.
+
 Demolish is the bulldozer. When you click an object of the site, it goes; when you drag a
 rectangle, every object of the site that the rectangle touches goes, a road or a fence if any part
 of it crosses the rectangle, and an area if the rectangle lies inside it. The bulldozer leaves the

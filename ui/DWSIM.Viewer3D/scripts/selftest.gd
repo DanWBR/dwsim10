@@ -211,6 +211,13 @@ func _run_site() -> void:
 	_mouse_move(cam.unproject_position(spot4), 0)
 	await _wait(0.3)
 	await _click(cam.unproject_position(spot4))
+	_mouse_move(Vector2(700, 20), 0)
+	# the building rises out of a cloud of dust
+	for i in 40:
+		if main.effects.events.any(func(e): return str(e).begins_with("built site:admin")):
+			break
+		await get_tree().process_frame
+	await _close_up(spot4, 45.0, 0.25, "site_6a_dust")
 	await _wait(1.5)
 	_key(KEY_ESCAPE)
 	await _wait(0.5)
@@ -265,6 +272,11 @@ func _run_site() -> void:
 	await _click(sb._demolish_button.get_global_rect().get_center())
 	await _wait(0.3)
 	await _click(cam.unproject_position(spot3 + Vector3(0, 0.8, 0)))
+	for i in 40:
+		if main.effects.events.any(func(e): return str(e).begins_with("demolished site:suv")):
+			break
+		await get_tree().process_frame
+	await _close_up(spot3, 22.0, 0.35, "site_10a_rubble")
 	await _wait(1.5)
 	var drums := AABB()
 	var first := true
@@ -364,7 +376,8 @@ func _run_site() -> void:
 	var f := FileAccess.open(out_dir.path_join("selftest_site.json"), FileAccess.WRITE)
 	f.store_string(JSON.stringify({"adopted": main.site_adopted, "counts": counts, "red_over_equipment": red,
 		"deleted": not after_delete, "back_after_undo": main.entries.has(tree), "tree_rots": rots, "shapes": shapes,
-		"cash": sb._cash.text, "budget_total": float(sb._budget.get("total", -1.0)), "terrain": terrain_summary}))
+		"cash": sb._cash.text, "budget_total": float(sb._budget.get("total", -1.0)), "terrain": terrain_summary,
+		"effects": main.effects.events}))
 	f.close()
 	await _shot("site_7_done")
 	# the whole site from further away, without the panels
@@ -463,6 +476,23 @@ func _mouse_move(at: Vector2, mask: int = MOUSE_BUTTON_MASK_LEFT) -> void:
 	e.global_position = at
 	e.button_mask = mask
 	Input.parse_input_event(e)
+
+
+## A picture of a place from close by, without the panels, a moment after something happened there.
+func _close_up(at: Vector3, size: float, after: float, name: String) -> void:
+	var rig: CameraRig = main.rig
+	var keep_target := rig.target
+	var keep_size := rig.view_size
+	main.hud.visible = false
+	rig.target = at
+	rig.view_size = size
+	rig.apply()
+	await _wait(after)
+	await _shot(name, false)
+	rig.target = keep_target
+	rig.view_size = keep_size
+	rig.apply()
+	main.hud.visible = true
 
 
 ## Presses the left button at one place, moves with it held and lets go at another.

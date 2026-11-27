@@ -52,6 +52,8 @@ var builder := SceneBuilder.new()
 var editor: LayoutEditor
 var tools: BuildTools
 var site_builder: SiteBuilder
+## The look and sound of building and demolishing (effects.gd).
+var effects: SiteEffects
 ## Whether the site is made of objects the user can change (DWSIM's scene says it).
 var site_adopted := false
 var site_root: Node3D
@@ -168,6 +170,8 @@ func _ready() -> void:
 	hud.add_child(palette)
 	site_builder = SiteBuilder.new(self)
 	add_child(site_builder)
+	effects = SiteEffects.new(self)
+	add_child(effects)
 	var site_bar := site_builder.build_bar(_panel_style())
 	_glass(site_bar, 0.0)
 	hud.add_child(site_bar)
@@ -418,9 +422,21 @@ func _load_scene(scene: Dictionary) -> void:
 
 
 func _apply_delta(m: Dictionary) -> void:
-	for id in m.get("remove", []):
-		_remove_entry(str(id))
-		entries.erase(str(id))
+	var removed: Array = m.get("remove", [])
+	var fresh := []
+	for it in m.get("upsert", []):
+		if it is Dictionary and not entries.has(str(it.get("id", ""))):
+			fresh.append(str(it.get("id", "")))
+	# a few objects built or taken away play their effects; a change of many passes quietly
+	var loud := effects != null and not SiteEffects.quiet(fresh.size() + removed.size())
+	for id in removed:
+		var key := str(id)
+		if loud and entries.has(key) and _shows_effects(entries[key]):
+			var node: Node3D = entries[key]["node"]
+			entries[key]["node"] = null
+			effects.demolished(key, node)
+		_remove_entry(key)
+		entries.erase(key)
 	for it in m.get("upsert", []):
 		if it is Dictionary:
 			var id := str(it.get("id", ""))
@@ -434,6 +450,10 @@ func _apply_delta(m: Dictionary) -> void:
 		scene_name = str(m["name"])
 	if m.has("warnings"):
 		warnings = m["warnings"]
+	if loud:
+		for id in fresh:
+			if entries.has(id) and _shows_effects(entries[id]):
+				effects.built(id)
 	if m.has("site"):
 		_read_site(m["site"])
 	if m.has("terrain"):
@@ -443,6 +463,15 @@ func _apply_delta(m: Dictionary) -> void:
 			terrain.load_from(t)
 			redrape()
 	_after_change()
+
+
+## Whether an item rises and falls with effects: the objects of the site and the equipment, not the
+## badges of logical blocks, the instruments or the lines.
+func _shows_effects(e: Dictionary) -> bool:
+	if e.get("kind") != "item" or e.get("node") == null or not is_instance_valid(e["node"]):
+		return false
+	var d: Dictionary = e["data"]
+	return not bool(d.get("badge", false)) and not bool(d.get("inst", false))
 
 
 ## Draws the objects of the site again, on the relief as it is now.

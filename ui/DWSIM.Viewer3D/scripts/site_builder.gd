@@ -164,6 +164,7 @@ func build_bar(style: StyleBox) -> PanelContainer:
 		b.focus_mode = Control.FOCUS_NONE
 		b.tooltip_text = c
 		b.pressed.connect(func(): _open_category(c))
+		b.pressed.connect(_tick)
 		row.add_child(b)
 		_cat_buttons[c] = b
 	row.add_child(VSeparator.new())
@@ -177,6 +178,7 @@ func build_bar(style: StyleBox) -> PanelContainer:
 			stop()
 		else:
 			start_demolish())
+	_demolish_button.pressed.connect(_tick)
 	row.add_child(_demolish_button)
 	row.add_child(VSeparator.new())
 	# the cost of the site so far, as SimCity shows the city's funds
@@ -191,6 +193,7 @@ func build_bar(style: StyleBox) -> PanelContainer:
 	_budget_button.toggle_mode = true
 	_budget_button.focus_mode = Control.FOCUS_NONE
 	_budget_button.pressed.connect(func(): budget_panel.visible = _budget_button.button_pressed)
+	_budget_button.pressed.connect(_tick)
 	row.add_child(_budget_button)
 	_hint = Label.new()
 	# the hint wraps at the width of the buttons, so a long one does not stretch the bar
@@ -346,11 +349,17 @@ func _fill(c: String) -> void:
 		else:
 			_queue.append(k)
 		b.pressed.connect(func(): start(k))
+		b.pressed.connect(_tick)
 		_grid.add_child(b)
 
 
 func _shape() -> String:
 	return SiteObjects.shape_of(kind) if kind != "" else ""
+
+
+func _tick() -> void:
+	if main.effects != null:
+		main.effects.click()
 
 
 ## The tiles of the terrain: the brushes, and the sizes of the brush.
@@ -366,6 +375,7 @@ func _fill_terrain() -> void:
 		t.button_pressed = brush == b[0]
 		var k: String = b[0]
 		t.pressed.connect(func(): start_brush(k))
+		t.pressed.connect(_tick)
 		_grid.add_child(t)
 	for s in SIZES:
 		var t := Button.new()
@@ -528,6 +538,7 @@ func stop() -> void:
 	kind = ""
 	if _painting:
 		_painting = false
+		main.effects.earthwork(false)
 		main.send_terrain()
 	brush = ""
 	if _ring != null:
@@ -935,6 +946,7 @@ func _sculpt(event: InputEvent) -> bool:
 			return true
 		if _painting:
 			_painting = false
+			main.effects.earthwork(false)
 			main.send_terrain()
 		return true
 	return false
@@ -946,6 +958,8 @@ func _physics_process(delta: float) -> void:
 		var changed: Array = main.terrain.brush(brush, _cursor, brush_radius, delta, _target)
 		main.terrain.rebuild_chunks(changed)
 		_draw_ring()
+		var at: Vector3 = _cursor
+		main.effects.earthwork(true, Vector3(at.x, main.terrain.ground_y() + main.terrain.height_at(at.x, at.z), at.z), brush_radius)
 
 
 ## The ring of the brush on the ground: white, or red over the platform of the plant.
