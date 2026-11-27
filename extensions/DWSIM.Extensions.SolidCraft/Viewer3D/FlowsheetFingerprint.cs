@@ -98,6 +98,12 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             if (props != null && props.TryGetValue(LayoutKey, out layout) && layout != null) sb.Append("layout:").Append(layout);
             object site;
             if (props != null && props.TryGetValue(SiteLayout.Key, out site) && site != null) sb.Append("site:").Append(site);
+            object terrain;
+            if (props != null && props.TryGetValue(SiteLayout.TerrainKey, out terrain) && terrain != null)
+            {
+                var text = terrain.ToString();
+                sb.Append("terrain:").Append(text.Length).Append(':').Append(text.GetHashCode());
+            }
             return sb.ToString();
         }
 

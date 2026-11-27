@@ -404,6 +404,155 @@ namespace DWSIM.FluentAPI.Tests
             Assert.That(Item(link.Scene, id), Is.Not.Null, "undo brings a deleted building back");
         }
 
+        static double[][] Points(JObject item) => item["points"].Select(p => new[] { (double)p[0], (double)p[1] }).ToArray();
+
+        [Test]
+        public void SiteObjectsOfEveryShapeAreBuiltMovedAndUndone()
+        {
+            var fs = PumpAndHeater();
+            var link = new FlowsheetLink(fs.Inner);
+            string Type(JObject a) => (string)a["type"];
+            var catalog = SiteCatalog.ToJson();
+            Assert.That(catalog.Select(e => (string)e["cat"]).Distinct(), Is.EquivalentTo(SiteCatalog.Categories));
+            Assert.That((string)catalog.Single(e => (string)e["kind"] == "road")["shape"], Is.EqualTo("line"));
+
+            var tree = link.Handle(Command(SceneProtocol.SiteAdd, new { kind = "tree", x = -30000, y = -20000, rot = 45 }));
+            Assert.That(Type(tree), Is.EqualTo(SceneProtocol.Added), (string)tree["message"]);
+            Assert.That((string)tree["id"], Is.EqualTo("site:tree:1"));
+            var road = link.Handle(Command(SceneProtocol.SiteAdd, new { kind = "road", points = new[] { new[] { -40000, -30000 }, new[] { 0, -30000 }, new[] { 0, -10000 } } }));
+            Assert.That(Type(road), Is.EqualTo(SceneProtocol.Added), (string)road["message"]);
+            var gravel = link.Handle(Command(SceneProtocol.SiteAdd, new { kind = "gravel", points = new[] { new[] { 0, 0 }, new[] { 10000, 0 }, new[] { 10000, 5000 }, new[] { 0, 5000 }, new[] { 0, 0 } } }));
+            Assert.That(Type(gravel), Is.EqualTo(SceneProtocol.Added), (string)gravel["message"]);
+            link.Sync();
+
+            var t = Item(link.Scene, "site:tree:1");
+            Assert.That((string)t["shape"], Is.EqualTo("point"));
+            Assert.That((string)t["cat"], Is.EqualTo(SiteCatalog.Nature));
+            Assert.That((int)t["rot"], Is.EqualTo(45), "site objects turn by any angle");
+            Assert.That(Points(Item(link.Scene, "site:road:1")), Is.EqualTo(new[] { new[] { -40000.0, -30000.0 }, new[] { 0.0, -30000.0 }, new[] { 0.0, -10000.0 } }));
+            Assert.That(Points(Item(link.Scene, "site:gravel:1")).Length, Is.EqualTo(4), "the closing point is dropped");
+            Assert.That((bool)link.Scene["site"]["adopted"], Is.False);
+
+            // a batch is one step: one undo takes both hydrants away
+            var two = link.Handle(Command(SceneProtocol.SiteAdd, new { items = new[] { new { kind = "hydrant", x = 5000, y = -5000 }, new { kind = "hydrant", x = 9000, y = -5000 } } }));
+            Assert.That(two["ids"].Select(i => (string)i), Is.EqualTo(new[] { "site:hydrant:1", "site:hydrant:2" }));
+            link.Handle(Command(SceneProtocol.Undo));
+            link.Sync();
+            Assert.That(Item(link.Scene, "site:hydrant:1"), Is.Null);
+            Assert.That(Item(link.Scene, "site:hydrant:2"), Is.Null);
+
+            // a road moves and turns with all its points, about its first one
+            Assert.That(Type(link.Handle(Command(SceneProtocol.Place, new { id = "site:road:1", x = -35000, y = -30000, z = 0, rot = 90 }))), Is.EqualTo(SceneProtocol.Ack));
+            link.Sync();
+            var moved = Points(Item(link.Scene, "site:road:1"));
+            Assert.That(moved[0], Is.EqualTo(new[] { -35000.0, -30000.0 }));
+            Assert.That(moved[1], Is.EqualTo(new[] { -35000.0, 10000.0 }));
+            Assert.That(moved[2], Is.EqualTo(new[] { -55000.0, 10000.0 }));
+            link.Handle(Command(SceneProtocol.Undo));
+            link.Sync();
+            Assert.That(Points(Item(link.Scene, "site:road:1"))[1], Is.EqualTo(new[] { 0.0, -30000.0 }));
+            Assert.That(PlantLayout.Load(fs.Inner).Keys.Any(SiteLayout.IsSite), Is.False, "the equipment layout stays clean");
+
+            Assert.That(Type(link.Handle(Command(SceneProtocol.SiteAdd, new { kind = "castle", x = 0, y = 0 }))), Is.EqualTo(SceneProtocol.Error));
+            Assert.That(Type(link.Handle(Command(SceneProtocol.SiteAdd, new { kind = "fence", points = new[] { new[] { 0, 0 } } }))), Is.EqualTo(SceneProtocol.Error), "a line needs two points");
+            Assert.That(Type(link.Handle(Command(SceneProtocol.SiteAdd, new { kind = "grass", points = new[] { new[] { 0, 0 }, new[] { 500, 0 }, new[] { 500, 500 } } }))), Is.EqualTo(SceneProtocol.Error), "an area needs 1 m2");
+            Assert.That(Type(link.Handle(Command(SceneProtocol.SiteAdd, new { kind = "tree", x = 9e9, y = 0 }))), Is.EqualTo(SceneProtocol.Error), "too far away");
+        }
+
+        [Test]
+        public void TheBulldozerTakesWhatTheRectangleTouches()
+        {
+            var fs = PumpAndHeater();
+            var link = new FlowsheetLink(fs.Inner);
+            link.Handle(Command(SceneProtocol.SiteAdd, new
+            {
+                items = new object[]
+                {
+                    new { kind = "tree", x = 0, y = -50000 },
+                    new { kind = "road", points = new[] { new[] { -10000, -60000 }, new[] { 10000, -60000 } } },
+                    new { kind = "grass", points = new[] { new[] { 20000, -70000 }, new[] { 30000, -70000 }, new[] { 30000, -60000 }, new[] { 20000, -60000 } } },
+                    new { kind = "hydrant", x = 100000, y = 100000 }
+                }
+            }));
+            var swept = link.Handle(Command(SceneProtocol.SiteRemove, new { rect = new[] { -1000, -61000, 1000, -49000 } }));
+            Assert.That(swept["removed"].Select(i => (string)i), Is.EquivalentTo(new[] { "site:tree:1", "site:road:1" }), "the road crosses the rectangle though its ends lie outside");
+            var inside = link.Handle(Command(SceneProtocol.SiteRemove, new { rect = new[] { 24000, -66000, 25000, -65000 } }));
+            Assert.That(inside["removed"].Select(i => (string)i), Is.EqualTo(new[] { "site:grass:1" }), "a rectangle inside a lawn takes the lawn");
+            var nothing = link.Handle(Command(SceneProtocol.SiteRemove, new { rect = new[] { 500000, 500000, 501000, 501000 } }));
+            Assert.That(nothing["removed"].Count(), Is.EqualTo(0));
+            link.Handle(Command(SceneProtocol.Undo));
+            link.Sync();
+            Assert.That(Item(link.Scene, "site:grass:1"), Is.Not.Null, "an empty sweep is not a step: undo brings the lawn back");
+            Assert.That(Item(link.Scene, "site:hydrant:1"), Is.Not.Null);
+            Assert.That((string)link.Handle(Command(SceneProtocol.SiteRemove, new { ids = new[] { "site:tree:9" } }))["type"], Is.EqualTo(SceneProtocol.Error));
+            Assert.That(link.Handle(Command(SceneProtocol.SiteRemove, new { ids = new[] { "site:hydrant:1" } }))["removed"].Select(i => (string)i), Is.EqualTo(new[] { "site:hydrant:1" }));
+            Assert.That(fs.Inner.SimulationObjects.Count, Is.GreaterThan(0), "the equipment stays");
+        }
+
+        [Test]
+        public void TheAutomaticSiteIsAdoptedOnce()
+        {
+            var fs = PumpAndHeater();
+            var props = (System.Collections.Generic.IDictionary<string, object>)fs.Inner.ExtraProperties;
+            // a flowsheet saved before kept only the list of buildings
+            props[SiteLayout.Key] = "[{\"Id\":\"site:controlroom:1\",\"Kind\":\"controlroom\",\"X\":1000,\"Y\":2000,\"Z\":0,\"Rot\":90}]";
+            Assert.That(SiteLayout.Load(fs.Inner).Single().Rot, Is.EqualTo(90));
+            Assert.That(SiteLayout.LoadSite(fs.Inner).Adopted, Is.False);
+
+            var link = new FlowsheetLink(fs.Inner);
+            var adopt = link.Handle(Command(SceneProtocol.SiteAdopt, new
+            {
+                items = new object[]
+                {
+                    new { kind = "fence", points = new[] { new[] { -50000, -50000 }, new[] { 50000, -50000 }, new[] { 50000, 50000 } } },
+                    new { kind = "gate", x = 0, y = -50000 },
+                    new { kind = "suv", x = 10000, y = -60000, rot = 90, variant = "red" }
+                }
+            }));
+            Assert.That((string)adopt["type"], Is.EqualTo(SceneProtocol.Ack), (string)adopt["message"]);
+            Assert.That(adopt["ids"].Count(), Is.EqualTo(3));
+            link.Sync();
+            Assert.That((bool)link.Scene["site"]["adopted"], Is.True);
+            Assert.That(Item(link.Scene, "site:controlroom:1"), Is.Not.Null, "what was built before stays");
+            Assert.That((string)Item(link.Scene, "site:suv:1")["variant"], Is.EqualTo("red"));
+            Assert.That((string)link.Handle(Command(SceneProtocol.SiteAdopt, new { items = new object[0] }))["type"], Is.EqualTo(SceneProtocol.Error), "only once");
+
+            link.Handle(Command(SceneProtocol.Undo));
+            link.Sync();
+            Assert.That((bool)link.Scene["site"]["adopted"], Is.False);
+            Assert.That(Item(link.Scene, "site:fence:1"), Is.Null);
+            Assert.That(Item(link.Scene, "site:controlroom:1"), Is.Not.Null);
+        }
+
+        [Test]
+        public void TheTerrainIsCheckedKeptAndUndone()
+        {
+            var fs = PumpAndHeater();
+            var link = new FlowsheetLink(fs.Inner);
+            var heights = new byte[3 * 2 * 2];
+            heights[2] = 100; // the second height is 1 m
+            var terrain = new { x0 = -1000, y0 = -1000, cell = 1000, nx = 3, ny = 2, h = Convert.ToBase64String(heights), w = Convert.ToBase64String(new byte[6]) };
+            var before = FlowsheetFingerprint.Structure(fs.Inner);
+            Assert.That((string)link.Handle(Command(SceneProtocol.Terrain, new { terrain }))["type"], Is.EqualTo(SceneProtocol.Ack));
+            Assert.That(FlowsheetFingerprint.Structure(fs.Inner), Is.Not.EqualTo(before), "a new relief is a change to send");
+            link.Sync();
+            Assert.That((int)link.Scene["terrain"]["nx"], Is.EqualTo(3));
+            Assert.That(Convert.FromBase64String((string)link.Scene["terrain"]["h"])[2], Is.EqualTo(100));
+
+            var bad = new { x0 = 0, y0 = 0, cell = 1000, nx = 3, ny = 2, h = Convert.ToBase64String(new byte[5]) };
+            Assert.That((string)link.Handle(Command(SceneProtocol.Terrain, new { terrain = bad }))["type"], Is.EqualTo(SceneProtocol.Error));
+            var tiny = new { x0 = 0, y0 = 0, cell = 10, nx = 3, ny = 2, h = Convert.ToBase64String(heights) };
+            Assert.That((string)link.Handle(Command(SceneProtocol.Terrain, new { terrain = tiny }))["type"], Is.EqualTo(SceneProtocol.Error), "cells of 1 cm");
+
+            var flat = new JObject { ["type"] = SceneProtocol.Terrain, ["terrain"] = null };
+            Assert.That((string)link.Handle(flat)["type"], Is.EqualTo(SceneProtocol.Ack));
+            link.Sync();
+            Assert.That(link.Scene["terrain"].Type, Is.EqualTo(JTokenType.Null));
+            link.Handle(Command(SceneProtocol.Undo));
+            link.Sync();
+            Assert.That((int)link.Scene["terrain"]["ny"], Is.EqualTo(2), "undo brings the relief back");
+        }
+
         [Test]
         public void BadCommandsAreAnsweredWithAnError()
         {

@@ -72,8 +72,8 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                 ["name"] = e.Name,
                 ["objectType"] = e.Type.ToString()
             }));
-            foreach (var k in SiteLayout.Kinds)
-                list.Add(new JObject { ["group"] = "Site", ["name"] = k.Name, ["objectType"] = SiteLayout.Prefix + k.Kind });
+            var room = SiteCatalog.Find("controlroom");
+            list.Add(new JObject { ["group"] = "Site", ["name"] = room.Name, ["objectType"] = SiteLayout.Prefix + room.Kind });
             return list;
         }
     }

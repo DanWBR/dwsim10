@@ -188,6 +188,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                 welcome["version"] = SceneProtocol.Version;
                 welcome["name"] = PlantModelExtender.ModelName(fs);
                 welcome["palette"] = PaletteWithExtensions();
+                welcome["site"] = SiteCatalog.ToJson();
                 Send(welcome);
                 Refresh();
                 Connected?.Invoke(this, EventArgs.Empty);
@@ -403,6 +404,10 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                 case SceneProtocol.Select: return Select(m);
                 case SceneProtocol.Edit: return Edit(m);
                 case SceneProtocol.Flyby: return FlybyPlan();
+                case SceneProtocol.SiteAdd: return SiteAdd(m);
+                case SceneProtocol.SiteRemove: return SiteRemove(m);
+                case SceneProtocol.SiteAdopt: return SiteAdopt(m);
+                case SceneProtocol.Terrain: return SetTerrain(m);
                 case SceneProtocol.SceneFull:
                     scene = null;
                     selection = null;
@@ -420,6 +425,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             var list = m["items"] as JArray ?? new JArray(m.DeepClone());
             var places = new List<KeyValuePair<string, Placement>>();
             var site = SiteLayout.Load(fs);
+            var siteRot = new Dictionary<string, int>();
             foreach (var t in list.OfType<JObject>())
             {
                 var id = (string)t["id"];
@@ -430,6 +436,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                     return Error("the place of '" + id + "' is not a number", SceneProtocol.Place);
                 if (z < MinElevation || z > MaxElevation)
                     return Error("an elevation must lie between " + MinElevation / 1000 + " and " + MaxElevation / 1000 + " m", SceneProtocol.Place);
+                if (isSite) siteRot[id] = Turn((double?)t["rot"] ?? 0);
                 places.Add(new KeyValuePair<string, Placement>(id, new Placement
                 {
                     X = Math.Round(x),
@@ -444,13 +451,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             foreach (var kv in places)
             {
                 var building = site.FirstOrDefault(b => b.Id == kv.Key);
-                if (building != null)
-                {
-                    building.X = kv.Value.X;
-                    building.Y = kv.Value.Y;
-                    building.Z = kv.Value.Z;
-                    building.Rot = kv.Value.Rot;
-                }
+                if (building != null) SiteLayout.MoveTo(building, kv.Value.X, kv.Value.Y, kv.Value.Z, siteRot[kv.Key]);
                 else layout[kv.Key] = kv.Value;
             }
             PlantLayout.Save(fs, layout);
@@ -482,6 +483,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
         {
             public string Layout;
             public string Site;
+            public string Terrain;
             public System.Xml.Linq.XDocument Flowsheet;
         }
 
@@ -496,7 +498,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
 
         Step Capture(bool flowsheet)
         {
-            var step = new Step { Layout = LayoutText(), Site = SiteLayout.Text(fs) };
+            var step = new Step { Layout = LayoutText(), Site = SiteLayout.Text(fs), Terrain = SiteLayout.TerrainText(fs) };
             if (flowsheet)
                 try { step.Flowsheet = fs.GetSnapshot(SnapshotType.ObjectAddedOrRemoved); }
                 catch (Exception) { step.Flowsheet = null; }
@@ -523,6 +525,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                 else props[LayoutKey] = step.Layout;
             }
             SiteLayout.SetText(fs, step.Site);
+            SiteLayout.SetTerrainText(fs, step.Terrain);
             return null;
         }
 
@@ -827,21 +830,171 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             return null;
         }
 
-        /// <summary>A building of the site (a control room): no object of the simulation, a place in Plant3DSite.</summary>
+        /// <summary>An object of the site asked through "add" with objectType "site:kind" (the palette's control room).</summary>
         JObject AddSite(string kind, JObject m)
         {
-            if (!SiteLayout.Kinds.Any(k => k.Kind == kind)) return Error("unknown building '" + kind + "'", SceneProtocol.Add);
-            double x, y;
-            if (!Finite(m["x"] ?? 0, out x) || !Finite(m["y"] ?? 0, out y)) return Error("the place is not a number", SceneProtocol.Add);
-            var site = SiteLayout.Load(fs);
-            Remember();
-            var id = SiteLayout.NewId(site, kind);
-            site.Add(new SiteLayout.Building { Id = id, Kind = kind, X = Math.Round(x), Y = Math.Round(y), Z = 0, Rot = QuarterTurn((double?)m["rot"] ?? 0) });
-            SiteLayout.Save(fs, site);
-            var answer = SceneProtocol.Message(SceneProtocol.Added);
-            answer["id"] = id;
-            answer["tag"] = SiteLayout.NameOf(kind);
+            var e = SiteCatalog.Find(kind);
+            if (e == null || e.Shape != SiteCatalog.Shape.Point) return Error("unknown building '" + kind + "'", SceneProtocol.Add);
+            var t = new JObject { ["kind"] = kind, ["x"] = m["x"] ?? 0, ["y"] = m["y"] ?? 0, ["rot"] = m["rot"] ?? 0 };
+            var answer = SiteAdd(t);
+            if (SceneProtocol.TypeOf(answer) == SceneProtocol.Error) answer["for"] = SceneProtocol.Add;
             return answer;
+        }
+
+        /// <summary>A turn of an object of the site, whole degrees from 0 to 359.</summary>
+        static int Turn(double degrees)
+        {
+            var d = (int)Math.Round(degrees);
+            return ((d % 360) + 360) % 360;
+        }
+
+        /// <summary>One object of the site read from a command; the message says what is wrong with it, or is null.</summary>
+        static string ReadSite(JObject t, out SiteLayout.Building b)
+        {
+            b = null;
+            var kind = (string)t["kind"];
+            var e = SiteCatalog.Find(kind);
+            if (e == null) return "unknown site object '" + kind + "'";
+            var r = new SiteLayout.Building { Kind = kind, Variant = (string)t["variant"] };
+            double scale = 1, z = 0;
+            if (t["scale"] != null && (!Finite(t["scale"], out scale) || scale < 0.1 || scale > 10)) return "a scale must lie between 0.1 and 10";
+            r.Scale = scale;
+            if (!Finite(t["z"] ?? 0, out z) || z < MinElevation || z > MaxElevation)
+                return "an elevation must lie between " + MinElevation / 1000 + " and " + MaxElevation / 1000 + " m";
+            if (e.Shape == SiteCatalog.Shape.Point)
+            {
+                double x, y;
+                if (!Finite(t["x"], out x) || !Finite(t["y"], out y)) return "the place of the " + e.Name.ToLowerInvariant() + " is not a number";
+                if (Math.Abs(x) > SiteLayout.Reach || Math.Abs(y) > SiteLayout.Reach) return "the place lies too far away";
+                r.X = Math.Round(x);
+                r.Y = Math.Round(y);
+                r.Z = Math.Round(z);
+                r.Rot = Turn((double?)t["rot"] ?? 0);
+                b = r;
+                return null;
+            }
+            var list = t["points"] as JArray;
+            if (list == null) return "a " + e.Name.ToLowerInvariant() + " needs points";
+            var pts = new List<double[]>();
+            foreach (var p in list)
+            {
+                var pa = p as JArray;
+                double px, py;
+                if (pa == null || pa.Count < 2 || !Finite(pa[0], out px) || !Finite(pa[1], out py)) return "a point is not a pair of numbers";
+                if (Math.Abs(px) > SiteLayout.Reach || Math.Abs(py) > SiteLayout.Reach) return "a point lies too far away";
+                var q = new[] { Math.Round(px), Math.Round(py) };
+                if (pts.Count == 0 || pts[pts.Count - 1][0] != q[0] || pts[pts.Count - 1][1] != q[1]) pts.Add(q);
+            }
+            if (pts.Count > SiteLayout.MaxPoints) return "an object of the site may have at most " + SiteLayout.MaxPoints + " points";
+            if (e.Shape == SiteCatalog.Shape.Line)
+            {
+                if (pts.Count < 2 || SiteLayout.Length(pts) < 100) return "a " + e.Name.ToLowerInvariant() + " needs two points apart";
+            }
+            else
+            {
+                if (pts.Count > 3 && pts[0][0] == pts[pts.Count - 1][0] && pts[0][1] == pts[pts.Count - 1][1]) pts.RemoveAt(pts.Count - 1);
+                if (pts.Count < 3 || SiteLayout.Area(pts) < 1e6) return "an area of " + e.Name.ToLowerInvariant() + " needs three points round at least 1 m2";
+            }
+            r.Points = pts;
+            r.X = pts[0][0];
+            r.Y = pts[0][1];
+            r.Z = Math.Round(z);
+            b = r;
+            return null;
+        }
+
+        static string ReadSites(JArray list, out List<SiteLayout.Building> result)
+        {
+            result = new List<SiteLayout.Building>();
+            foreach (var t in list.OfType<JObject>())
+            {
+                SiteLayout.Building b;
+                var wrong = ReadSite(t, out b);
+                if (wrong != null) return wrong;
+                result.Add(b);
+            }
+            return null;
+        }
+
+        JObject SiteAdd(JObject m)
+        {
+            List<SiteLayout.Building> added;
+            var wrong = ReadSites(m["items"] as JArray ?? new JArray(m.DeepClone()), out added);
+            if (wrong != null) return Error(wrong, SceneProtocol.SiteAdd);
+            if (added.Count == 0) return Error("nothing to build", SceneProtocol.SiteAdd);
+            var site = SiteLayout.LoadSite(fs);
+            Remember();
+            foreach (var b in added)
+            {
+                b.Id = SiteLayout.NewId(site.Items, b.Kind);
+                site.Items.Add(b);
+            }
+            SiteLayout.SaveSite(fs, site);
+            var answer = SceneProtocol.Message(SceneProtocol.Added);
+            answer["id"] = added[0].Id;
+            answer["ids"] = new JArray(added.Select(b => b.Id));
+            answer["tag"] = SiteLayout.NameOf(added[0].Kind);
+            return answer;
+        }
+
+        JObject SiteRemove(JObject m)
+        {
+            var ids = (m["ids"] as JArray)?.Select(t => (string)t).ToList() ?? new List<string>();
+            var rect = m["rect"] as JArray;
+            double x0 = 0, y0 = 0, x1 = 0, y1 = 0;
+            if (rect != null && (rect.Count != 4 || !Finite(rect[0], out x0) || !Finite(rect[1], out y0) || !Finite(rect[2], out x1) || !Finite(rect[3], out y1)))
+                return Error("the rectangle must be four numbers: x0, y0, x1, y1", SceneProtocol.SiteRemove);
+            var site = SiteLayout.LoadSite(fs);
+            var missing = ids.Where(id => !site.Items.Any(b => b.Id == id)).ToList();
+            if (missing.Count > 0) return Error("there is no object of the site '" + string.Join("', '", missing) + "'", SceneProtocol.SiteRemove);
+            var gone = site.Items.Where(b => ids.Contains(b.Id) || rect != null && SiteLayout.Touches(b, x0, y0, x1, y1)).ToList();
+            var answer = SceneProtocol.Message(SceneProtocol.Ack);
+            answer["removed"] = new JArray(gone.Select(b => b.Id));
+            if (gone.Count == 0) return answer;
+            Remember();
+            site.Items.RemoveAll(b => gone.Contains(b));
+            SiteLayout.SaveSite(fs, site);
+            return answer;
+        }
+
+        JObject SiteAdopt(JObject m)
+        {
+            var site = SiteLayout.LoadSite(fs);
+            if (site.Adopted) return Error("the site is already made of objects", SceneProtocol.SiteAdopt);
+            List<SiteLayout.Building> added;
+            var wrong = ReadSites(m["items"] as JArray ?? new JArray(), out added);
+            if (wrong != null) return Error(wrong, SceneProtocol.SiteAdopt);
+            Remember();
+            foreach (var b in added)
+            {
+                b.Id = SiteLayout.NewId(site.Items, b.Kind);
+                site.Items.Add(b);
+            }
+            site.Adopted = true;
+            SiteLayout.SaveSite(fs, site);
+            var answer = SceneProtocol.Message(SceneProtocol.Ack);
+            answer["ids"] = new JArray(added.Select(b => b.Id));
+            return answer;
+        }
+
+        JObject SetTerrain(JObject m)
+        {
+            var t = m["terrain"];
+            if (t == null || t.Type == JTokenType.Null)
+            {
+                if (SiteLayout.TerrainText(fs) == null) return null;
+                Remember();
+                SiteLayout.SetTerrainText(fs, null);
+                return null;
+            }
+            SiteLayout.Terrain terrain;
+            try { terrain = t.ToObject<SiteLayout.Terrain>(); }
+            catch (Exception) { return Error("the terrain does not read", SceneProtocol.Terrain); }
+            var wrong = SiteLayout.Check(terrain);
+            if (wrong != null) return Error(wrong, SceneProtocol.Terrain);
+            Remember();
+            SiteLayout.SetTerrainText(fs, Newtonsoft.Json.JsonConvert.SerializeObject(terrain));
+            return null;
         }
 
         /// <summary>The items of the scene the flyby visits, in process order.</summary>

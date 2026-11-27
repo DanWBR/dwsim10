@@ -82,6 +82,28 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
         /// <summary>{id}: opens the object's editor in a floating window of DWSIM.</summary>
         public const string Edit = "edit";
 
+        /// <summary>
+        /// {kind, x, y, z, rot, variant, scale} for a point object of the site, {kind, points: [[x, y], ...]}
+        /// for a line or an area (see <see cref="SiteCatalog"/>), or {items: [those]} for several at
+        /// once, which undo as one step; DWSIM answers <see cref="Added"/> with "id" and "ids".
+        /// </summary>
+        public const string SiteAdd = "site.add";
+
+        /// <summary>
+        /// {ids} and/or {rect: [x0, y0, x1, y1]}: the bulldozer takes away objects of the site, by id
+        /// or all those that touch the rectangle; the answer lists them in "removed". Equipment stays.
+        /// </summary>
+        public const string SiteRemove = "site.remove";
+
+        /// <summary>
+        /// {items: [as in site.add]}: the site the window drew by itself round the plant becomes
+        /// objects of the site, once; from then on the window draws the site from its objects.
+        /// </summary>
+        public const string SiteAdopt = "site.adopt";
+
+        /// <summary>{terrain: {x0, y0, cell, nx, ny, h, w}} or {terrain: null}: the relief of the ground (see <see cref="SiteLayout.Terrain"/>).</summary>
+        public const string Terrain = "terrain";
+
         /// <summary>{ids}: removes objects from the simulation.</summary>
         public const string Delete = "delete";
 
@@ -93,7 +115,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
 
         // DWSIM to the window, and both ways
 
-        /// <summary>{version, name}: the window was let in.</summary>
+        /// <summary>{version, name, palette, site}: the window was let in; "site" is the catalog of <see cref="SiteCatalog"/>.</summary>
         public const string Welcome = "welcome";
 
         /// <summary>{scene}: the whole scene (see <see cref="SceneBuilder"/>).</summary>

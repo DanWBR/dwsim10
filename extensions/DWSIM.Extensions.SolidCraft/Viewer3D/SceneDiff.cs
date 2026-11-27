@@ -25,7 +25,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
     /// What changed between two scenes (see <see cref="SceneBuilder"/>), as a
     /// <see cref="SceneProtocol.SceneDelta"/> message: "upsert" holds the items that are new or
     /// different, whole; "remove" the ids of the items that are gone; "lines", "rack", "name" and
-    /// "warnings" are there only when they changed, and then whole.
+    /// "warnings", "site" and "terrain" are there only when they changed, and then whole.
     /// </summary>
     public static class SceneDiff
     {
@@ -47,7 +47,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             var changed = false;
             if (upsert.Count > 0) { delta["upsert"] = upsert; changed = true; }
             if (remove.Count > 0) { delta["remove"] = remove; changed = true; }
-            foreach (var key in new[] { "lines", "rack", "name", "warnings" })
+            foreach (var key in Keys)
             {
                 var a = before?[key];
                 var b = after[key];
@@ -78,10 +78,13 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                 if (at != null) at.Replace(item.DeepClone());
                 else items.Add(item.DeepClone());
             }
-            foreach (var key in new[] { "lines", "rack", "name", "warnings" })
+            foreach (var key in Keys)
                 if (delta.ContainsKey(key)) result[key] = delta[key].DeepClone();
             return result;
         }
+
+        /// <summary>The parts of a scene besides its items, sent whole when they change.</summary>
+        static readonly string[] Keys = { "lines", "rack", "name", "warnings", "site", "terrain" };
 
         /// <summary>Whether two scenes hold the same items (in any order), lines, rack and name.</summary>
         public static bool Same(JObject a, JObject b) => Delta(a, b) == null && Delta(b, a) == null;
