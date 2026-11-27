@@ -345,8 +345,67 @@ namespace DWSIM.Extensions.SolidCraft
                     return Generic(obj, warnings);
 
                 default:
-                    return Generic(obj, warnings);
+                    return SelfDrawn(obj, tag, warnings) ?? Generic(obj, warnings);
             }
+        }
+
+        /// <summary>
+        /// A unit operation that draws itself, such as a pipe network: it has a method
+        /// BuildPlant3DModel() that returns a <see cref="PlantModel"/> of its own (mm, centred on
+        /// it, the ground at zero), and this method finds it by reflection, so the extension does
+        /// not need this one to load. The model's items become the solids of one item and its lines
+        /// become the item's own lines, so they move and turn with the item and nothing in them is
+        /// edited here: the extension's editor changes them. Null when the operation doesn't draw
+        /// itself or has nothing to draw.
+        /// </summary>
+        static EquipmentItem SelfDrawn(ISimulationObject obj, string tag, List<string> warnings)
+        {
+            var method = obj?.GetType().GetMethod("BuildPlant3DModel", Type.EmptyTypes);
+            if (method == null) return null;
+            PlantModel own;
+            try { own = method.Invoke(obj, null) as PlantModel; }
+            catch (Exception ex)
+            {
+                warnings.Add(tag + ": its own 3D model failed (" + (ex.InnerException?.Message ?? ex.Message) + "); drawn as a block.");
+                return null;
+            }
+            if (own == null || own.Equipment.Count == 0 && own.Pipes.Count == 0) return null;
+
+            var item = new EquipmentItem();
+            foreach (var e in own.Equipment)
+                foreach (var p in e.Parts)
+                    item.Parts.Add(p.Moved(e.Origin));
+            foreach (var r in own.Pipes)
+                if (r.Path != null && r.Path.Count > 1) item.InternalPipes.Add(r);
+
+            // the box round the solids and the lines, for the layout and the nozzles
+            double x0 = double.MaxValue, x1 = double.MinValue, y0 = double.MaxValue, y1 = double.MinValue, top = 0;
+            void Take(Vec3 v, double r)
+            {
+                x0 = Math.Min(x0, v.X - r); x1 = Math.Max(x1, v.X + r);
+                y0 = Math.Min(y0, v.Y - r); y1 = Math.Max(y1, v.Y + r);
+                top = Math.Max(top, v.Z + r);
+            }
+            foreach (var p in item.Parts)
+                Take(p.Point, Math.Max(Math.Max(p.Diameter, p.Height), Math.Max(p.SizeX, Math.Max(p.SizeY, p.SizeZ))) / 2);
+            foreach (var r in item.InternalPipes)
+                foreach (var v in r.Path)
+                    Take(v, r.OuterDiameter / 2);
+            if (x0 > x1) return null;
+            item.Envelope = new Envelope
+            {
+                Kind = EnvelopeKind.Box,
+                HalfX = Math.Max(Math.Abs(x0), Math.Abs(x1)),
+                HalfY = Math.Max(Math.Abs(y0), Math.Abs(y1)),
+                ZBottom = 0,
+                ZTop = Math.Max(top, 1000)
+            };
+            item.FootprintX = (x1 - x0) / 2;
+            item.FootprintY = (y1 - y0) / 2;
+            item.FootprintOffsetX = (x0 + x1) / 2;
+            item.FootprintOffsetY = (y0 + y1) / 2;
+            item.Properties["Own 3D model"] = own.Equipment.Count + " items, " + item.InternalPipes.Count + " lines (read-only; its editor changes them)";
+            return item;
         }
 
         /// <summary>A CAPE-OPEN unit that is a column: ChemSep, or one whose name or description says column.</summary>

@@ -770,6 +770,11 @@ func _pick(screen: Vector2) -> String:
 				if t < best:
 					best = t
 					best_id = id
+	# a line of an item's own (a column's overhead line, a pipe of a network) stands for its item
+	if entries.has(best_id) and entries[best_id]["kind"] == "line":
+		var owner = entries[best_id]["data"].get("owner")
+		if owner != null and entries.has(str(owner)):
+			return str(owner)
 	return best_id
 
 

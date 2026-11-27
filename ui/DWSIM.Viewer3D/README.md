@@ -87,6 +87,14 @@ a controller is a giant old computer on the ground, with a green screen, blinkin
 tape reels; an energy stream is a spinning golden bolt with dashed links to the nozzles it joins.
 A turns the animation on and off.
 
+A unit operation that draws itself shows its own 3D model inside its block. A pipe network with
+plant positions on its nodes is one: its pipes, hydrants, monitors, pumps, reservoirs, protected
+tanks and buildings appear where its designer puts them, centred on the block. That model is
+read-only here. A click on any part of it selects the network, a drag moves and T turns the whole
+network, and a double click opens the network's own editor, where every change is made; the 3D view
+follows it. A network without plant positions stays a block. (DWSIM finds the operation's
+BuildPlant3DModel() method by reflection, so the extension does not need the CAD Tools to load.)
+
 A double click (or Enter) on an item asks DWSIM to open its editor in a floating window that stays
 above the 3D view: the cross-platform interface builds the same editor it docks, in a window of
 its own, and the Windows interface floats the object's editor form.

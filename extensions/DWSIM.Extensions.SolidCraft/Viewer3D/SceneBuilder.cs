@@ -87,11 +87,17 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                 AddEnergyStreams(items, ids, model, fs);
             }
 
+            // a line of an item's own (a column's overhead line, a pipe of a network) belongs to that
+            // item: the window selects and edits the item when the line is clicked
+            var owners = new Dictionary<string, string>();
+            foreach (var item in model.Equipment)
+                if (item.Tag != null && !owners.ContainsKey(item.Tag)) owners[item.Tag] = item.Name;
             var lines = new JArray();
             foreach (var run in model.Pipes.Where(r => r.Path.Count > 1))
                 lines.Add(new JObject
                 {
                     ["id"] = run.Name,
+                    ["owner"] = run.Name == null && run.From == run.To && run.From != null && owners.TryGetValue(run.From, out var owner) ? owner : null,
                     ["tag"] = run.Tag,
                     ["desc"] = "Line " + run.Tag + " (" + run.Size + ", " + (run.Phase ?? "").ToLowerInvariant() + "), " + run.From + " to " + run.To,
                     ["c"] = run.Color,
