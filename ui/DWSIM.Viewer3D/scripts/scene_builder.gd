@@ -39,8 +39,58 @@ func material(color, metal: bool) -> StandardMaterial3D:
 	m.roughness = 0.38 if metal else 0.72
 	if metal:
 		m.metallic_specular = 0.6
+	m.set_meta("kind", "cladding" if str(color).to_lower() == CLADDING else ("metal" if metal else "painted"))
+	_detail_on(m, detail)
 	_materials[key] = m
 	return m
+
+
+## The surface detail of the materials: the scratches and dents of painted steel, the grain of bare
+## metal, the ribs of the cladding on insulation (CC0 maps, see assets/CREDITS.md), over the colour
+## each part already has. Off at the Low quality.
+var detail := true
+var _maps := {}
+
+
+func _map(name: String) -> Texture2D:
+	if not _maps.has(name):
+		_maps[name] = load("res://assets/textures/%s.jpg" % name)
+	return _maps[name]
+
+
+func _detail_on(m: StandardMaterial3D, on: bool) -> void:
+	var kind := str(m.get_meta("kind", "painted"))
+	m.normal_enabled = on
+	m.uv1_triplanar = on
+	m.uv1_world_triplanar = on
+	if not on:
+		m.normal_texture = null
+		m.roughness_texture = null
+		return
+	match kind:
+		"cladding":
+			m.normal_texture = _map("cladding_normal")
+			m.normal_scale = 0.8
+			m.roughness_texture = null
+			m.uv1_scale = Vector3.ONE / 1.2
+		"metal":
+			m.normal_texture = _map("metal_normal")
+			m.normal_scale = 0.5
+			m.roughness_texture = _map("metal_roughness")
+			m.uv1_scale = Vector3.ONE / 1.5
+		_:
+			m.normal_texture = _map("painted_normal")
+			m.normal_scale = 0.45
+			m.roughness_texture = _map("painted_roughness")
+			m.uv1_scale = Vector3.ONE / 2.0
+	m.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
+
+
+func set_detail(on: bool) -> void:
+	detail = on
+	for m in _materials.values():
+		if m.has_meta("kind"):
+			_detail_on(m, on)
 
 
 ## The basis that turns the mesh's Y axis onto a direction.

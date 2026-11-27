@@ -369,6 +369,8 @@ func set_quality(q: int) -> void:
 			env.ssil_enabled = true
 			env.glow_enabled = true
 			RenderingServer.directional_shadow_atlas_set_size(8192, true)
+	if main.builder != null:
+		main.builder.set_detail(q != Quality.LOW)
 	var k := 0.35 if q == Quality.LOW else (1.0 if q == Quality.MEDIUM else 1.5)
 	_rain.amount = int(6000 * k)
 	_snow.amount = int(3000 * k)
@@ -453,6 +455,10 @@ func _apply() -> void:
 		if head.has_meta("lamp"):
 			(head.get_meta("lamp") as StandardMaterial3D).emission_energy_multiplier = 3.0 if _night else 0.0
 	_beacons_root.visible = _night
+	for n in get_tree().get_nodes_in_group("night_glow"):
+		var gm := (n as MeshInstance3D).material_override as StandardMaterial3D
+		if gm != null:
+			gm.emission_energy_multiplier = float(gm.get_meta("night_glow", 1.5)) if _night else 0.0
 	if _time_label != null:
 		_time_label.text = "%02d:%02d" % [int(hour), int(fmod(hour, 1.0) * 60.0)]
 

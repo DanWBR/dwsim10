@@ -1,0 +1,159 @@
+{
+  "asset": {
+    "generator": "Khronos glTF Blender I/O v5.1.18",
+    "version": "2.0"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Scene",
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0,
+      "name": "small_lpg_tank"
+    }
+  ],
+  "materials": [
+    {
+      "doubleSided": true,
+      "name": "small_lpg_tank",
+      "normalTexture": {
+        "index": 0
+      },
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 1
+        },
+        "metallicRoughnessTexture": {
+          "index": 2
+        }
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Sphere.003",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "material": 0
+        }
+      ]
+    }
+  ],
+  "textures": [
+    {
+      "sampler": 0,
+      "source": 0
+    },
+    {
+      "sampler": 0,
+      "source": 1
+    },
+    {
+      "sampler": 0,
+      "source": 2
+    }
+  ],
+  "images": [
+    {
+      "mimeType": "image/jpeg",
+      "name": "small_lpg_tank_nor_gl",
+      "uri": "textures/small_lpg_tank_nor_gl_1k.jpg"
+    },
+    {
+      "mimeType": "image/jpeg",
+      "name": "small_lpg_tank_diff",
+      "uri": "textures/small_lpg_tank_diff_1k.jpg"
+    },
+    {
+      "mimeType": "image/jpeg",
+      "name": "small_lpg_tank_metal-small_lpg_tank_rough",
+      "uri": "textures/small_lpg_tank_arm_1k.jpg"
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 9327,
+      "max": [
+        0.20532627403736115,
+        0.6419764757156372,
+        0.2042912244796753
+      ],
+      "min": [
+        -0.20469294488430023,
+        0.0000015020370938145788,
+        -0.20490005612373352
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 9327,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 9327,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5123,
+      "count": 45126,
+      "type": "SCALAR"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 111924,
+      "byteOffset": 0,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 111924,
+      "byteOffset": 111924,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 74616,
+      "byteOffset": 223848,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 90252,
+      "byteOffset": 298464,
+      "target": 34963
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 388716,
+      "uri": "small_lpg_tank.bin"
+    }
+  ]
+}

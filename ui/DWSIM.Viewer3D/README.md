@@ -28,8 +28,8 @@ godot --path . -- --dwsim-scene=scene.json --capture-dir=out --views=IsoSE,Plan 
 `export.sh <godot> <out> [rid ...]` exports the window into `<out>/<rid>/viewer3d`, the folder
 DWSIM looks in next to its own executable (macOS: `DWSIM.app/Contents/Helpers`). It needs the
 export templates of the same Godot version. The release workflows run it once and copy the result
-into every package. The builds are about 105 MB on Windows x64, 71 MB on Linux x64 and 82 MB per
-architecture on macOS.
+into every package. The builds are about 126 MB on Windows x64 and 92 MB on Linux x64 (the engine
+and about 21 MB of textures, models and sounds), and some 100 MB per architecture on macOS.
 
 ## Controls
 
@@ -136,6 +136,17 @@ played aloud) with `-- --flyby-record --flyby-hold=<s>`, and quits at the end. T
 1920 x 1080 (the size the window starts with, which is why the project is that size and the
 window people work in shrinks itself when it opens). It goes to the folder of the 3D model next
 to the simulation, as MP4 (H.264, about 6 Mbit/s) when ffmpeg is on the PATH, else as the AVI.
+
+## The site and the materials
+
+The equipment keeps the sizes and colours the simulation gives it, with surface detail on top
+(scratched paint, bare metal grain, ribbed cladding on insulation; off at Low quality), concrete
+foundations under it and caged ladders up tall columns and vessels. Around the plant stand a
+chain-link fence with a gate and an access road, a control room whose windows light up at night,
+parked vehicles and a fire truck, a front loader, a storage corner, fire hydrants round the pad,
+extinguishers by pumps and compressors, workers walking round the pad or standing by, and trees
+on the grass outside. O shows or hides the site. `--capture-zoom=<k>` takes k times more in the
+pictures and `--capture-clean` leaves the panels out.
 
 ## Licences
 

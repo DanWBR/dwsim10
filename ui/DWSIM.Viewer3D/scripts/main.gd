@@ -31,6 +31,7 @@ const SHORTCUTS := [
 	["A", "Animation on / off"],
 	["V", "Values on the plant"],
 	["B", "Flyby of the plant (Esc stops)"],
+	["O", "The site around the plant"],
 	["N", "Noon / night"],
 	["W", "Next weather"],
 	["M", "Sound on / off"],
@@ -55,6 +56,7 @@ var _alarm_mat: StandardMaterial3D
 var _error_mat: StandardMaterial3D
 var values_root: Node3D
 var flyby: Flyby
+var props: PlantProps
 var flyby_record := false
 var flyby_hold := 4.0
 var _flyby_asked := false
@@ -162,6 +164,8 @@ func _ready() -> void:
 	_error_mat.albedo_color = Color(1.0, 0.55, 0.05, 0.3)
 	life = PlantLife.new(self)
 	add_child(life)
+	props = PlantProps.new(self)
+	add_child(props)
 	_hover_box = MeshInstance3D.new()
 	var box_mat := StandardMaterial3D.new()
 	box_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -405,6 +409,8 @@ func _after_change() -> void:
 		tools.refresh_ports()
 	if life != null:
 		life.refresh()
+	if props != null:
+		props.refresh()
 	_value_tags()
 	_update_title()
 
@@ -681,6 +687,8 @@ func _unhandled_input(event: InputEvent) -> void:
 					animate = not animate
 				KEY_V:
 					values_root.visible = not values_root.visible
+				KEY_O:
+					props.visible = not props.visible
 				KEY_L: labels_root.visible = not labels_root.visible
 				KEY_I: insulation_root.visible = not insulation_root.visible
 				KEY_R: rack_root.visible = not rack_root.visible
@@ -1047,6 +1055,9 @@ func _capture(view: String, width: int, height: int, fit := true) -> PackedByteA
 	OS.low_processor_usage_mode = false
 	if fit and width > 0 and height > 0:
 		get_window().size = Vector2i(width, height)
+	# "--capture-clean": the pictures without the panels
+	if "--capture-clean" in OS.get_cmdline_user_args():
+		hud.visible = false
 	for i in 3:
 		await get_tree().process_frame
 	if view != "":
@@ -1054,6 +1065,11 @@ func _capture(view: String, width: int, height: int, fit := true) -> PackedByteA
 	if fit:
 		rig.fit_points(_corners(), _aspect())
 		_fit_ground()
+		# "--capture-zoom=2" takes in twice as much (the site around the plant, say)
+		for arg in OS.get_cmdline_user_args():
+			if arg.begins_with("--capture-zoom="):
+				rig.view_size *= maxf(0.1, float(arg.get_slice("=", 1)))
+				rig.apply()
 	for i in 3:
 		await get_tree().process_frame
 	RenderingServer.force_draw(false)
