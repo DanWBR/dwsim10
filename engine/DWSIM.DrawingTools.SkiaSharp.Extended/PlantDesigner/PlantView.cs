@@ -82,6 +82,22 @@ namespace DWSIM.Drawing.SkiaSharp.PlantDesigner
         public float UiScale = 1f;
     }
 
+    /// <summary>The drawing tools' preview: the leg that a click would draw (or the move of a point), and the point a
+    /// click would start from.</summary>
+    public sealed class PlantPreview
+    {
+        public bool HasLeg;
+        public V3 From, To;
+        /// <summary>The length and axis of the leg, written next to it.</summary>
+        public string Label = "";
+        public bool HasPoint;
+        public V3 Point;
+        /// <summary>The leg ends on an existing point or pipe (it joins the network there).</summary>
+        public bool Joins;
+
+        public void Clear() { HasLeg = false; HasPoint = false; Joins = false; Label = ""; }
+    }
+
     public sealed class ShortcutLine
     {
         public string Keys, Action;
@@ -140,6 +156,13 @@ namespace DWSIM.Drawing.SkiaSharp.PlantDesigner
         public string CardTitle = "Shortcuts";
         public readonly List<ShortcutGroup> Shortcuts = new List<ShortcutGroup>();
 
+        /// <summary>What the drawing tools show under the mouse (the leg being drawn, the point a click would take).</summary>
+        public readonly PlantPreview Preview = new PlantPreview();
+        /// <summary>The tool state in one line (tool, axis lock, working level, step), shown at the top; empty hides it.</summary>
+        public string ToolChip = "";
+        /// <summary>The length being typed, shown next to the cursor; empty hides it.</summary>
+        public string Typed = "";
+
         // the screen rectangles of the overlays, from the last render (device pixels)
         internal SKRect CardRect, CardToggleRect, MinimapRect;
         internal OrbitCamera MinimapCamera;
@@ -195,6 +218,58 @@ namespace DWSIM.Drawing.SkiaSharp.PlantDesigner
             if (k.Contains("compressor")) return ItemGlyph.Compressor;
             if (k.Contains("proportioner")) return ItemGlyph.Proportioner;
             return ItemGlyph.Generic;
+        }
+
+        private static ShortcutGroup CameraGroup()
+        {
+            return new ShortcutGroup("View",
+                new ShortcutLine("Right drag", "orbit"),
+                new ShortcutLine("Middle drag", "pan"),
+                new ShortcutLine("Wheel", "zoom at the cursor"),
+                new ShortcutLine("1 2 3 4 / 5 6 7", "isometric / plan, front, side"),
+                new ShortcutLine("Q / E", "turn 90°"),
+                new ShortcutLine("F", "fit the drawing"),
+                new ShortcutLine("F1", "hide this card"));
+        }
+
+        /// <summary>The shortcuts of the designer's pipe tool.</summary>
+        public static List<ShortcutGroup> PipeToolShortcuts()
+        {
+            return new List<ShortcutGroup>
+            {
+                new ShortcutGroup("Pipe tool",
+                    new ShortcutLine("Click", "start, then fix each corner"),
+                    new ShortcutLine("Left drag", "pan"),
+                    new ShortcutLine("Type a number, Enter", "exact length (m)"),
+                    new ShortcutLine("H / V", "horizontal / vertical only"),
+                    new ShortcutLine("X / Y / Z", "one axis (again: free)"),
+                    new ShortcutLine("PgUp / PgDn", "working level up / down"),
+                    new ShortcutLine("Esc, right click, double-click", "end the run"),
+                    new ShortcutLine("S", "select tool")),
+                new ShortcutGroup("Edit",
+                    new ShortcutLine("Ctrl+Z / Ctrl+Y", "undo / redo")),
+                CameraGroup(),
+            };
+        }
+
+        /// <summary>The shortcuts of the designer's select tool.</summary>
+        public static List<ShortcutGroup> SelectToolShortcuts()
+        {
+            return new List<ShortcutGroup>
+            {
+                new ShortcutGroup("Select tool",
+                    new ShortcutLine("Click", "select (Ctrl adds)"),
+                    new ShortcutLine("Drag a point", "move it along an axis"),
+                    new ShortcutLine("H V X Y Z", "lock the move's axis"),
+                    new ShortcutLine("Left drag (empty)", "pan"),
+                    new ShortcutLine("Del", "delete the selection"),
+                    new ShortcutLine("Double-click", "open the block editor"),
+                    new ShortcutLine("P", "pipe tool")),
+                new ShortcutGroup("Edit",
+                    new ShortcutLine("Ctrl+Z / Ctrl+Y", "undo / redo"),
+                    new ShortcutLine("Esc", "clear the selection")),
+                CameraGroup(),
+            };
         }
 
         /// <summary>The shortcuts of the viewer.</summary>

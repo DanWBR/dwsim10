@@ -55,12 +55,18 @@ namespace DWSIM.Drawing.SkiaSharp.PlantDesigner
 
             if (d.Vertices.Count == 0)
             {
-                using (var p = Text(th.Muted, 14 * u))
-                {
-                    float w = p.MeasureText(v.EmptyMessage);
-                    c.DrawText(v.EmptyMessage, (float)(cam.Width / 2 - w / 2), (float)(cam.Height / 2), p);
-                }
+                if (string.IsNullOrEmpty(v.ToolChip))
+                    using (var p = Text(th.Muted, 14 * u))
+                    {
+                        float w = p.MeasureText(v.EmptyMessage);
+                        c.DrawText(v.EmptyMessage, (float)(cam.Width / 2 - w / 2), (float)(cam.Height / 2), p);
+                    }
+                else if (v.Options.ShowGrid) DrawGrid(c, v, th);
+                if (v.Options.ShowAxes) DrawAxes(c, v, th);
+                DrawPreview(c, v, th);
+                DrawChip(c, v, th);
                 DrawCard(c, v, th);
+                DrawTyped(c, v, th);
                 return;
             }
 
@@ -94,11 +100,14 @@ namespace DWSIM.Drawing.SkiaSharp.PlantDesigner
             foreach (var o in order.OrderBy(t => t.Item1)) o.Item2();
 
             if (v.Options.ShowLabels) DrawLabels(c, v, th, proj, stopIds);
+            DrawPreview(c, v, th);
+            DrawChip(c, v, th);
             if (v.Options.ShowLegend) DrawLegend(c, v, th);
             if (v.Options.ShowAxes) DrawAxes(c, v, th);
             if (v.Options.ShowMinimap) DrawMinimap(c, v, th);
             else v.MinimapRect = SKRect.Empty;
             DrawCard(c, v, th);
+            DrawTyped(c, v, th);
             DrawTooltip(c, v, th);
         }
 
@@ -127,12 +136,101 @@ namespace DWSIM.Drawing.SkiaSharp.PlantDesigner
             };
         }
 
+        /// <summary>The leg being drawn (dashed, in the accent colour, with its length and direction), the point a click
+        /// would take, and the length being typed next to the cursor.</summary>
+        private static void DrawPreview(SKCanvas c, PlantView v, Theme th)
+        {
+            float u = v.Options.UiScale;
+            var pv = v.Preview;
+            var cam = v.Camera;
+            if (pv.HasLeg)
+            {
+                var a = Pt(cam.Project(pv.From)); var b = Pt(cam.Project(pv.To));
+                using (var p = Stroke(th.Accent, 2.6f * u))
+                {
+                    p.PathEffect = SKPathEffect.CreateDash(new[] { 8f * u, 5f * u }, 0);
+                    c.DrawLine(a, b, p);
+                }
+                // a drop line to the working level shows how high the end is
+                var lz = v.Drawing.Grid.LevelZ;
+                if (Math.Abs(pv.To.Z - lz) > 1e-6 && cam.CanPlaceOnLevel)
+                    using (var p = Stroke(th.Accent.WithAlpha(90), 1f * u))
+                    {
+                        p.PathEffect = SKPathEffect.CreateDash(new[] { 3f * u, 3f * u }, 0);
+                        c.DrawLine(b, Pt(cam.Project(new V3(pv.To.X, pv.To.Y, lz))), p);
+                    }
+                using (var e = pv.Joins ? Fill(th.Accent) : Stroke(th.Accent, 2f * u)) c.DrawCircle(b, 5f * u, e);
+                if (!string.IsNullOrEmpty(pv.Label))
+                    using (var t = Text(th.Ink, 12 * u, true))
+                    {
+                        float w = t.MeasureText(pv.Label);
+                        var mid = new SKPoint((a.X + b.X) / 2, (a.Y + b.Y) / 2);
+                        var r = new SKRect(mid.X + 10 * u, mid.Y - 24 * u, mid.X + 10 * u + w + 12 * u, mid.Y - 6 * u);
+                        Panel(c, r, th, u);
+                        c.DrawText(pv.Label, r.Left + 6 * u, r.Bottom - 5 * u, t);
+                    }
+            }
+            if (pv.HasPoint)
+            {
+                var s = Pt(cam.Project(pv.Point));
+                using (var o = Stroke(th.Accent, 1.8f * u)) { c.DrawCircle(s, 6f * u, o); c.DrawLine(s.X - 10 * u, s.Y, s.X - 7 * u, s.Y, o); c.DrawLine(s.X + 7 * u, s.Y, s.X + 10 * u, s.Y, o); }
+                if (pv.Joins && !pv.HasLeg) using (var f = Fill(th.Accent.WithAlpha(120))) c.DrawCircle(s, 4f * u, f);
+            }
+        }
+
+        /// <summary>The length being typed, next to the cursor (drawn after the card, whose place it avoids).</summary>
+        private static void DrawTyped(SKCanvas c, PlantView v, Theme th)
+        {
+            float u = v.Options.UiScale;
+            var cam = v.Camera;
+            if (!string.IsNullOrEmpty(v.Typed) && v.MouseX >= 0)
+                using (var t = Text(th.Ink, 13 * u, true))
+                {
+                    string text = "Length: " + v.Typed + " m";
+                    float w = t.MeasureText(text);
+                    var r = new SKRect((float)v.MouseX + 18 * u, (float)v.MouseY + 14 * u, (float)v.MouseX + 30 * u + w, (float)v.MouseY + 36 * u);
+                    // the box goes to the left of the cursor when the card or the edge is in the way
+                    if (r.Right > cam.Width || (!v.CardRect.IsEmpty && v.CardRect.IntersectsWith(r)) || v.CardToggleRect.IntersectsWith(r))
+                        r.Offset(-(r.Width + 36 * u), 0);
+                    Panel(c, r, th, u);
+                    c.DrawText(text, r.Left + 6 * u, r.Bottom - 7 * u, t);
+                }
+        }
+
+        /// <summary>The tool state at the top centre of the view.</summary>
+        private static void DrawChip(SKCanvas c, PlantView v, Theme th)
+        {
+            if (string.IsNullOrEmpty(v.ToolChip)) return;
+            float u = v.Options.UiScale;
+            using (var t = Text(th.Ink, 12 * u))
+            {
+                float w = t.MeasureText(v.ToolChip);
+                float cx = (float)v.Camera.Width / 2;
+                var r = new SKRect(cx - w / 2 - 12 * u, 12 * u, cx + w / 2 + 12 * u, 38 * u);
+                Panel(c, r, th, u);
+                c.DrawText(v.ToolChip, r.Left + 12 * u, r.Bottom - 9 * u, t);
+            }
+        }
+
         private static void DrawGrid(SKCanvas c, PlantView v, Theme th)
         {
             var cam = v.Camera; var g = v.Drawing.Grid;
             if (!cam.CanPlaceOnLevel || g.StepH <= 0) return;
             V3 min, max;
-            if (!v.Drawing.Bounds(out min, out max)) return;
+            if (!v.Drawing.Bounds(out min, out max))
+            {
+                // an empty drawing gets a grid around the centre of the view, so that the first point has a place to go
+                V3 at;
+                if (!cam.TryUnprojectToLevel(cam.Width / 2, cam.Height / 2, g.LevelZ, out at)) return;
+                double half = 10 * g.StepH;
+                min = new V3(at.X - half, at.Y - half, g.LevelZ); max = new V3(at.X + half, at.Y + half, g.LevelZ);
+            }
+            if (v.Preview.HasLeg || v.Preview.HasPoint)
+            {
+                // the grid also covers the point being drawn
+                var q = v.Preview.HasLeg ? v.Preview.To : v.Preview.Point;
+                min = new V3(Math.Min(min.X, q.X), Math.Min(min.Y, q.Y), min.Z); max = new V3(Math.Max(max.X, q.X), Math.Max(max.Y, q.Y), max.Z);
+            }
             double step = g.StepH;
             // never more than about 120 lines a side
             while ((max.X - min.X) / step > 120 || (max.Y - min.Y) / step > 120) step *= 2;
