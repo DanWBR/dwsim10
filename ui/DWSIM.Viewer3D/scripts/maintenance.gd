@@ -378,10 +378,11 @@ func _play(p: Dictionary, anim: String, speed := 1.0) -> void:
 
 
 func _step(j: Dictionary, p: Dictionary, delta: float) -> void:
-	var n: Node3D = p["node"]
-	if p.has("done") or not is_instance_valid(n):
+	# a person gone back in is freed: check before taking the node
+	if p.has("done") or not is_instance_valid(p["node"]):
 		p["done"] = true
 		return
+	var n: Node3D = p["node"]
 	var st: Dictionary = p["steps"][p["i"]]
 	if st.has("wait"):
 		p["t"] += delta

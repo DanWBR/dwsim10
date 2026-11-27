@@ -194,6 +194,18 @@ the funds of the city, and Budget opens a panel with the count and the cost of e
 DWSIM works the budget out (SiteCatalog.Budget) and sends it with the scene. The costs are rough
 estimates in US dollars of 2026, for planning, not a quote.
 
+Terrain, the last category, shapes the ground round the plant with brushes: Raise builds it up,
+Lower digs it down, Level brings it to the height where you press, Smooth evens out bumps, Pond
+digs a bowl and fills it with water up to the height where you press, and Drain takes the water
+away. Hold the left button and move over the ground; the brush comes in three sizes (4, 8 and
+14 m) and its ring turns red over the platform of the plant (the equipment, the pad and the gravel
+round it, 15 m out), which stays flat. The ground turns from grass to bare earth as it gets
+steeper. The relief is a grid with one height every metre, about 110 m beyond the plant, made the
+first time a brush touches the ground; each stroke goes to DWSIM as one step (the terrain message),
+which keeps it with the flowsheet (key `Plant3DTerrain`) and undoes it with Ctrl+Z. The objects of
+the site stand on the relief: buildings and trees at the height of the ground where they stand,
+roads, fences and power lines following the slopes, and paving, lawns and woods laid over them.
+
 Demolish is the bulldozer. When you click an object of the site, it goes; when you drag a
 rectangle, every object of the site that the rectangle touches goes, a road or a fence if any part
 of it crosses the rectangle, and an area if the rectangle lies inside it. The bulldozer leaves the

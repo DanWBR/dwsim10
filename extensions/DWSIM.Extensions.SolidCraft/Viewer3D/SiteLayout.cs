@@ -257,8 +257,8 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
         /// <summary>
         /// The relief of the ground: a grid of nx by ny heights from (x0, y0), one every "cell" mm,
         /// each a 16-bit integer of centimetres (little-endian, base 64 in "h"), and optionally a
-        /// byte per cell that is 1 where water lies ("w"). The window shapes it; DWSIM checks and
-        /// keeps it.
+        /// byte per cell with the depth of the water over it in decimetres, 0 where it is dry ("w").
+        /// The window shapes it; DWSIM checks and keeps it.
         /// </summary>
         public class Terrain
         {

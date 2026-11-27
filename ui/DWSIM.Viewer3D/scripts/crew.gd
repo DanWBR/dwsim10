@@ -245,10 +245,10 @@ func _process(delta: float) -> void:
 
 
 func _step(p: Dictionary, delta: float) -> void:
-	var n: Node3D = p["node"]
-	if not is_instance_valid(n):
+	if not is_instance_valid(p["node"]):
 		_people.erase(p)
 		return
+	var n: Node3D = p["node"]
 	var st: Dictionary = p["steps"][p["i"]]
 	if st.has("walk"):
 		_play(p, "walk")

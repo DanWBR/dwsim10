@@ -55,6 +55,10 @@ var site_builder: SiteBuilder
 ## Whether the site is made of objects the user can change (DWSIM's scene says it).
 var site_adopted := false
 var site_root: Node3D
+## The relief of the ground (terrain.gd).
+var terrain: SiteTerrain
+## The heights the window last sent to DWSIM, so their echo in the scene is not loaded again.
+var _terrain_sent := ""
 var title_panel: PanelContainer
 var _pending_select := ""
 var animate := true
@@ -117,6 +121,9 @@ var _fitted := false
 func _ready() -> void:
 	get_window().title = "DWSIM 3D"
 	_build_world()
+	terrain = SiteTerrain.new(self)
+	world.add_child(terrain)
+	SiteObjects.terrain = terrain
 	_build_hud()
 	editor = LayoutEditor.new(self)
 	add_child(editor)
@@ -391,12 +398,15 @@ func _load_scene(scene: Dictionary) -> void:
 	entries.clear()
 	scene_name = str(scene.get("name", scene_name))
 	_read_site(scene.get("site"))
+	# the relief first, so the objects of the site sit on it
+	terrain.load_from(scene.get("terrain"), false)
 	for it in scene.get("items", []):
 		if it is Dictionary:
 			_add_item(it)
 	_set_lines(scene.get("lines", []))
 	_set_rack(scene.get("rack", null))
 	warnings = scene.get("warnings", [])
+	terrain.rebuild_all()
 	_after_change()
 	if not _fitted:
 		_fitted = true
@@ -426,7 +436,34 @@ func _apply_delta(m: Dictionary) -> void:
 		warnings = m["warnings"]
 	if m.has("site"):
 		_read_site(m["site"])
+	if m.has("terrain"):
+		var t = m["terrain"]
+		var sent: bool = t is Dictionary and str(t.get("h", "")) == _terrain_sent and _terrain_sent != ""
+		if not sent:
+			terrain.load_from(t)
+			redrape()
 	_after_change()
+
+
+## Draws the objects of the site again, on the relief as it is now.
+func redrape() -> void:
+	for id in entries.keys():
+		var d: Dictionary = entries[id]["data"]
+		if entries[id]["kind"] == "item" and d.has("site"):
+			_remove_entry(id)
+			_add_item(d)
+
+
+## Sends the relief to DWSIM after a stroke of a brush, and puts the site back on it.
+func send_terrain() -> void:
+	var t := terrain.to_dict()
+	_terrain_sent = str(t["h"])
+	link.send({"type": "terrain", "terrain": t})
+	redrape()
+	if props != null:
+		props.refresh()
+	if surroundings != null:
+		surroundings.relight()
 
 
 func _read_site(site) -> void:

@@ -102,6 +102,8 @@ const BUILDINGS := {
 const AREA_LIFT := {"grass": 0.014, "woods": 0.016, "gravel": 0.018, "concrete": 0.022, "asphalt": 0.026, "parking": 0.026, "bund": 0.022}
 
 static var _scenes := {}
+## The relief of the ground (terrain.gd); the objects sit on it. Null while there is none.
+static var terrain = null
 static var _mats := {}
 static var _catalog := {}
 
@@ -298,6 +300,46 @@ static func local_points(it: Dictionary) -> PackedVector3Array:
 	return pts
 
 
+## The height of the ground at a place of the world above the plant's ground, m.
+static func ground_at(x: float, z: float) -> float:
+	if terrain == null or not terrain.has_grid():
+		return 0.0
+	return terrain.height_at(x, z)
+
+
+## Whether the ground rises or sinks under the points (world), with a margin.
+static func _bumpy(node: Node3D, pts: PackedVector3Array, margin: float) -> bool:
+	if terrain == null or not terrain.has_grid() or pts.is_empty():
+		return false
+	var r := Rect2(Vector2(pts[0].x, pts[0].z), Vector2.ZERO)
+	for p in pts:
+		r = r.expand(Vector2(p.x, p.z))
+	r.position += Vector2(node.position.x, node.position.z)
+	return terrain.bumpy(r.grow(margin))
+
+
+## The points (relative to the node, which stands on the plant's ground) raised onto the relief.
+static func _lift(node: Node3D, pts: PackedVector3Array) -> PackedVector3Array:
+	var out := PackedVector3Array()
+	for p in pts:
+		out.append(Vector3(p.x, ground_at(node.position.x + p.x, node.position.z + p.z), p.z))
+	return out
+
+
+## The points of a line split every 2 m and raised onto the relief, so the line follows the slopes.
+static func _drape(node: Node3D, pts: PackedVector3Array) -> PackedVector3Array:
+	var out := PackedVector3Array()
+	for i in pts.size():
+		if i > 0:
+			var a := pts[i - 1]
+			var b := pts[i]
+			var n := maxi(1, int(ceil(a.distance_to(b) / 2.0)))
+			for k in range(1, n):
+				out.append(a.lerp(b, float(k) / n))
+		out.append(pts[i])
+	return _lift(node, out)
+
+
 static func _seed(it: Dictionary) -> int:
 	var key := str(it.get("id", ""))
 	if key == "":
@@ -321,6 +363,7 @@ static func build(node: Node3D, it: Dictionary) -> void:
 		_area(node, kind, local_points(it), it)
 		return
 	node.rotation.y = deg_to_rad(float(it.get("rot", 0)))
+	node.position.y += ground_at(node.position.x, node.position.z)
 	var body := Node3D.new()
 	if kind in VARIED:
 		scale *= 0.85 + 0.3 * float(absi(_seed(it)) % 1000) / 1000.0
@@ -793,6 +836,11 @@ static func _strip(parent: Node3D, a: Vector3, b: Vector3, w: float, h: float, l
 static func _line(node: Node3D, kind: String, pts: PackedVector3Array, it: Dictionary) -> void:
 	var e := entry(kind)
 	var w := float(e.get("w", 1.0))
+	# on the relief: the corners raised onto it, and the runs split so they follow it
+	var corners := pts
+	if _bumpy(node, pts, w + 2.0):
+		corners = _lift(node, pts)
+		pts = _drape(node, pts)
 	var segs := _segments(pts)
 	match kind:
 		"road", "path":
@@ -801,7 +849,7 @@ static func _line(node: Node3D, kind: String, pts: PackedVector3Array, it: Dicti
 			for s in segs:
 				_strip(node, s[0], s[1], w, 0.02, lift, mat).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			# round joints so the bends are not notched
-			for i in range(1, pts.size() - 1):
+			for i in range(1, corners.size() - 1):
 				var c := CylinderMesh.new()
 				c.top_radius = w / 2.0
 				c.bottom_radius = w / 2.0
@@ -810,23 +858,25 @@ static func _line(node: Node3D, kind: String, pts: PackedVector3Array, it: Dicti
 				var mi := MeshInstance3D.new()
 				mi.mesh = c
 				mi.material_override = mat
-				mi.position = pts[i] + Vector3(0, lift + 0.01, 0)
+				mi.position = corners[i] + Vector3(0, lift + 0.01, 0)
 				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 				node.add_child(mi)
 			if kind == "road":
-				for s in segs:
+				for s in _segments(corners):
 					var a: Vector3 = s[0]
 					var b: Vector3 = s[1]
 					var n := int(a.distance_to(b) / 6.0)
 					for k in range(1, n):
 						var p := a.lerp(b, float(k) / n)
 						var q := a.lerp(b, minf(1.0, (float(k) + 0.4) / n))
+						p.y = ground_at(node.position.x + p.x, node.position.z + p.z) if corners != pts else p.y
+						q.y = ground_at(node.position.x + q.x, node.position.z + q.z) if corners != pts else q.y
 						_strip(node, p, q, 0.15, 0.005, lift + 0.02, _mat("white"))
 		"fence":
 			for s in segs:
 				_fence(node, s[0], s[1], 2.2)
 		"powerline":
-			_power_line(node, pts)
+			_power_line(node, corners)
 		"wall":
 			for s in segs:
 				_strip(node, s[0], s[1], w, 2.5, 0.0, _mat("wall"))
@@ -835,12 +885,14 @@ static func _line(node: Node3D, kind: String, pts: PackedVector3Array, it: Dicti
 				_strip(node, s[0], s[1], w, 1.2, 0.0, _mat("hedge"))
 		"treerow":
 			var spots := PackedVector3Array()
-			for s in segs:
+			var runs := _segments(corners)
+			for s in runs:
 				var a: Vector3 = s[0]
 				var b: Vector3 = s[1]
 				var n := maxi(1, int(a.distance_to(b) / 6.0))
-				for k in n + (1 if s == segs[-1] else 0):
+				for k in n + (1 if s == runs[-1] else 0):
 					spots.append(a.lerp(b, float(k) / n))
+			spots = _lift(node, spots) if corners != pts else spots
 			var rng := RandomNumberGenerator.new()
 			rng.seed = _seed(it)
 			_forest(node, spots, rng)
@@ -914,10 +966,15 @@ static func _area(node: Node3D, kind: String, pts: PackedVector3Array, it: Dicti
 		return
 	var lift: float = AREA_LIFT.get(kind, 0.02)
 	var key: String = {"parking": "asphalt"}.get(kind, kind)
-	_polygon(node, pts, lift, _mat(key if key in ["concrete", "asphalt", "gravel", "grass", "woods", "bund"] else "#9aa0a6"))
+	var mat := _mat(key if key in ["concrete", "asphalt", "gravel", "grass", "woods", "bund"] else "#9aa0a6")
+	var on_relief := _bumpy(node, pts, 1.0)
 	var flat := PackedVector2Array()
 	for p in pts:
 		flat.append(Vector2(p.x, p.z))
+	if on_relief:
+		_draped_polygon(node, flat, lift, mat)
+	else:
+		_polygon(node, pts, lift, mat)
 	match kind:
 		"woods":
 			var rng := RandomNumberGenerator.new()
@@ -934,6 +991,8 @@ static func _area(node: Node3D, kind: String, pts: PackedVector3Array, it: Dicti
 				var p := Vector2(rng.randf_range(box.position.x, box.end.x), rng.randf_range(box.position.y, box.end.y))
 				if Geometry2D.is_point_in_polygon(p, flat):
 					spots.append(Vector3(p.x, 0, p.y))
+			if on_relief:
+				spots = _lift(node, spots)
 			_forest(node, spots, rng)
 		"parking":
 			# stalls 2.5 m wide and 5 m deep along the first side, in rows 6 m apart
@@ -952,12 +1011,55 @@ static func _area(node: Node3D, kind: String, pts: PackedVector3Array, it: Dicti
 					var p0 := a + along * s + across * row
 					var p1 := p0 + across * 5.0
 					if Geometry2D.is_point_in_polygon(Vector2(p0.x, p0.z), flat) and Geometry2D.is_point_in_polygon(Vector2(p1.x, p1.z), flat):
+						if on_relief:
+							var lifted := _lift(node, PackedVector3Array([p0, p1]))
+							p0 = lifted[0]
+							p1 = lifted[1]
 						_strip(node, p0, p1, 0.12, 0.005, lift + 0.01, _mat("white"))
 					s += 2.5
 				row += 11.0
 		"bund":
-			for i in pts.size():
-				_strip(node, pts[i], pts[(i + 1) % pts.size()], 0.25, 1.0, 0.0, _mat("bund"))
+			var ring := pts.duplicate()
+			ring.append(pts[0])
+			var walls := _drape(node, ring) if on_relief else ring
+			for s in _segments(walls):
+				_strip(node, s[0], s[1], 0.25, 1.0, 0.0, _mat("bund"))
+
+
+## An area laid over the relief: the cells of the ground grid whose middle lies inside the outline,
+## each a quad at the heights of its corners.
+static func _draped_polygon(node: Node3D, flat: PackedVector2Array, lift: float, mat: Material) -> void:
+	var cell: float = terrain.CELL
+	var box := Rect2(flat[0], Vector2.ZERO)
+	for p in flat:
+		box = box.expand(p)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var ox := node.position.x
+	var oz := node.position.z
+	var x := floorf((box.position.x + ox) / cell) * cell - ox
+	var any := false
+	while x < box.end.x:
+		var z := floorf((box.position.y + oz) / cell) * cell - oz
+		while z < box.end.y:
+			if Geometry2D.is_point_in_polygon(Vector2(x + cell / 2.0, z + cell / 2.0), flat):
+				any = true
+				var c := [Vector3(x, 0, z), Vector3(x + cell, 0, z), Vector3(x + cell, 0, z + cell), Vector3(x, 0, z + cell)]
+				for k in 4:
+					c[k].y = ground_at(ox + c[k].x, oz + c[k].z) + lift
+				for t in [[0, 1, 2], [0, 2, 3]]:
+					for k in t:
+						st.set_normal(Vector3.UP)
+						st.add_vertex(c[k])
+			z += cell
+		x += cell
+	if not any:
+		return
+	var mi := MeshInstance3D.new()
+	mi.mesh = st.commit()
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	node.add_child(mi)
 
 
 static func _signed_area(flat: PackedVector2Array) -> float:

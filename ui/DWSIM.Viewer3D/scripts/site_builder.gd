@@ -75,6 +75,14 @@ func _ready() -> void:
 	_rect.material_override = _ghost_mat(Color(0.95, 0.3, 0.1, 0.3))
 	_rect.visible = false
 	add_child(_rect)
+	_ring = MeshInstance3D.new()
+	var rm := StandardMaterial3D.new()
+	rm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	rm.vertex_color_use_as_albedo = true
+	rm.no_depth_test = true
+	_ring.material_override = rm
+	_ring.visible = false
+	add_child(_ring)
 	# the stage the pictures of the objects are taken on: a world of its own, out of sight
 	_stage = SubViewport.new()
 	_stage.size = THUMB
@@ -115,16 +123,29 @@ func set_catalog(entries: Array) -> void:
 	_catalog = entries
 	SiteObjects.set_catalog(entries)
 	for c in _cat_buttons.keys():
-		(_cat_buttons[c] as Button).visible = _catalog.any(func(x): return str(x.get("cat", "")) == c)
+		(_cat_buttons[c] as Button).visible = c == "Terrain" or _catalog.any(func(x): return str(x.get("cat", "")) == c)
 	if _category != "":
 		_fill(_category)
 
 
 # --- the bar ---------------------------------------------------------------------------------
 
-const CATEGORIES := ["Buildings", "Roads and paving", "Fences and barriers", "Nature", "Vehicles", "Safety", "Utilities"]
+const CATEGORIES := ["Buildings", "Roads and paving", "Fences and barriers", "Nature", "Vehicles", "Safety", "Utilities", "Terrain"]
 const SHORT := {"Buildings": "Buildings", "Roads and paving": "Roads", "Fences and barriers": "Fences",
-	"Nature": "Nature", "Vehicles": "Vehicles", "Safety": "Safety", "Utilities": "Utilities"}
+	"Nature": "Nature", "Vehicles": "Vehicles", "Safety": "Safety", "Utilities": "Utilities", "Terrain": "Terrain"}
+
+## The brushes of the terrain: name and what it does.
+const BRUSHES := [["raise", "Raise", "Builds the ground up"], ["lower", "Lower", "Digs the ground down"],
+	["level", "Level", "Brings the ground to the height where you press"], ["smooth", "Smooth", "Evens out bumps and steps"],
+	["pond", "Pond", "Digs a bowl and fills it with water up to the height where you press"], ["drain", "Drain", "Takes the water away"]]
+const SIZES := [["Small", 4.0], ["Medium", 8.0], ["Large", 14.0]]
+
+## The brush of the terrain in hand ("" when none), its radius, and where it is.
+var brush := ""
+var brush_radius := 8.0
+var _ring: MeshInstance3D
+var _painting := false
+var _target := 0.0
 
 
 func build_bar(style: StyleBox) -> PanelContainer:
@@ -299,7 +320,12 @@ static func money(v: float) -> String:
 
 func _fill(c: String) -> void:
 	for ch in _grid.get_children():
+		# out of the grid at once, so the new tiles keep their names
+		_grid.remove_child(ch)
 		ch.queue_free()
+	if c == "Terrain":
+		_fill_terrain()
+		return
 	for e in _catalog:
 		if str(e.get("cat", "")) != c:
 			continue
@@ -327,13 +353,48 @@ func _shape() -> String:
 	return SiteObjects.shape_of(kind) if kind != "" else ""
 
 
+## The tiles of the terrain: the brushes, and the sizes of the brush.
+func _fill_terrain() -> void:
+	for b in BRUSHES:
+		var t := Button.new()
+		t.name = "terrain_" + b[0]
+		t.focus_mode = Control.FOCUS_NONE
+		t.custom_minimum_size = Vector2(118, 60)
+		t.text = b[1]
+		t.tooltip_text = b[2]
+		t.toggle_mode = true
+		t.button_pressed = brush == b[0]
+		var k: String = b[0]
+		t.pressed.connect(func(): start_brush(k))
+		_grid.add_child(t)
+	for s in SIZES:
+		var t := Button.new()
+		t.name = "size_" + str(s[0]).to_lower()
+		t.focus_mode = Control.FOCUS_NONE
+		t.custom_minimum_size = Vector2(118, 40)
+		t.text = "%s brush (%d m)" % [s[0], int(s[1])]
+		t.toggle_mode = true
+		t.button_pressed = absf(brush_radius - float(s[1])) < 0.1
+		var r: float = s[1]
+		t.pressed.connect(func():
+			brush_radius = r
+			_fill("Terrain"))
+		_grid.add_child(t)
+
+
 func _update_hint() -> void:
 	if _hint == null:
 		return
 	if bar != null:
 		bar.reset_size.call_deferred()
 	var name := str(SiteObjects.entry(kind).get("name", kind))
-	if demolishing:
+	if brush != "":
+		var what := ""
+		for b in BRUSHES:
+			if b[0] == brush:
+				what = b[2]
+		_hint.text = "Terrain, %s: %s. Hold the left button and move over the ground; the plant's platform stays flat. Esc stops." % [brush, what.to_lower()]
+	elif demolishing:
 		_hint.text = "Demolish: click an object of the site, or drag a rectangle over several. The equipment stays. Esc stops."
 	elif kind == "":
 		_hint.text = "Pick a category and an object to build. Drag a built object to move it, T turns it, Del demolishes it. U closes the bar."
@@ -455,8 +516,22 @@ func start_demolish() -> void:
 	_update_hint()
 
 
+## Takes a brush of the terrain in hand.
+func start_brush(k: String) -> void:
+	stop()
+	brush = k
+	_fill("Terrain")
+	_update_hint()
+
+
 func stop() -> void:
 	kind = ""
+	if _painting:
+		_painting = false
+		main.send_terrain()
+	brush = ""
+	if _ring != null:
+		_ring.visible = false
 	demolishing = false
 	if _demolish_button != null:
 		_demolish_button.button_pressed = false
@@ -506,12 +581,14 @@ func _ground_y() -> float:
 	return main._bounds().position.y
 
 
+## Where the mouse points on the ground, relief included; the point carries the plant's ground height
+## (the objects add the relief themselves).
 func _ground(screen: Vector2):
 	var cam: Camera3D = main.rig.camera
-	var dir := cam.project_ray_normal(screen)
-	if absf(dir.y) < 0.05:
+	var g = main.terrain.ray(cam.project_ray_origin(screen), cam.project_ray_normal(screen))
+	if g == null:
 		return null
-	return Plane(Vector3.UP, _ground_y()).intersects_ray(cam.project_ray_origin(screen), dir)
+	return Vector3(g.x, _ground_y(), g.z)
 
 
 ## The half sizes (x, z, m) of the footprint of a point kind turned by rot degrees.
@@ -686,6 +763,9 @@ func handle(event: InputEvent) -> bool:
 		if ke.keycode == KEY_U and not ke.ctrl_pressed:
 			toggle()
 			return true
+		if brush != "" and ke.keycode == KEY_ESCAPE:
+			stop()
+			return true
 		if kind == "" and not demolishing:
 			return false
 		match ke.keycode:
@@ -721,6 +801,8 @@ func handle(event: InputEvent) -> bool:
 						_paint(fits(kind, _ghost.position, rot))
 					return true
 		return false
+	if brush != "":
+		return _sculpt(event)
 	if demolishing:
 		return _demolish(event)
 	if kind == "":
@@ -737,6 +819,7 @@ func _place(event: InputEvent) -> bool:
 			_ghost.visible = g != null
 			if g != null:
 				_ghost.position = _snap(g)
+				_ghost.position.y += SiteObjects.ground_at(_ghost.position.x, _ghost.position.z)
 				_ghost.rotation.y = deg_to_rad(rot)
 				_paint(fits(kind, _ghost.position, rot))
 		return false
@@ -824,6 +907,68 @@ func _draw(event: InputEvent) -> bool:
 			_finish()
 		return true
 	return false
+
+
+# --- the terrain -----------------------------------------------------------------------------------
+
+func _sculpt(event: InputEvent) -> bool:
+	var cam: Camera3D = main.rig.camera
+	if event is InputEventMouseMotion:
+		var at := (event as InputEventMouseMotion).position
+		var g = main.terrain.ray(cam.project_ray_origin(at), cam.project_ray_normal(at))
+		_cursor = g
+		_draw_ring()
+		return false
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
+			stop()
+			return true
+		if mb.button_index != MOUSE_BUTTON_LEFT:
+			return false
+		if mb.pressed:
+			var g = main.terrain.ray(cam.project_ray_origin(mb.position), cam.project_ray_normal(mb.position))
+			if g != null:
+				_cursor = g
+				_painting = true
+				_target = main.terrain.height_at(g.x, g.z)
+			return true
+		if _painting:
+			_painting = false
+			main.send_terrain()
+		return true
+	return false
+
+
+## Brushes the ground while the left button is held.
+func _physics_process(delta: float) -> void:
+	if _painting and _cursor != null and brush != "":
+		var changed: Array = main.terrain.brush(brush, _cursor, brush_radius, delta, _target)
+		main.terrain.rebuild_chunks(changed)
+		_draw_ring()
+
+
+## The ring of the brush on the ground: white, or red over the platform of the plant.
+func _draw_ring() -> void:
+	if _cursor == null:
+		_ring.visible = false
+		return
+	var t: SiteTerrain = main.terrain
+	t.update_lock()
+	var c: Vector3 = _cursor
+	var red := t.locked.has_point(Vector2(c.x, c.z))
+	var im := ImmediateMesh.new()
+	im.surface_begin(Mesh.PRIMITIVE_LINE_STRIP)
+	var y := t.ground_y()
+	for i in 49:
+		var a := TAU * i / 48.0
+		var p := Vector3(c.x + cos(a) * brush_radius, 0, c.z + sin(a) * brush_radius)
+		p.y = y + t.height_at(p.x, p.z) + 0.15
+		im.surface_set_color(Color(0.95, 0.25, 0.2) if red else Color(1, 1, 1))
+		im.surface_add_vertex(p)
+	im.surface_end()
+	_ring.mesh = im
+	_ring.visible = true
 
 
 func _demolish(event: InputEvent) -> bool:
