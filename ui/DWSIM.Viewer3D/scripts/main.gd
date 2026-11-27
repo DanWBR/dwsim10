@@ -18,6 +18,9 @@ const SHORTCUTS := [
 	["I", "Insulation"],
 	["R", "Pipe rack"],
 	["G", "Grid"],
+	["P", "Equipment palette"],
+	["C", "Connect nozzles"],
+	["Del", "Delete the selection"],
 	["Drag", "Move on the 0.5 m grid (Alt: freely)"],
 	["Arrows", "Nudge 0.5 m (Shift: 0.1 m)"],
 	["PgUp / PgDn", "Raise / lower 0.5 m"],
@@ -32,6 +35,9 @@ var link: DwsimLink
 var rig: CameraRig
 var builder := SceneBuilder.new()
 var editor: LayoutEditor
+var tools: BuildTools
+var title_panel: PanelContainer
+var _pending_select := ""
 
 var world: Node3D
 var items_root: Node3D
@@ -80,6 +86,11 @@ func _ready() -> void:
 	var edit_panel := editor.build_panel(_panel_style())
 	edit_panel.theme = _light_theme()
 	hud.add_child(edit_panel)
+	tools = BuildTools.new(self)
+	add_child(tools)
+	var palette := tools.build_panel(_panel_style())
+	palette.theme = _light_theme()
+	hud.add_child(palette)
 	rig = CameraRig.new()
 	add_child(rig)
 	link = DwsimLink.new()
@@ -242,6 +253,7 @@ func _on_message(m: Dictionary) -> void:
 	match str(m.get("type", "")):
 		"welcome":
 			scene_name = str(m.get("name", ""))
+			tools.set_palette(m.get("palette", []))
 			_update_title()
 		"scene.full":
 			_load_scene(m.get("scene", {}))
@@ -251,6 +263,8 @@ func _on_message(m: Dictionary) -> void:
 			_set_selection(m.get("ids", []), false)
 		"capture":
 			_capture_for_link(m)
+		"added":
+			_pending_select = str(m.get("id", ""))
 		"error":
 			_show_toast("DWSIM: " + str(m.get("message", "")))
 		"bye":
@@ -309,7 +323,13 @@ func _after_change() -> void:
 	_hover_tip.visible = false
 	_mouse_dirty = true
 	_fit_ground()
-	_set_selection(selected.filter(func(id): return entries.has(id)), false)
+	if _pending_select != "" and entries.has(_pending_select):
+		_set_selection([_pending_select], true)
+		_pending_select = ""
+	else:
+		_set_selection(selected.filter(func(id): return entries.has(id)), false)
+	if tools != null:
+		tools.refresh_ports()
 	_update_title()
 
 
@@ -495,6 +515,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
 		_mouse = (event as InputEventMouseMotion).position
 		_mouse_dirty = true
+	if tools != null and tools.handle(event):
+		return
 	if editor != null and editor.handle(event):
 		return
 	if event is InputEventMouseButton:
@@ -629,6 +651,7 @@ func _build_hud() -> void:
 	add_child(hud)
 
 	var top := PanelContainer.new()
+	title_panel = top
 	top.add_theme_stylebox_override("panel", _panel_style())
 	top.position = Vector2(12, 12)
 	var vb := VBoxContainer.new()
@@ -693,6 +716,8 @@ func _process(delta: float) -> void:
 	info_panel.position = Vector2(size.x - info_panel.size.x - 12, card.position.y + (card.size.y + 12 if card.visible else 0))
 	toast.position = Vector2(14, size.y - 34)
 	_update_hover()
+	if tools != null and tools.palette_panel != null:
+		tools.palette_panel.position = Vector2(12, title_panel.position.y + title_panel.size.y + 12)
 	if editor != null and editor.panel != null:
 		editor.panel.position = Vector2(size.x - editor.panel.size.x - 12, size.y - editor.panel.size.y - 12)
 	if _toast_time > 0.0:

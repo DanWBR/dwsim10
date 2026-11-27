@@ -17,6 +17,7 @@ var _x: SpinBox
 var _y: SpinBox
 var _z: SpinBox
 var _multi: HBoxContainer
+var _tag: LineEdit
 var _updating := false
 
 var _pending_id := ""
@@ -259,6 +260,18 @@ func build_panel(style: StyleBox) -> PanelContainer:
 	var g := GridContainer.new()
 	g.columns = 2
 	vb.add_child(g)
+	var tl := Label.new()
+	tl.text = "Tag"
+	tl.add_theme_color_override("font_color", Color(0.36, 0.42, 0.48))
+	g.add_child(tl)
+	_tag = LineEdit.new()
+	_tag.custom_minimum_size = Vector2(140, 0)
+	_tag.text_submitted.connect(func(t):
+		var ids := movable()
+		if not ids.is_empty() and t.strip_edges() != "":
+			main.link.send({"type": "rename", "id": ids[0], "tag": t.strip_edges()})
+		_tag.release_focus())
+	g.add_child(_tag)
 	_x = _spin(g, "X", -100000.0, 100000.0, func(v): set_axis("x", v))
 	_y = _spin(g, "Y", -100000.0, 100000.0, func(v): set_axis("y", v))
 	_z = _spin(g, "Elevation", -50.0, 300.0, func(v): set_axis("z", v))
@@ -313,6 +326,8 @@ func refresh() -> void:
 	_x.set_value_no_signal(snappedf(p.x, 0.01))
 	_y.set_value_no_signal(snappedf(-p.z, 0.01))
 	_z.set_value_no_signal(snappedf(p.y, 0.01))
+	if not _tag.has_focus():
+		_tag.text = str(main.entries[ids[0]]["data"].get("tag", ""))
 	_updating = false
 	_multi.visible = ids.size() > 1
 	panel.size = Vector2.ZERO  # shrink to the rows that show

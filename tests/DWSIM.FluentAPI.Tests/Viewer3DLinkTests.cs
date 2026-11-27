@@ -190,6 +190,56 @@ namespace DWSIM.FluentAPI.Tests
         }
 
         [Test]
+        public void BuildingInTheWindowUndoesStepByStep()
+        {
+            var fs = PumpAndHeater();
+            var link = new FlowsheetLink(fs.Inner);
+            link.Sync();
+            string Type(JObject a) => (string)a["type"];
+
+            var added = link.Handle(Command(SceneProtocol.Add, new { objectType = "Cooler", tag = "C-1", x = 30000, y = 0 }));
+            var cooler = (string)added["id"];
+            var product = link.Handle(Command(SceneProtocol.Connect, new { from = cooler }));
+            Assert.That(Type(product), Is.EqualTo(SceneProtocol.Added), (string)product["message"]);
+            var feed = link.Handle(Command(SceneProtocol.Connect, new { to = cooler }));
+            Assert.That(Type(feed), Is.EqualTo(SceneProtocol.Added), (string)feed["message"]);
+            var go = fs.Inner.GraphicObjects[cooler];
+            Assert.That(go.InputConnectors[0].IsAttached && go.OutputConnectors[0].IsAttached, "a feed on the inlet and a product on the outlet");
+            Assert.That(Type(link.Handle(Command(SceneProtocol.Connect, new { to = cooler }))), Is.EqualTo(SceneProtocol.Error), "the inlet is taken now");
+
+            link.Sync();
+            var ports = Item(link.Scene, cooler)["ports"];
+            Assert.That(ports.Select(p => (string)p["k"]), Is.EquivalentTo(new[] { "in", "out" }), "material nozzles only");
+            Assert.That(ports.All(p => (bool)p["used"]), "both nozzles carry a stream");
+            Assert.That(link.Scene["lines"].Select(l => (string)l["id"]), Does.Contain((string)feed["id"]), "the feed is a line to the battery limit");
+
+            link.Handle(Command(SceneProtocol.Undo));
+            link.Handle(Command(SceneProtocol.Undo));
+            Assert.That(fs.Inner.SimulationObjects.ContainsKey((string)feed["id"]), Is.False, "undo takes the feed back");
+            Assert.That(fs.Inner.SimulationObjects.ContainsKey((string)product["id"]), Is.False, "and then the product");
+            Assert.That(fs.Inner.GraphicObjects[cooler].OutputConnectors[0].IsAttached, Is.False);
+            link.Handle(Command(SceneProtocol.Undo));
+            Assert.That(fs.Inner.SimulationObjects.ContainsKey(cooler), Is.False, "and then the cooler");
+            Assert.That(PlantLayout.Load(fs.Inner).ContainsKey(cooler), Is.False, "with its place");
+            link.Handle(Command(SceneProtocol.Redo));
+            Assert.That(fs.Inner.SimulationObjects.ContainsKey(cooler), Is.True, "redo brings the cooler back");
+
+            var pump = Id(fs, "P-1");
+            var feedOfPump = Id(fs, "1");
+            Assert.That(Type(link.Handle(Command(SceneProtocol.Delete, new { ids = new[] { pump } }))), Is.EqualTo(SceneProtocol.Ack));
+            Assert.That(fs.Inner.SimulationObjects.ContainsKey(pump), Is.False);
+            link.Handle(Command(SceneProtocol.Undo));
+            Assert.That(fs.Inner.SimulationObjects.ContainsKey(pump), Is.True, "undo brings a deleted pump back");
+            Assert.That(fs.Inner.GraphicObjects[pump].InputConnectors[0].AttachedConnector?.AttachedFrom?.Name, Is.EqualTo(feedOfPump), "with its connections");
+
+            var heater = Id(fs, "E-1");
+            link.Handle(Command(SceneProtocol.Rename, new { id = heater, tag = "E-101" }));
+            Assert.That(fs.Inner.GraphicObjects[heater].Tag, Is.EqualTo("E-101"));
+            link.Handle(Command(SceneProtocol.Undo));
+            Assert.That(fs.Inner.GraphicObjects[heater].Tag, Is.EqualTo("E-1"), "undo takes a new tag back");
+        }
+
+        [Test]
         public void BadCommandsAreAnsweredWithAnError()
         {
             var fs = PumpAndHeater();
@@ -249,7 +299,9 @@ namespace DWSIM.FluentAPI.Tests
                 using (var window = Connect(link.Port))
                 {
                     window.Writer.Write(SceneProtocol.Encode(Command(SceneProtocol.Hello, new { token = link.Token, version = SceneProtocol.Version })));
-                    Assert.That((string)window.Next()["type"], Is.EqualTo(SceneProtocol.Welcome));
+                    var welcome = window.Next();
+                    Assert.That((string)welcome["type"], Is.EqualTo(SceneProtocol.Welcome));
+                    Assert.That(welcome["palette"].Select(e => (string)e["objectType"]), Does.Contain("DistillationColumn"), "the welcome carries the palette");
                     var full = window.Until(SceneProtocol.SceneFull);
                     var pumpId = Id(fs, "P-1");
                     Assert.That(Item((JObject)full["scene"], pumpId), Is.Not.Null);

@@ -19,7 +19,101 @@ func _init(owner_main: Node3D, id: String, folder: String) -> void:
 
 func _ready() -> void:
 	DirAccess.make_dir_recursive_absolute(out_dir)
-	_run()
+	if item_id == "build":
+		_run_build()
+	else:
+		_run()
+
+
+## The building self-test ("--selftest-item=build"): add a cooler from the palette, give it a feed
+## and a product from its nozzles, rename it, delete it and undo the delete.
+func _run_build() -> void:
+	OS.low_processor_usage_mode = false
+	for i in 300:
+		if not main.entries.is_empty():
+			break
+		await _wait(0.1)
+	await _wait(1.0)
+	var before: Array = main.entries.keys()
+
+	# the palette button, then the ground 8 m past the east end of the plant
+	var button: Button = main.tools.palette_panel.find_child("add_Cooler", true, false)
+	if button == null:
+		push_error("selftest: no Cooler in the palette")
+		return
+	await _click(button.get_global_rect().get_center())
+	var box: AABB = main._bounds()
+	# south of the plant, which the isometric view shows at the bottom, clear of the panels
+	var spot := Vector3(box.get_center().x, 0.0, box.end.z + 8.0)
+	var cam: Camera3D = main.rig.camera
+	var at := cam.unproject_position(spot)
+	_mouse_move(at, 0)
+	await get_tree().process_frame
+	await _click(at)
+	await _wait(2.5)
+	var cooler := ""
+	for id in main.entries.keys():
+		if not before.has(id) and str(main.entries[id]["data"].get("type", "")) == "Cooler":
+			cooler = id
+	if cooler == "":
+		push_error("selftest: the cooler did not come")
+		return
+	await _shot("build_1_added", false)
+
+	# the connect tool: outlet to the ground (a product), then inlet to the ground (a feed); the
+	# selection and the card go away first, so their panels cover none of the nozzles
+	_key(KEY_ESCAPE)
+	_key(KEY_F1)
+	_key(KEY_F)
+	await _wait(0.5)
+	cam = main.rig.camera
+	_key(KEY_C)
+	await _wait(0.5)
+	for kind in ["out", "in"]:
+		var port := _port(cooler, kind)
+		if port == null:
+			push_error("selftest: no free " + kind + " nozzle")
+			return
+		var p_at := cam.unproject_position(port.global_position)
+		await _click(p_at)
+		var away := port.global_position + Vector3(6.0 if kind == "out" else -6.0, 0, 0)
+		away.y = 0.0
+		var g_at := cam.unproject_position(away)
+		_mouse_move(g_at, 0)
+		await _click(g_at)
+		await _wait(2.5)
+	await _shot("build_2_connected", false)
+	_key(KEY_ESCAPE)
+	await _wait(0.3)
+
+	# rename through the panel, delete with the Delete key, and undo the delete
+	main._set_selection([cooler], true)
+	await _wait(0.5)
+	main.editor._tag.text = "E-901"
+	main.editor._tag.text_submitted.emit("E-901")
+	await _wait(2.0)
+	main._set_selection([cooler], true)
+	_key(KEY_DELETE)
+	await _wait(2.0)
+	_key(KEY_Z, true)
+	await _wait(2.5)
+	await _shot("build_3_final")
+	main.link.send({"type": "select", "ids": [cooler]})
+
+
+func _port(id: String, kind: String) -> Node3D:
+	for mi in main.tools._ports_root.get_children():
+		var p: Dictionary = mi.get_meta("port")
+		if p["id"] == id and p["k"] == kind and not p["used"]:
+			return mi
+	return null
+
+
+func _click(at: Vector2) -> void:
+	_mouse_button(at, true)
+	await get_tree().process_frame
+	_mouse_button(at, false)
+	await get_tree().process_frame
 
 
 func _wait(seconds: float) -> void:

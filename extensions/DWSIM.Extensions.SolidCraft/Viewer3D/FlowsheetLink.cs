@@ -178,6 +178,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                 var welcome = SceneProtocol.Message(SceneProtocol.Welcome);
                 welcome["version"] = SceneProtocol.Version;
                 welcome["name"] = PlantModelExtender.ModelName(fs);
+                welcome["palette"] = Palette.ToJson();
                 Send(welcome);
                 Refresh();
                 Connected?.Invoke(this, EventArgs.Empty);
@@ -431,16 +432,34 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
         /// <summary>The lowest and highest elevation an item may be placed at, mm.</summary>
         public const double MinElevation = -50000, MaxElevation = 300000;
 
-        // The 3D layout keeps its own undo history, separate from the flowsheet's: the window's
-        // Ctrl+Z takes back the last move made in 3D and nothing of the 2D drawing.
+        // The window's Ctrl+Z takes back the last change made in the window: a move (the 3D layout
+        // before it) or a change of the flowsheet (the objects and connections before it, taken
+        // with the snapshot the 2D undo uses, and the layout). It keeps its own history; the 2D
+        // drawing keeps its own too, since the commands also register their 2D snapshots.
         const int UndoDepth = 100;
-        readonly List<string> undo = new List<string>(), redo = new List<string>();
 
-        void Remember()
+        sealed class Step
         {
-            undo.Add(LayoutText());
+            public string Layout;
+            public System.Xml.Linq.XDocument Flowsheet;
+        }
+
+        readonly List<Step> undo = new List<Step>(), redo = new List<Step>();
+
+        void Remember(bool flowsheet = false)
+        {
+            undo.Add(Capture(flowsheet));
             if (undo.Count > UndoDepth) undo.RemoveAt(0);
             redo.Clear();
+        }
+
+        Step Capture(bool flowsheet)
+        {
+            var step = new Step { Layout = LayoutText() };
+            if (flowsheet)
+                try { step.Flowsheet = fs.GetSnapshot(SnapshotType.ObjectAddedOrRemoved); }
+                catch (Exception) { step.Flowsheet = null; }
+            return step;
         }
 
         JObject Undo(bool back)
@@ -448,14 +467,19 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             var from = back ? undo : redo;
             var to = back ? redo : undo;
             if (from.Count == 0) return Error(back ? "there is nothing to undo" : "there is nothing to redo", back ? SceneProtocol.Undo : SceneProtocol.Redo);
-            to.Add(LayoutText());
-            var text = from[from.Count - 1];
+            var step = from[from.Count - 1];
             from.RemoveAt(from.Count - 1);
+            to.Add(Capture(step.Flowsheet != null));
+            if (step.Flowsheet != null)
+            {
+                fs.RestoreSnapshot(step.Flowsheet, SnapshotType.ObjectAddedOrRemoved);
+                try { fs.UpdateInterface(); } catch (Exception) { }
+            }
             var props = fs.ExtraProperties as IDictionary<string, object>;
             if (props != null)
             {
-                if (text == null) props.Remove(LayoutKey);
-                else props[LayoutKey] = text;
+                if (step.Layout == null) props.Remove(LayoutKey);
+                else props[LayoutKey] = step.Layout;
             }
             return null;
         }
@@ -490,6 +514,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             else { cx = 100; cy = 100; }
             FreeSpot(ref cx, ref cy);
 
+            Remember(true);
             var obj = fs.AddObject(type, (int)Math.Round(cx), (int)Math.Round(cy), (string)m["tag"] ?? "");
             if (obj == null) return Error("DWSIM did not add a " + type, SceneProtocol.Add);
 
@@ -509,13 +534,16 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
         {
             var from = Graphic((string)m["from"]);
             var to = Graphic((string)m["to"]);
-            if (from == null || to == null) return Error("both ends must be objects of the flowsheet", SceneProtocol.Connect);
-            if (from == to) return Error("an object cannot connect to itself", SceneProtocol.Connect);
-
             var fromPort = (int?)m["fromPort"];
             var toPort = (int?)m["toPort"];
+            if (m["from"] != null && from == null || m["to"] != null && to == null || from == null && to == null)
+                return Error("the ends must be objects of the flowsheet", SceneProtocol.Connect);
+            if (from == to) return Error("an object cannot connect to itself", SceneProtocol.Connect);
+            if (from == null || to == null) return Open(from, fromPort, to, toPort, (string)m["tag"]);
+
             var fromStream = IsStream(from);
             var toStream = IsStream(to);
+            Remember(true);
             Snapshot(SnapshotType.ObjectAddedOrRemoved);
 
             if (fromStream || toStream)
@@ -545,11 +573,39 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             return answer;
         }
 
+        /// <summary>
+        /// A stream from a nozzle to the battery limit: a product stream on an outlet (from), or a
+        /// feed stream on an inlet (to), drawn next to the icon in 2D.
+        /// </summary>
+        JObject Open(IGraphicObject from, int? fromPort, IGraphicObject to, int? toPort, string tag)
+        {
+            var unit = from ?? to;
+            if (IsStream(unit)) return Error("a stream needs a unit operation at its other end", SceneProtocol.Connect);
+            var list = from != null ? from.OutputConnectors : to.InputConnectors;
+            var port = (from != null ? fromPort : toPort) ?? FreePort(list);
+            if (port < 0) return Error(unit.Tag + (from != null ? " has no free outlet" : " has no free inlet"), SceneProtocol.Connect);
+            if (port >= list.Count || list[port].IsAttached) return Error("that nozzle of " + unit.Tag + " is taken", SceneProtocol.Connect);
+            double sx = from != null ? unit.X + unit.Width + 40 : unit.X - 60;
+            double sy = unit.Y + unit.Height / 2.0 - 10;
+            FreeSpot(ref sx, ref sy);
+            Remember(true);
+            Snapshot(SnapshotType.ObjectAddedOrRemoved);
+            var stream = fs.AddObject(ObjectType.MaterialStream, (int)Math.Round(sx), (int)Math.Round(sy), tag ?? "");
+            if (stream?.GraphicObject == null) return Error("DWSIM did not add the stream", SceneProtocol.Connect);
+            if (from != null) fs.ConnectObjects(from, stream.GraphicObject, port, 0);
+            else fs.ConnectObjects(stream.GraphicObject, to, 0, port);
+            var answer = SceneProtocol.Message(SceneProtocol.Added);
+            answer["id"] = stream.Name;
+            answer["tag"] = stream.GraphicObject.Tag;
+            return answer;
+        }
+
         JObject Disconnect(JObject m)
         {
             var from = Graphic((string)m["from"]);
             var to = Graphic((string)m["to"]);
             if (from == null || to == null) return Error("both ends must be objects of the flowsheet", SceneProtocol.Disconnect);
+            Remember(true);
             Snapshot(SnapshotType.ObjectAddedOrRemoved);
             fs.DisconnectObjects(from, to);
             return null;
@@ -560,6 +616,8 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             var ids = (m["ids"] as JArray)?.Select(t => (string)t).ToList() ?? new List<string>();
             var missing = ids.Where(id => Graphic(id) == null).ToList();
             if (missing.Count > 0) return Error("there is no object '" + string.Join("', '", missing) + "'", SceneProtocol.Delete);
+            if (ids.Count == 0) return Error("nothing to delete", SceneProtocol.Delete);
+            Remember(true);
             foreach (var id in ids)
             {
                 var go = Graphic(id);
@@ -578,6 +636,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             if (tag.Length == 0) return Error("a tag cannot be empty", SceneProtocol.Rename);
             if (fs.GraphicObjects.Values.Any(g => g != go && g != null && !g.IsConnector && string.Equals(g.Tag, tag, StringComparison.Ordinal)))
                 return Error("another object is already called " + tag, SceneProtocol.Rename);
+            Remember(true);
             Snapshot(SnapshotType.ObjectData, go.Owner);
             go.Tag = tag;
             return null;

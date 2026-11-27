@@ -1039,7 +1039,7 @@ namespace DWSIM.Extensions.SolidCraft
         }
 
         /// <summary>World position and outward direction of the nozzle for a connector of an icon.</summary>
-        static void Nozzle(EquipmentItem item, IGraphicObject go, IConnectionPoint cp, int index, int count, bool output, out Vec3 position, out Vec3 direction)
+        internal static void Nozzle(EquipmentItem item, IGraphicObject go, IConnectionPoint cp, int index, int count, bool output, out Vec3 position, out Vec3 direction)
         {
             double u = double.NaN, v = double.NaN;
             if (go.Width > 0 && go.Height > 0)

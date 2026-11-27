@@ -74,7 +74,8 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                     ["inst"] = item.IsInstrument,
                     ["label"] = item.Label,
                     ["props"] = WebViewer.Props(item.Properties),
-                    ["parts"] = parts
+                    ["parts"] = parts,
+                    ["ports"] = Ports(item, fs)
                 });
             }
 
@@ -112,6 +113,41 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                     ["top"] = model.Rack.Top, ["bay"] = PipeRack.BayLength, ["beam"] = PipeRack.BeamHeight
                 };
             return scene;
+        }
+
+        /// <summary>
+        /// The material nozzles of an item, where its lines leave it: "k" (in or out), "i" (the
+        /// connector of the 2D icon), "p" (world, mm), "d" (outward direction) and "used" (a stream
+        /// is on it). Energy connectors have no nozzle.
+        /// </summary>
+        static JArray Ports(EquipmentItem item, IFlowsheet fs)
+        {
+            var ports = new JArray();
+            IGraphicObject go;
+            if (fs == null || item.Name == null || !fs.GraphicObjects.TryGetValue(item.Name, out go) || go == null) return ports;
+            Add(ports, item, go, go.InputConnectors, false);
+            Add(ports, item, go, go.OutputConnectors, true);
+            return ports;
+        }
+
+        static void Add(JArray ports, EquipmentItem item, IGraphicObject go, List<IConnectionPoint> list, bool output)
+        {
+            if (list == null) return;
+            for (var i = 0; i < list.Count; i++)
+            {
+                var cp = list[i];
+                if (cp == null || cp.Type == DWSIM.Interfaces.Enums.GraphicObjects.ConType.ConEn) continue;
+                Vec3 at, dir;
+                PlantModelBuilder.Nozzle(item, go, cp, i, list.Count, output, out at, out dir);
+                ports.Add(new JObject
+                {
+                    ["k"] = output ? "out" : "in",
+                    ["i"] = i,
+                    ["p"] = WebViewer.V(at),
+                    ["d"] = WebViewer.V(dir),
+                    ["used"] = cp.IsAttached
+                });
+            }
         }
 
         /// <summary>

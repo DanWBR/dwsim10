@@ -47,12 +47,25 @@ the selection 0.5 m (Shift: 0.1 m) along the plot plan axis closest to the scree
 Page Up and Page Down raise and lower it, T and Shift+T turn it by a quarter turn, and the Place
 panel takes exact coordinates and lines several items up. Each change goes to DWSIM as one `place`
 command and lands in the flowsheet's layout, the one the SolidCraft model reads. Ctrl+Z and Ctrl+Y
-undo and redo in a history of the 3D layout that DWSIM keeps apart from the flowsheet's own.
+undo and redo the changes made in the window, in a history that DWSIM keeps apart from the 2D one.
+
+## Building the flowsheet
+
+The palette on the left (P shows or hides it) lists the built-in equipment that has a body in the
+plant model; a click on one and then on the ground adds it there (Shift keeps the tool for more),
+and the 2D drawing gets the new icon next to the others. The Connect tool (C) shows the nozzles of
+every item, green for outlets, blue for inlets and grey for the ones in use: a click on a nozzle and
+then on a nozzle of another item joins them with a new material stream, and a click on the ground
+instead makes a feed (on an inlet) or a product (on an outlet). Delete removes the selection, and
+the Tag field of the Place panel renames an item. Ctrl+Z takes back these changes too, one by one.
+Energy streams, logical blocks and the unit operations of extensions are added in the 2D drawing;
+the window shows them once they are there.
 
 `-- --selftest-item=<object name> --selftest-out=<folder>` runs a self-test of the editing once
 DWSIM has sent the scene: it drags the item 6 m along X, turns it, raises it twice and undoes the
 last step, with input events fed to the window itself, and saves a picture after each step (the
-first one with the mouse over the item).
+first one with the mouse over the item). With `--selftest-item=build` it adds a cooler from the
+palette, gives it a feed and a product from its nozzles, renames it, deletes it and undoes that.
 
 ## Licences
 
