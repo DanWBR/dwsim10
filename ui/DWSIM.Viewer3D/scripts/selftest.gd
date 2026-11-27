@@ -36,7 +36,11 @@ func _run() -> void:
 		push_error("selftest: the item never came")
 		return
 	await _wait(1.0)
-	await _shot("0_start")
+	# the mouse over the item, no button: the item's limits and size show
+	var hn: Node3D = main.entries[item_id]["node"]
+	_mouse_move(main.rig.camera.unproject_position(hn.global_position + Vector3(0, 0.5, 0)), 0)
+	await _wait(0.5)
+	await _shot("0_hover", false)
 
 	# drag the item 6 m along X on the ground (the pixels for 6 m come from the camera)
 	var node: Node3D = main.entries[item_id]["node"]
@@ -65,8 +69,8 @@ func _run() -> void:
 	main.link.send({"type": "select", "ids": [item_id]})
 
 
-func _shot(name: String) -> void:
-	var png: PackedByteArray = await main._capture("", 1400, 900)
+func _shot(name: String, fit := true) -> void:
+	var png: PackedByteArray = await main._capture("", 1400, 900, fit)
 	var f := FileAccess.open(out_dir.path_join("selftest_" + name + ".png"), FileAccess.WRITE)
 	if f != null:
 		f.store_buffer(png)
@@ -83,11 +87,11 @@ func _mouse_button(at: Vector2, pressed: bool) -> void:
 	Input.parse_input_event(e)
 
 
-func _mouse_move(at: Vector2) -> void:
+func _mouse_move(at: Vector2, mask: int = MOUSE_BUTTON_MASK_LEFT) -> void:
 	var e := InputEventMouseMotion.new()
 	e.position = at
 	e.global_position = at
-	e.button_mask = MOUSE_BUTTON_MASK_LEFT
+	e.button_mask = mask
 	Input.parse_input_event(e)
 
 

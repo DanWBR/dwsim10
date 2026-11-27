@@ -59,6 +59,12 @@ var toast: Label
 var _toast_time := 0.0
 
 var _highlight: StandardMaterial3D
+var _hover_mat: StandardMaterial3D
+var _hover_id := ""
+var _hover_box: MeshInstance3D
+var _hover_tip: Label
+var _mouse := Vector2(-1, -1)
+var _mouse_dirty := false
 var _drag_button := MOUSE_BUTTON_NONE
 var _drag_from := Vector2.ZERO
 var _press_at := Vector2.ZERO
@@ -85,6 +91,20 @@ func _ready() -> void:
 	_highlight.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	_highlight.albedo_color = Color(0.24, 0.5, 0.84, 0.38)
 	_highlight.no_depth_test = false
+	_hover_mat = StandardMaterial3D.new()
+	_hover_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_hover_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_hover_mat.albedo_color = Color(1.0, 0.78, 0.25, 0.22)
+	_hover_box = MeshInstance3D.new()
+	var box_mat := StandardMaterial3D.new()
+	box_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	box_mat.no_depth_test = true
+	box_mat.albedo_color = Color(0.95, 0.62, 0.1)
+	box_mat.render_priority = 5
+	_hover_box.material_override = box_mat
+	_hover_box.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_hover_box.visible = false
+	add_child(_hover_box)
 	_run_offline()
 	var test_item := ""
 	var test_out := ""
@@ -283,6 +303,11 @@ func _apply_delta(m: Dictionary) -> void:
 
 
 func _after_change() -> void:
+	# the items were built again: the hover marks a node that may be gone
+	_hover_id = ""
+	_hover_box.visible = false
+	_hover_tip.visible = false
+	_mouse_dirty = true
 	_fit_ground()
 	_set_selection(selected.filter(func(id): return entries.has(id)), false)
 	_update_title()
@@ -382,7 +407,65 @@ func _tint(id: String, on: bool) -> void:
 	if node == null or not is_instance_valid(node):
 		return
 	for mi in node.find_children("*", "MeshInstance3D", true, false):
-		mi.material_overlay = _highlight if on else null
+		mi.material_overlay = _highlight if on else (_hover_mat if id == _hover_id else null)
+
+
+# --- hover: what is under the mouse, its limits and its size ----------------------------------
+
+func _set_hover(id: String) -> void:
+	if id == _hover_id:
+		return
+	var old := _hover_id
+	_hover_id = id
+	if old != "" and not selected.has(old):
+		_tint(old, false)
+	if id == "" or not entries.has(id):
+		_hover_id = ""
+		_hover_box.visible = false
+		_hover_tip.visible = false
+		return
+	if not selected.has(id):
+		_tint(id, false)
+	var node = entries[id]["node"]
+	var box := AABB()
+	var first := true
+	for mi in node.find_children("*", "MeshInstance3D", true, false):
+		var b: AABB = mi.global_transform * mi.get_aabb()
+		box = b if first else box.merge(b)
+		first = false
+	if first:
+		_hover_box.visible = false
+		return
+	var im := ImmediateMesh.new()
+	im.surface_begin(Mesh.PRIMITIVE_LINES)
+	for e in [[0, 1], [1, 3], [3, 2], [2, 0], [4, 5], [5, 7], [7, 6], [6, 4], [0, 4], [1, 5], [2, 6], [3, 7]]:
+		im.surface_add_vertex(box.get_endpoint(e[0]))
+		im.surface_add_vertex(box.get_endpoint(e[1]))
+	im.surface_end()
+	_hover_box.mesh = im
+	_hover_box.visible = true
+	var d: Dictionary = entries[id]["data"]
+	var size := "%.1f x %.1f x %.1f m" % [box.size.x, box.size.z, box.size.y] if entries[id]["kind"] == "item" else ""
+	_hover_tip.text = str(d.get("tag", "")) + ("
+" + size if size != "" else "")
+	_hover_tip.size = Vector2.ZERO
+	_hover_tip.visible = true
+
+
+func _update_hover() -> void:
+	if not _mouse_dirty:
+		return
+	_mouse_dirty = false
+	var busy := _drag_button != MOUSE_BUTTON_NONE or (editor != null and editor._dragging)
+	_set_hover("" if busy or _mouse.x < 0 else _pick(_mouse))
+	if _hover_tip.visible:
+		_hover_tip.position = _mouse + Vector2(16, 14)
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_MOUSE_EXIT and _hover_tip != null:
+		_mouse = Vector2(-1, -1)
+		_mouse_dirty = true
 
 
 func _pick(screen: Vector2) -> String:
@@ -409,6 +492,9 @@ func _pick(screen: Vector2) -> String:
 # --- input -----------------------------------------------------------------------------------
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventMouseMotion:
+		_mouse = (event as InputEventMouseMotion).position
+		_mouse_dirty = true
 	if editor != null and editor.handle(event):
 		return
 	if event is InputEventMouseButton:
@@ -584,6 +670,16 @@ func _build_hud() -> void:
 	card.add_child(gridc)
 	hud.add_child(card)
 
+	_hover_tip = Label.new()
+	var tip_style := _panel_style(0.95)
+	tip_style.set_content_margin_all(5)
+	_hover_tip.add_theme_stylebox_override("normal", tip_style)
+	_hover_tip.add_theme_color_override("font_color", Color(0.11, 0.15, 0.2))
+	_hover_tip.add_theme_font_size_override("font_size", 13)
+	_hover_tip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hover_tip.visible = false
+	hud.add_child(_hover_tip)
+
 	toast = Label.new()
 	toast.add_theme_color_override("font_color", Color(0.6, 0.1, 0.1))
 	toast.visible = false
@@ -596,6 +692,7 @@ func _process(delta: float) -> void:
 	card.position = Vector2(size.x - card.size.x - 12, 12)
 	info_panel.position = Vector2(size.x - info_panel.size.x - 12, card.position.y + (card.size.y + 12 if card.visible else 0))
 	toast.position = Vector2(14, size.y - 34)
+	_update_hover()
 	if editor != null and editor.panel != null:
 		editor.panel.position = Vector2(size.x - editor.panel.size.x - 12, size.y - editor.panel.size.y - 12)
 	if _toast_time > 0.0:
@@ -659,19 +756,20 @@ func _show_toast(text: String) -> void:
 # --- pictures --------------------------------------------------------------------------------
 
 ## A picture of a view at a size, as PNG bytes.
-func _capture(view: String, width: int, height: int) -> PackedByteArray:
+func _capture(view: String, width: int, height: int, fit := true) -> PackedByteArray:
 	# the low-power mode draws only when something changes, and a window that is not on screen
 	# may not be drawn at all: draw on every frame while the picture is taken, then force a draw
 	var low := OS.low_processor_usage_mode
 	OS.low_processor_usage_mode = false
-	if width > 0 and height > 0:
+	if fit and width > 0 and height > 0:
 		get_window().size = Vector2i(width, height)
 	for i in 3:
 		await get_tree().process_frame
 	if view != "":
 		rig.set_view(view, false)
-	rig.fit_points(_corners(), _aspect())
-	_fit_ground()
+	if fit:
+		rig.fit_points(_corners(), _aspect())
+		_fit_ground()
 	for i in 3:
 		await get_tree().process_frame
 	RenderingServer.force_draw(false)

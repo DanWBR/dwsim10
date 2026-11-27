@@ -33,7 +33,8 @@ architecture on macOS.
 
 ## Controls
 
-Left click selects (Ctrl adds), a double click frames the item, right drag turns the view, middle
+With the mouse over an item or a line, the window tints it, draws a box at its limits (seen
+through the other items too) and shows its tag and size (width x depth x height). Left click selects (Ctrl adds), a double click frames the item, right drag turns the view, middle
 drag (or Shift + right drag) moves the view, and the wheel zooms. Keys 1 to 4 are the isometric views,
 5 is the plan, 6 and 7 the front and right side, Q and E turn the view by 90 degrees, F fits the
 plant, L, I, R and G show or hide the labels, insulation, pipe rack and grid, and F1 the card of
@@ -50,7 +51,8 @@ undo and redo in a history of the 3D layout that DWSIM keeps apart from the flow
 
 `-- --selftest-item=<object name> --selftest-out=<folder>` runs a self-test of the editing once
 DWSIM has sent the scene: it drags the item 6 m along X, turns it, raises it twice and undoes the
-last step, with input events fed to the window itself, and saves a picture after each step.
+last step, with input events fed to the window itself, and saves a picture after each step (the
+first one with the mouse over the item).
 
 ## Licences
 
