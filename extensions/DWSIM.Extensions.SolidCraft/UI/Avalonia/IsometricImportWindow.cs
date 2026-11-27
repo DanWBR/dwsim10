@@ -93,7 +93,7 @@ namespace DWSIM.Extensions.SolidCraft
         Control IsometricPage()
         {
             file = new TextBox();
-            file.TextChanged += (_, _) => read.IsEnabled = File.Exists((file.Text ?? "").Trim()) && reading == null;
+            file.TextChanged += (_, _) => read.IsEnabled = IsometricImport.FilesExist(file.Text) && reading == null;
             var browse = new Button { Content = "Browse...", Margin = new Thickness(6, 0, 0, 0) };
             browse.Click += async (_, _) => await Browse();
             read = new Button { Content = "Read the isometric", IsEnabled = false };
@@ -140,11 +140,14 @@ namespace DWSIM.Extensions.SolidCraft
             var picked = await Storage.OpenFilePickerAsync(new FilePickerOpenOptions
             {
                 Title = "The piping isometric",
+                // a line drawn over several sheets: one PDF with a page per sheet, or a file per sheet
+                AllowMultiple = true,
                 FileTypeFilter = new[] { new FilePickerFileType("Isometrics (*.png, *.jpg, *.pdf, *.dxf, *.dwg)") { Patterns = DrawingImportClient.Extensions.Select(x => "*" + x).ToArray() }, FilePickerFileTypes.All }
             });
-            var path = picked.FirstOrDefault()?.TryGetLocalPath();
-            if (path == null) return;
-            file.Text = path;
+            var paths = picked.Select(x => x.TryGetLocalPath()).Where(x => x != null).ToList();
+            if (paths.Count == 0) return;
+            var path = paths[0];
+            file.Text = string.Join("; ", paths);
             try
             {
                 var ext = Path.GetExtension(path).ToLowerInvariant();
@@ -206,7 +209,7 @@ namespace DWSIM.Extensions.SolidCraft
 
         void SetBusy(bool busy)
         {
-            read.IsEnabled = !busy && File.Exists((file.Text ?? "").Trim());
+            read.IsEnabled = !busy && IsometricImport.FilesExist(file.Text);
             cancelRead.IsEnabled = busy;
             saveReading.IsEnabled = !busy && session.Reading != null;
             frame.NextAllowed = !busy && session.Reading != null;
@@ -239,7 +242,7 @@ namespace DWSIM.Extensions.SolidCraft
             var picked = await Storage.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = "Save the isometric reading",
-                SuggestedFileName = Path.GetFileNameWithoutExtension(session.File) + " - reading.json",
+                SuggestedFileName = Path.GetFileNameWithoutExtension(IsometricImport.Files(session.File).FirstOrDefault() ?? "isometric") + " - reading.json",
                 FileTypeChoices = new[] { new FilePickerFileType("Isometric readings (*.json)") { Patterns = new[] { "*.json" } } }
             });
             var path = picked?.TryGetLocalPath();

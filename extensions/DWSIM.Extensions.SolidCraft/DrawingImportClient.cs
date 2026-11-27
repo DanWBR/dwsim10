@@ -188,7 +188,7 @@ namespace DWSIM.Extensions.SolidCraft
         /// </summary>
         public static DrawingReading Read(string file, string kind, CancellationToken ct, Action<string> step = null)
         {
-            var o = ReadRaw(file, kind, ct, step, out var overview, out var cadTexts);
+            var o = ReadRaw(file, kind, 0, ct, step, out var overview, out var cadTexts, out _);
             var reading = DrawingReading.FromJson(o.ToString(), kind == "pfd" || kind == "pid" ? kind : null);
             reading.Source = file;
             reading.Overview = overview;
@@ -198,10 +198,16 @@ namespace DWSIM.Extensions.SolidCraft
 
         /// <summary>The model's reading of a drawing as it comes (pfd, pid or iso), and the sheet it saw.</summary>
         public static JObject ReadRaw(string file, string kind, CancellationToken ct, Action<string> step, out byte[] overview) =>
-            ReadRaw(file, kind, ct, step, out overview, out _);
+            ReadRaw(file, kind, 0, ct, step, out overview, out _, out _);
 
-        static JObject ReadRaw(string file, string kind, CancellationToken ct, Action<string> step, out byte[] overview, out List<string> cadTexts)
+        /// <summary>The model's reading of one page of a drawing (0 is the first), and the number of pages of the file:
+        /// 1 for an image, a CAD drawing, or an AI Assistant that does not report it.</summary>
+        public static JObject ReadRaw(string file, string kind, int page, CancellationToken ct, Action<string> step, out byte[] overview, out int pages) =>
+            ReadRaw(file, kind, page, ct, step, out overview, out _, out pages);
+
+        static JObject ReadRaw(string file, string kind, int page, CancellationToken ct, Action<string> step, out byte[] overview, out List<string> cadTexts, out int pages)
         {
+            pages = 1;
             var model = Model(ct, step);
             ct.ThrowIfCancellationRequested();
             overview = null;
@@ -219,12 +225,15 @@ namespace DWSIM.Extensions.SolidCraft
                 }
                 var what = kind == "iso" ? "the isometric" : kind == "datasheet" ? "the data sheet" : "the drawing";
                 step?.Invoke("AI Assistant: " + model + " is reading " + what + "; it usually takes one to three minutes");
-                var o = Post("/api/drawing/read", new JObject
+                var body = new JObject
                 {
                     ["file"] = Convert.ToBase64String(File.ReadAllBytes(send)),
                     ["filename"] = Path.GetFileName(send),
                     ["kind"] = kind ?? "auto",
-                }, ct);
+                };
+                if (page > 0) body["page"] = page;
+                var o = Post("/api/drawing/read", body, ct);
+                if (!IsCad(file) && o["pages"] != null && o["pages"].Type == JTokenType.Integer) pages = Math.Max(1, (int)o["pages"]);
                 if (o["overview"] != null) try { overview = Convert.FromBase64String(o["overview"].ToString()); } catch (FormatException) { }
                 return (JObject)o["reading"];
             }

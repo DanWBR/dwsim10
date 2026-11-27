@@ -136,7 +136,7 @@ namespace DWSIM.Extensions.SolidCraft
             this.lblDrawingHelp.Padding = new System.Windows.Forms.Padding(0, 0, 0, 8);
             this.lblDrawingHelp.Size = new System.Drawing.Size(960, 25);
             this.lblDrawingHelp.TabIndex = 1;
-            this.lblDrawingHelp.Text = "Choose the piping isometric: an image, a PDF or a DXF/DWG drawing. The AI Assistant reads its route, size and material with the model set up in its settings.";
+            this.lblDrawingHelp.Text = "Choose the piping isometric: an image, a PDF or a DXF/DWG drawing. When the line runs over several sheets, choose them all (or a PDF with a page per sheet), and they are joined into one line. The AI Assistant reads its route, size and material with the model set up in its settings.";
             //
             // wpRoute
             //

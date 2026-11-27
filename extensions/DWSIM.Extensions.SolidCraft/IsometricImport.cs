@@ -65,6 +65,10 @@ namespace DWSIM.Extensions.SolidCraft
         public Dictionary<string, string> TitleBlock = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         public byte[] Overview;
 
+        /// <summary>The number of sheets the reading was joined from, and what the joining found (see <see cref="Merge"/>).</summary>
+        public int Sheets = 1;
+        public List<string> SheetWarnings = new List<string>();
+
         static string Str(JToken t) => t == null || t.Type == JTokenType.Null ? null : t.ToString().Trim();
 
         static double? Num(JToken t)
@@ -110,7 +114,83 @@ namespace DWSIM.Extensions.SolidCraft
             if (o["conditions"] is JObject c) foreach (var p in c.Properties()) if (Str(p.Value) is string v && v.Length > 0) r.Conditions[p.Name] = v;
             if (o["title_block"] is JObject tb) foreach (var p in tb.Properties()) if (Str(p.Value) is string v && v.Length > 0) r.TitleBlock[p.Name] = v;
             if (Str(o["overview"]) is string png && png.Length > 0) try { r.Overview = Convert.FromBase64String(png); } catch (FormatException) { }
+            if (o["sheets"] != null && o["sheets"].Type == JTokenType.Integer) r.Sheets = Math.Max(1, (int)o["sheets"]);
+            foreach (var t in (o["merge_warnings"] as JArray) ?? new JArray()) if (Str(t) is string v && v.Length > 0) r.SheetWarnings.Add(v);
             return r;
+        }
+
+        /// <summary>The sheet number and the number of sheets the title block writes ("2 of 3", "2/3", "FL. 02/03"); 0 when
+        /// it does not write them.</summary>
+        public int SheetNumber(out int total)
+        {
+            total = 0;
+            if (!TitleBlock.TryGetValue("sheet", out var s) || string.IsNullOrWhiteSpace(s)) return 0;
+            var m = Regex.Match(s, @"(\d+)\s*(?:of|de|/)\s*(\d+)", RegexOptions.IgnoreCase);
+            if (m.Success)
+            {
+                total = int.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture);
+                return int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture);
+            }
+            m = Regex.Match(s, @"\d+");
+            return m.Success ? int.Parse(m.Value, CultureInfo.InvariantCulture) : 0;
+        }
+
+        /// <summary>
+        /// Joins the readings of the sheets of one line (pages of a PDF, or several files) into one: the sheets go in the
+        /// order of their numbers when every sheet writes a different one, else in the order given; the legs follow one
+        /// another; the line number, size, material and start come from the first sheet that writes them and the end from
+        /// the last one. The joining warns when the sheets carry different line numbers or sizes, when a sheet ends away from
+        /// where the next one starts (both write their coordinates), and when a sheet is missing.
+        /// </summary>
+        public static IsoReading Merge(IList<IsoReading> sheets)
+        {
+            if (sheets == null || sheets.Count == 0) throw new ArgumentException("There are not any sheets to join.");
+            if (sheets.Count == 1) return sheets[0];
+            var nums = sheets.Select(r => r.SheetNumber(out _)).ToList();
+            var list = nums.All(n => n > 0) && nums.Distinct().Count() == nums.Count
+                ? sheets.Zip(nums, (r, n) => new { r, n }).OrderBy(x => x.n).Select(x => x.r).ToList() : sheets.ToList();
+            string First(Func<IsoReading, string> get) => list.Select(get).FirstOrDefault(s => !string.IsNullOrWhiteSpace(s)) ?? "";
+            var a = list[0]; var z = list[list.Count - 1];
+            var m = new IsoReading
+            {
+                Sheets = list.Count,
+                Source = string.Join("; ", list.Select(r => r.Source).Where(s => !string.IsNullOrEmpty(s)).Distinct()),
+                LineNumber = First(r => r.LineNumber), Size = First(r => r.Size), Schedule = First(r => r.Schedule), Material = First(r => r.Material),
+                From = First(r => r.From), To = list.Select(r => r.To).LastOrDefault(s => !string.IsNullOrWhiteSpace(s)) ?? "",
+                OuterDiameter = list.Select(r => r.OuterDiameter).FirstOrDefault(v => v.HasValue), Wall = list.Select(r => r.Wall).FirstOrDefault(v => v.HasValue),
+                StartE = a.StartE, StartN = a.StartN, StartEl = a.StartEl, EndE = z.EndE, EndN = z.EndN, EndEl = z.EndEl,
+                Overview = a.Overview,
+            };
+            foreach (var r in list)
+            {
+                m.Legs.AddRange(r.Legs);
+                m.Elevations.AddRange(r.Elevations.Where(x => !m.Elevations.Contains(x)));
+                m.Texts.AddRange(r.Texts.Where(x => !m.Texts.Contains(x)));
+                m.Notes.AddRange(r.Notes.Where(x => !m.Notes.Contains(x)));
+                m.Bom.AddRange(r.Bom);
+                foreach (var kv in r.Conditions) if (!m.Conditions.ContainsKey(kv.Key)) m.Conditions[kv.Key] = kv.Value;
+                foreach (var kv in r.TitleBlock) if (!m.TitleBlock.ContainsKey(kv.Key)) m.TitleBlock[kv.Key] = kv.Value;
+                m.SheetWarnings.AddRange(r.SheetWarnings);
+            }
+            m.TitleBlock.Remove("sheet");
+            string Norm(string s) => Regex.Replace((s ?? "").ToUpperInvariant(), @"[^A-Z0-9]", "");
+            var lines = list.Select(r => r.LineNumber).Where(s => !string.IsNullOrWhiteSpace(s)).GroupBy(Norm).Select(g => g.First()).ToList();
+            if (lines.Count > 1) m.SheetWarnings.Add("The sheets carry different line numbers (" + string.Join(", ", lines) + "); they were joined as one line.");
+            var sizes = list.Select(r => r.Size).Where(s => !string.IsNullOrWhiteSpace(s)).GroupBy(Norm).Select(g => g.First()).ToList();
+            if (sizes.Count > 1) m.SheetWarnings.Add("The size changes between the sheets (" + string.Join(", ", sizes) + "); the line takes the size of the first sheet.");
+            for (int i = 0; i + 1 < list.Count; i++)
+            {
+                var p = list[i]; var q = list[i + 1];
+                if (!(p.EndE.HasValue && p.EndN.HasValue && q.StartE.HasValue && q.StartN.HasValue)) continue;
+                double dz = p.EndEl.HasValue && q.StartEl.HasValue ? p.EndEl.Value - q.StartEl.Value : 0.0;
+                double gap = Math.Sqrt(Math.Pow(p.EndE.Value - q.StartE.Value, 2) + Math.Pow(p.EndN.Value - q.StartN.Value, 2) + dz * dz);
+                if (gap > 0.1)
+                    m.SheetWarnings.Add(string.Format(CultureInfo.InvariantCulture, "Sheet {0} ends {1:0.##} m away from where sheet {2} starts; check the order of the sheets.", i + 1, gap, i + 2));
+            }
+            int total = list.Select(r => { r.SheetNumber(out var t); return t; }).DefaultIfEmpty(0).Max();
+            if (total > list.Count) m.SheetWarnings.Add("The line runs over " + total + " sheets, and " + list.Count + " were read.");
+            if (nums.All(n => n == 0)) m.SheetWarnings.Add("The sheets do not write their numbers; they were joined in the order given.");
+            return m;
         }
 
         public string ToJson()
@@ -132,6 +212,7 @@ namespace DWSIM.Extensions.SolidCraft
                 ["texts"] = new JArray(Texts), ["notes"] = new JArray(Notes),
                 ["title_block"] = new JObject(TitleBlock.Select(kv => new JProperty(kv.Key, kv.Value))),
                 ["overview"] = Overview == null ? "" : Convert.ToBase64String(Overview),
+                ["sheets"] = Sheets, ["merge_warnings"] = new JArray(SheetWarnings),
             }.ToString();
         }
     }
@@ -340,6 +421,8 @@ namespace DWSIM.Extensions.SolidCraft
         public static List<ImportIssue> Check(IsoReading r)
         {
             var issues = new List<ImportIssue>();
+            if (r.Sheets > 1) issues.Add(new ImportIssue(ImportIssue.Levels.Info, "", "the line was joined from " + r.Sheets + " sheets"));
+            foreach (var w in r.SheetWarnings) issues.Add(new ImportIssue(ImportIssue.Levels.Warning, "", w));
             var legs = r.Legs.Where(l => l.Include).ToList();
             if (legs.Count == 0) { issues.Add(new ImportIssue(ImportIssue.Levels.Error, "", "no legs read")); return issues; }
             var total = legs.Sum(l => l.Length ?? 0) / 1000;
@@ -401,14 +484,49 @@ namespace DWSIM.Extensions.SolidCraft
             return obj;
         }
 
-        /// <summary>Reads an isometric (image, PDF or CAD drawing) through the AI Assistant.</summary>
+        /// <summary>
+        /// Reads an isometric (image, PDF or CAD drawing) through the AI Assistant. Every page of a PDF is read as a sheet,
+        /// and several files can be given separated by semicolons; the sheets are joined into one line (see
+        /// <see cref="IsoReading.Merge"/>).
+        /// </summary>
         public static IsoReading Read(string file, CancellationToken ct, Action<string> step = null)
         {
-            var o = DrawingImportClient.ReadRaw(file, "iso", ct, step, out var overview);
-            var r = IsoReading.FromJson(o.ToString());
-            r.Source = file;
-            r.Overview = overview;
-            return r;
+            var files = Files(file);
+            if (files.Count == 0) throw new ArgumentException("Choose the isometric's file.");
+            var sheets = new List<IsoReading>();
+            foreach (var f in files)
+            {
+                int pages = 1;
+                for (int page = 0; page < pages; page++)
+                {
+                    int shown = page;
+                    Action<string> say = step == null ? null : (Action<string>)(msg => step(
+                        (files.Count > 1 ? Path.GetFileName(f) + (pages > 1 ? ", " : ": ") : "") + (pages > 1 ? "sheet " + (shown + 1) + " of " + pages + ": " : "") + msg));
+                    var o = DrawingImportClient.ReadRaw(f, "iso", page, ct, say, out var overview, out var n);
+                    if (page == 0) pages = n;
+                    var r = IsoReading.FromJson(o.ToString());
+                    r.Source = f;
+                    r.Overview = overview;
+                    sheets.Add(r);
+                }
+            }
+            return IsoReading.Merge(sheets);
+        }
+
+        /// <summary>The files a file box names: the file itself, or several separated by semicolons.</summary>
+        public static List<string> Files(string text)
+        {
+            var t = (text ?? "").Trim();
+            if (t.Length == 0) return new List<string>();
+            if (File.Exists(t)) return new List<string> { t };
+            return t.Split(';').Select(x => x.Trim().Trim('"')).Where(x => x.Length > 0).ToList();
+        }
+
+        /// <summary>True when the file box names files that all exist.</summary>
+        public static bool FilesExist(string text)
+        {
+            var f = Files(text);
+            return f.Count > 0 && f.All(File.Exists);
         }
 
         /// <summary>
@@ -472,7 +590,7 @@ namespace DWSIM.Extensions.SolidCraft
 
         public static readonly string[] StepTexts =
         {
-            "Choose the piping isometric: an image, a PDF or a DXF/DWG drawing. The AI Assistant reads its route, size and material with the model set up in its settings.",
+            "Choose the piping isometric: an image, a PDF or a DXF/DWG drawing. When the line runs over several sheets, choose them all (or a PDF with a page per sheet), and they are joined into one line. The AI Assistant reads its route, size and material with the model set up in its settings.",
             "The line and its route leg by leg, from where it starts to where it ends. Correct the directions, lengths, rises and fittings; the sketch redraws the route as you go.",
             "The checks against the bill of materials and the elevations, and the sections the pipe segment gets. Choose the pipe segment and make its hydraulic profile.",
         };
