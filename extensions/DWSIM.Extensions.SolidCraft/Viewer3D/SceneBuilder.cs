@@ -83,6 +83,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             if (fs != null)
             {
                 AddBadges(items, ids, model, fs);
+                AddSite(items, ids, fs);
                 AddEnergyStreams(items, ids, model, fs);
             }
 
@@ -199,6 +200,34 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                 if (!string.IsNullOrEmpty(g.SelectedObjectID)) ids.Add(g.SelectedObjectID);
             }
             return ids.Distinct().ToList();
+        }
+
+        /// <summary>
+        /// The buildings of the site (control rooms) as items without solids ("site": the kind):
+        /// the window draws them, and they move, turn and go like any item.
+        /// </summary>
+        static void AddSite(JArray items, HashSet<string> ids, IFlowsheet fs)
+        {
+            foreach (var b in SiteLayout.Load(fs))
+            {
+                if (b?.Id == null) continue;
+                items.Add(new JObject
+                {
+                    ["id"] = Unique(ids, b.Id),
+                    ["tag"] = SiteLayout.NameOf(b.Kind),
+                    ["desc"] = SiteLayout.NameOf(b.Kind) + " (site)",
+                    ["type"] = "Site",
+                    ["site"] = b.Kind,
+                    ["o"] = WebViewer.V(new Vec3(b.X, b.Y, b.Z)),
+                    ["rot"] = b.Rot,
+                    ["placed"] = true,
+                    ["inst"] = false,
+                    ["label"] = SiteLayout.NameOf(b.Kind),
+                    ["props"] = new JObject(),
+                    ["parts"] = new JArray(),
+                    ["ports"] = new JArray()
+                });
+            }
         }
 
         /// <summary>The height a badge floats at when it has no place of its own, mm.</summary>

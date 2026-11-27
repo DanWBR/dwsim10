@@ -1,7 +1,7 @@
 ## The site around the equipment, made from the plant's bounds: concrete foundations under the
 ## equipment, ladders with safety cages on tall columns and vessels, a chain-link fence with a gate
 ## and an access road, a control room with parked vehicles, fire hydrants and extinguishers, a
-## storage corner, workers walking round the pad or standing by, and trees outside the fence.
+## storage corner, and trees outside the fence. The people are the rounds of crew.gd.
 ## The models are CC0 (Kenney, Poly Haven; see assets/CREDITS.md); the rest is made here.
 ## O shows or hides all of it.
 class_name PlantProps
@@ -14,7 +14,6 @@ var main: Node3D
 var _scenes := {}
 var _concrete: StandardMaterial3D
 var _steel: StandardMaterial3D
-var _walkers: Array = []
 var _rng := RandomNumberGenerator.new()
 
 
@@ -88,7 +87,6 @@ func _box(size: Vector3, at: Vector3, mat: Material) -> MeshInstance3D:
 func refresh() -> void:
 	for c in get_children():
 		c.queue_free()
-	_walkers.clear()
 	_rng.seed = 2026
 	var box: AABB = main._bounds()
 	var ground := box.position.y
@@ -102,7 +100,6 @@ func refresh() -> void:
 	_road(gate_x, z1, ground)
 	_control_room(x0, z1, gate_x, ground)
 	_safety(box, ground)
-	_people(box, ground)
 	_trees(x0, x1, z0, z1, gate_x, ground)
 
 
@@ -110,7 +107,7 @@ func _foundations_and_ladders() -> void:
 	for id in main.entries.keys():
 		var e: Dictionary = main.entries[id]
 		var d: Dictionary = e["data"]
-		if e["kind"] != "item" or bool(d.get("badge", false)) or bool(d.get("inst", false)):
+		if e["kind"] != "item" or bool(d.get("badge", false)) or bool(d.get("inst", false)) or d.has("site"):
 			continue
 		var b: AABB = main._node_bounds(e["node"])
 		if b.size.x < 0.3 or b.size.z < 0.3:
@@ -251,36 +248,27 @@ func _road(gate_x: float, z1: float, y: float) -> void:
 	_model(HAVEN + "concrete_road_barrier/concrete_road_barrier.gltf", Vector3(gate_x + 6.0, y, z1 + 1.5), 0.0)
 
 
+## The doors of the control rooms, where the rounds start and end: [world position, outward direction].
+var doors: Array = []
+
+
 func _control_room(x0: float, z1: float, gate_x: float, y: float) -> void:
-	var w := 12.0
-	var d := 7.0
+	var w := ControlRoomModel.WIDTH
+	var d := ControlRoomModel.DEPTH
 	var at := Vector3(x0 + 3.0 + w / 2.0, y, z1 - 2.5 - d / 2.0)
-	var walls := _concrete.duplicate() as StandardMaterial3D
-	walls.albedo_color = Color(0.93, 0.9, 0.82)
-	_box(Vector3(w, 3.6, d), at + Vector3(0, 1.8, 0), walls)
-	var roof := StandardMaterial3D.new()
-	roof.albedo_color = Color(0.66, 0.68, 0.7)
-	roof.metallic = 0.5
-	_box(Vector3(w + 0.6, 0.25, d + 0.6), at + Vector3(0, 3.72, 0), roof)
-	# windows that light up at night
-	var glass := StandardMaterial3D.new()
-	glass.albedo_color = Color(0.2, 0.3, 0.38)
-	glass.metallic = 0.6
-	glass.roughness = 0.1
-	glass.emission_enabled = true
-	glass.emission = Color(1.0, 0.85, 0.55)
-	glass.emission_energy_multiplier = 0.0
-	glass.set_meta("night_glow", 1.6)
-	for i in 4:
-		_box(Vector3(1.8, 1.1, 0.06), at + Vector3(-w / 2.0 + 1.8 + i * 2.8, 2.0, d / 2.0 + 0.01), glass).add_to_group("night_glow")
-	_box(Vector3(1.1, 2.2, 0.06), at + Vector3(w / 2.0 - 1.2, 1.1, d / 2.0 + 0.01), roof)
-	var label := Label3D.new()
-	label.text = "CONTROL ROOM"
-	label.font_size = 64
-	label.pixel_size = 0.01
-	label.modulate = Color(0.15, 0.2, 0.3)
-	label.position = at + Vector3(0, 3.2, d / 2.0 + 0.05)
-	add_child(label)
+	doors.clear()
+	for id in main.entries.keys():
+		var e: Dictionary = main.entries[id]
+		if str(e["data"].get("site", "")) == "controlroom":
+			var n: Node3D = e["node"]
+			doors.append([n.transform * ControlRoomModel.DOOR, n.transform.basis * Vector3(0, 0, 1)])
+	if doors.is_empty():
+		# none placed in the window: one in the corner of the site
+		var room := Node3D.new()
+		room.position = at
+		add_child(room)
+		ControlRoomModel.build(room)
+		doors.append([at + ControlRoomModel.DOOR, Vector3(0, 0, 1)])
 	_model(HAVEN + "utility_box_01/utility_box_01.gltf", at + Vector3(-w / 2.0 - 0.8, 0, 1.0), 90.0)
 	# parked vehicles along the road, and the fire truck by the gate
 	var cars := ["suv", "delivery", "truck", "suv", "truck-flat"]
@@ -312,61 +300,6 @@ func _safety(box: AABB, y: float) -> void:
 		if str(e["data"].get("type", "")) in ["Pump", "Compressor", "Expander"]:
 			var b: AABB = main._node_bounds(e["node"])
 			_model(HAVEN + "korean_fire_extinguisher_01/korean_fire_extinguisher_01.gltf", Vector3(b.end.x + 0.9, y, b.end.z + 0.6), 0.0)
-
-
-# --- people ----------------------------------------------------------------------------------
-
-const PEOPLE := ["character-worker", "character-male-a", "character-female-a", "character-male-b", "character-female-b", "character-male-c", "character-female-c"]
-
-
-func _person(name: String, at: Vector3, yaw: float, anim: String) -> Node3D:
-	var n := _model(KENNEY + "people/%s.glb" % name, at, yaw, 1.75, true)
-	if n == null:
-		return null
-	for ap in n.find_children("*", "AnimationPlayer", true, false):
-		var player := ap as AnimationPlayer
-		if player.has_animation(anim):
-			player.get_animation(anim).loop_mode = Animation.LOOP_LINEAR
-			player.play(anim)
-	return n
-
-
-## Three workers walk round the pad on a path a little outside the equipment; two stand by.
-func _people(box: AABB, y: float) -> void:
-	var g := box.grow(2.5)
-	var path := [Vector3(g.position.x, y, g.position.z), Vector3(g.end.x, y, g.position.z),
-		Vector3(g.end.x, y, g.end.z), Vector3(g.position.x, y, g.end.z)]
-	var perimeter := 2.0 * (g.size.x + g.size.z)
-	for i in 3:
-		var n := _person(PEOPLE[i], path[0], 0.0, "walk")
-		if n != null:
-			_walkers.append({"node": n, "path": path, "s": perimeter * i / 3.0, "speed": 1.2 + 0.15 * i, "len": perimeter})
-	var ids: Array = main.entries.keys().filter(func(k): return main.entries[k]["kind"] == "item" and not bool(main.entries[k]["data"].get("badge", false)))
-	for i in mini(2, ids.size()):
-		var b: AABB = main._node_bounds(main.entries[ids[i * (ids.size() / 2)]]["node"])
-		_person(PEOPLE[3 + i], Vector3(b.position.x - 1.2, y, b.get_center().z), 90.0, "idle")
-
-
-func _process(delta: float) -> void:
-	if not visible or not main.animate:
-		return
-	for w in _walkers:
-		var n: Node3D = w["node"]
-		if not is_instance_valid(n):
-			continue
-		w["s"] = fposmod(float(w["s"]) + float(w["speed"]) * delta, float(w["len"]))
-		var path: Array = w["path"]
-		var s: float = w["s"]
-		for k in path.size():
-			var a: Vector3 = path[k]
-			var b: Vector3 = path[(k + 1) % path.size()]
-			var l := a.distance_to(b)
-			if s <= l:
-				n.position = a.lerp(b, s / maxf(l, 0.001))
-				var dir := (b - a).normalized()
-				n.rotation.y = atan2(dir.x, dir.z)
-				break
-			s -= l
 
 
 # --- trees -----------------------------------------------------------------------------------

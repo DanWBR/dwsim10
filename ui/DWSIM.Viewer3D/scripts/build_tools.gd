@@ -84,14 +84,16 @@ func build_panel(style: StyleBox) -> PanelContainer:
 	_button(tools, "Connect", func(): set_tool(Tool.CONNECT))
 	_button(tools, "Delete", delete_selection)
 	_tool_label = Label.new()
-	_tool_label.add_theme_color_override("font_color", Color(0.36, 0.42, 0.48))
-	_tool_label.add_theme_font_size_override("font_size", 12)
+	_tool_label.add_theme_color_override("font_color", Color(0.27, 0.32, 0.38))
+	_tool_label.add_theme_font_size_override("font_size", 11)
 	_tool_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_tool_label.custom_minimum_size = Vector2(230, 0)
+	_tool_label.custom_minimum_size = Vector2(200, 0)
 	outer.add_child(_tool_label)
 	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(240, 360)
+	scroll.custom_minimum_size = Vector2(200, 340)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	# the list shows once DWSIM sends its catalog
+	scroll.visible = false
 	outer.add_child(scroll)
 	_palette_box = VBoxContainer.new()
 	_palette_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -102,6 +104,7 @@ func build_panel(style: StyleBox) -> PanelContainer:
 
 ## Fills the palette from DWSIM's catalog: {group, name, objectType} entries.
 func set_palette(entries: Array) -> void:
+	(_palette_box.get_parent() as Control).visible = not entries.is_empty()
 	for c in _palette_box.get_children():
 		c.queue_free()
 	var group := ""
@@ -112,7 +115,7 @@ func set_palette(entries: Array) -> void:
 			group = str(e.get("group", ""))
 			var h := Label.new()
 			h.text = group
-			h.add_theme_color_override("font_color", Color(0.36, 0.42, 0.48))
+			h.add_theme_color_override("font_color", Color(0.27, 0.32, 0.38))
 			h.add_theme_font_size_override("font_size", 12)
 			_palette_box.add_child(h)
 		var type := str(e.get("objectType", ""))

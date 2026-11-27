@@ -419,10 +419,12 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
         {
             var list = m["items"] as JArray ?? new JArray(m.DeepClone());
             var places = new List<KeyValuePair<string, Placement>>();
+            var site = SiteLayout.Load(fs);
             foreach (var t in list.OfType<JObject>())
             {
                 var id = (string)t["id"];
-                if (id == null || !fs.SimulationObjects.ContainsKey(id)) return Error("there is no object '" + id + "'", SceneProtocol.Place);
+                var isSite = SiteLayout.IsSite(id) && site.Any(b => b.Id == id);
+                if (id == null || !isSite && !fs.SimulationObjects.ContainsKey(id)) return Error("there is no object '" + id + "'", SceneProtocol.Place);
                 double x, y, z;
                 if (!Finite(t["x"], out x) || !Finite(t["y"], out y) || !Finite(t["z"] ?? 0, out z))
                     return Error("the place of '" + id + "' is not a number", SceneProtocol.Place);
@@ -439,8 +441,20 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             if (places.Count == 0) return Error("nothing to place", SceneProtocol.Place);
             var layout = PlantLayout.Load(fs);
             Remember();
-            foreach (var kv in places) layout[kv.Key] = kv.Value;
+            foreach (var kv in places)
+            {
+                var building = site.FirstOrDefault(b => b.Id == kv.Key);
+                if (building != null)
+                {
+                    building.X = kv.Value.X;
+                    building.Y = kv.Value.Y;
+                    building.Z = kv.Value.Z;
+                    building.Rot = kv.Value.Rot;
+                }
+                else layout[kv.Key] = kv.Value;
+            }
             PlantLayout.Save(fs, layout);
+            SiteLayout.Save(fs, site);
             return null;
         }
 
@@ -467,6 +481,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
         sealed class Step
         {
             public string Layout;
+            public string Site;
             public System.Xml.Linq.XDocument Flowsheet;
         }
 
@@ -481,7 +496,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
 
         Step Capture(bool flowsheet)
         {
-            var step = new Step { Layout = LayoutText() };
+            var step = new Step { Layout = LayoutText(), Site = SiteLayout.Text(fs) };
             if (flowsheet)
                 try { step.Flowsheet = fs.GetSnapshot(SnapshotType.ObjectAddedOrRemoved); }
                 catch (Exception) { step.Flowsheet = null; }
@@ -507,6 +522,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                 if (step.Layout == null) props.Remove(LayoutKey);
                 else props[LayoutKey] = step.Layout;
             }
+            SiteLayout.SetText(fs, step.Site);
             return null;
         }
 
@@ -593,6 +609,8 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
 
         JObject Add(JObject m)
         {
+            var requested = (string)m["objectType"] ?? "";
+            if (SiteLayout.IsSite(requested)) return AddSite(requested.Substring(SiteLayout.Prefix.Length), m);
             ObjectType type;
             var external = (string)m["external"];
             if (external != null) type = ObjectType.External;
@@ -761,6 +779,26 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
         JObject Delete(JObject m)
         {
             var ids = (m["ids"] as JArray)?.Select(t => (string)t).ToList() ?? new List<string>();
+            var siteIds = ids.Where(SiteLayout.IsSite).ToList();
+            if (siteIds.Count > 0)
+            {
+                var site = SiteLayout.Load(fs);
+                var gone = siteIds.Where(id => !site.Any(b => b.Id == id)).ToList();
+                if (gone.Count > 0) return Error("there is no building '" + string.Join("', '", gone) + "'", SceneProtocol.Delete);
+                Remember(ids.Count > siteIds.Count);
+                site.RemoveAll(b => siteIds.Contains(b.Id));
+                SiteLayout.Save(fs, site);
+                ids = ids.Where(id => !SiteLayout.IsSite(id)).ToList();
+                if (ids.Count == 0) return null;
+                foreach (var id in ids)
+                {
+                    var go = Graphic(id);
+                    if (go != null) fs.DeleteSelectedObject(this, EventArgs.Empty, go, false, false);
+                }
+                var lay = PlantLayout.Load(fs);
+                if (ids.Count(id => lay.Remove(id)) > 0) PlantLayout.Save(fs, lay);
+                return null;
+            }
             var missing = ids.Where(id => Graphic(id) == null).ToList();
             if (missing.Count > 0) return Error("there is no object '" + string.Join("', '", missing) + "'", SceneProtocol.Delete);
             if (ids.Count == 0) return Error("nothing to delete", SceneProtocol.Delete);
@@ -789,6 +827,23 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             return null;
         }
 
+        /// <summary>A building of the site (a control room): no object of the simulation, a place in Plant3DSite.</summary>
+        JObject AddSite(string kind, JObject m)
+        {
+            if (!SiteLayout.Kinds.Any(k => k.Kind == kind)) return Error("unknown building '" + kind + "'", SceneProtocol.Add);
+            double x, y;
+            if (!Finite(m["x"] ?? 0, out x) || !Finite(m["y"] ?? 0, out y)) return Error("the place is not a number", SceneProtocol.Add);
+            var site = SiteLayout.Load(fs);
+            Remember();
+            var id = SiteLayout.NewId(site, kind);
+            site.Add(new SiteLayout.Building { Id = id, Kind = kind, X = Math.Round(x), Y = Math.Round(y), Z = 0, Rot = QuarterTurn((double?)m["rot"] ?? 0) });
+            SiteLayout.Save(fs, site);
+            var answer = SceneProtocol.Message(SceneProtocol.Added);
+            answer["id"] = id;
+            answer["tag"] = SiteLayout.NameOf(kind);
+            return answer;
+        }
+
         /// <summary>The items of the scene the flyby visits, in process order.</summary>
         JObject FlybyPlan()
         {
@@ -802,6 +857,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
         JObject Edit(JObject m)
         {
             var id = (string)m["id"];
+            if (SiteLayout.IsSite(id)) return Error("a building of the site has no editor", SceneProtocol.Edit);
             if (id == null || !fs.SimulationObjects.ContainsKey(id)) return Error("there is no object '" + id + "'", SceneProtocol.Edit);
             var handler = EditHandler;
             if (handler == null || !handler(id)) return Error("DWSIM cannot open this editor from the 3D view", SceneProtocol.Edit);

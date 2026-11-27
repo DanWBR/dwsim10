@@ -8,6 +8,10 @@
 ## middle drag (or Shift + right drag) moves it, the wheel zooms. Keys: see SHORTCUTS.
 extends Node3D
 
+## The width of the panels at the sides; the Rounds panel at the bottom is wider.
+const PANEL_W := 280.0
+const FONT_SIZE := 12
+
 const SHORTCUTS := [
 	["1-4", "Isometric views"],
 	["5", "Plan"],
@@ -21,17 +25,18 @@ const SHORTCUTS := [
 	["P", "Equipment palette"],
 	["C", "Connect nozzles"],
 	["Del", "Delete the selection"],
-	["Drag", "Move on the 0.5 m grid (Alt: freely)"],
+	["Drag", "Move on a 0.5 m grid (Alt: free)"],
 	["Arrows", "Nudge 0.5 m (Shift: 0.1 m)"],
 	["PgUp / PgDn", "Raise / lower 0.5 m"],
 	["T / Shift+T", "Turn the selection"],
-	["Ctrl+Z / Ctrl+Y", "Undo / redo a move"],
+	["Ctrl+Z / Y", "Undo / redo"],
 	["Double click", "Open the editor (Enter too)"],
 	["Shift+F", "Frame the selection"],
 	["A", "Animation on / off"],
 	["V", "Values on the plant"],
 	["B", "Flyby of the plant (Esc stops)"],
 	["O", "The site around the plant"],
+	["K", "Rounds: the notes of the crew"],
 	["N", "Noon / night"],
 	["W", "Next weather"],
 	["M", "Sound on / off"],
@@ -57,8 +62,10 @@ var _error_mat: StandardMaterial3D
 var values_root: Node3D
 var flyby: Flyby
 var props: PlantProps
+var crew: PlantCrew
 var flyby_record := false
-var flyby_hold := 4.0
+## Seconds per unit given on the command line (a recording); 0 takes the panel's setting.
+var flyby_hold := 0.0
 var _flyby_asked := false
 var _hud_before := {}
 var world_env: Environment
@@ -108,7 +115,7 @@ func _ready() -> void:
 	editor = LayoutEditor.new(self)
 	add_child(editor)
 	var edit_panel := editor.build_panel(_panel_style())
-	edit_panel.theme = _light_theme()
+	_glass(edit_panel)
 	hud.add_child(edit_panel)
 	flyby = Flyby.new(self)
 	add_child(flyby)
@@ -131,13 +138,18 @@ func _ready() -> void:
 	surroundings = PlantEnvironment.new(self, world_env, sun)
 	add_child(surroundings)
 	var env_panel := surroundings.build_panel(_panel_style())
-	env_panel.theme = _light_theme()
+	_glass(env_panel)
 	env_panel.name = "environment_panel"
 	hud.add_child(env_panel)
+	crew = PlantCrew.new(self)
+	add_child(crew)
+	var rounds := crew.build_panel(_panel_style())
+	_glass(rounds, PANEL_W * 1.6)
+	hud.add_child(rounds)
 	tools = BuildTools.new(self)
 	add_child(tools)
 	var palette := tools.build_panel(_panel_style())
-	palette.theme = _light_theme()
+	_glass(palette)
 	hud.add_child(palette)
 	rig = CameraRig.new()
 	add_child(rig)
@@ -411,6 +423,8 @@ func _after_change() -> void:
 		life.refresh()
 	if props != null:
 		props.refresh()
+	if crew != null:
+		crew.clear()
 	_value_tags()
 	_update_title()
 
@@ -689,6 +703,9 @@ func _unhandled_input(event: InputEvent) -> void:
 					values_root.visible = not values_root.visible
 				KEY_O:
 					props.visible = not props.visible
+					crew.visible = props.visible
+				KEY_K:
+					crew.panel.visible = not crew.panel.visible
 				KEY_L: labels_root.visible = not labels_root.visible
 				KEY_I: insulation_root.visible = not insulation_root.visible
 				KEY_R: rack_root.visible = not rack_root.visible
@@ -791,7 +808,7 @@ func _ask_flyby() -> void:
 	var ids := []
 	for id in entries.keys():
 		var d: Dictionary = entries[id]["data"]
-		if entries[id]["kind"] == "item" and not bool(d.get("badge", false)) and not bool(d.get("inst", false)):
+		if entries[id]["kind"] == "item" and not bool(d.get("badge", false)) and not bool(d.get("inst", false)) and not d.has("site"):
 			ids.append(id)
 	ids.sort_custom(func(a, b): return float(entries[a]["data"]["o"][0]) < float(entries[b]["data"]["o"][0]))
 	_start_flyby(ids)
@@ -812,7 +829,7 @@ func _start_flyby(ids: Array) -> void:
 			(c as CanvasItem).visible = false
 	_mouse = Vector2(-1, -1)
 	_set_hover("")
-	flyby.start(ids, flyby_hold)
+	flyby.start(ids, flyby_hold if flyby_hold > 0.0 else surroundings.flyby_hold)
 
 
 func _on_flyby_finished() -> void:
@@ -862,19 +879,41 @@ func _aspect() -> float:
 
 # --- heads-up display ------------------------------------------------------------------------
 
-func _panel_style(alpha := 0.92) -> StyleBoxFlat:
+func _panel_style(alpha := 1.0) -> StyleBoxFlat:
 	var s := StyleBoxFlat.new()
-	s.bg_color = Color(1, 1, 1, alpha)
-	s.border_color = Color(0.8, 0.83, 0.86)
+	s.bg_color = Color(0.97, 0.98, 0.99, alpha)
+	s.border_color = Color(1, 1, 1, alpha)
 	s.set_border_width_all(1)
-	s.set_corner_radius_all(6)
-	s.set_content_margin_all(10)
+	s.set_corner_radius_all(8)
+	s.content_margin_left = 10
+	s.content_margin_right = 10
+	s.content_margin_top = 8
+	s.content_margin_bottom = 8
 	return s
 
 
-## Light input fields and buttons for the panels (Godot's own theme is dark).
+var _glass_material: ShaderMaterial
+var _theme: Theme
+
+## A panel of the window: the same width as the others, the shared light theme and a frosted,
+## translucent background (shaders/glass.gdshader) through which the plant shows.
+func _glass(panel: Control, width := PANEL_W) -> void:
+	if _glass_material == null:
+		_glass_material = ShaderMaterial.new()
+		_glass_material.shader = load("res://shaders/glass.gdshader")
+	panel.material = _glass_material
+	panel.theme = _light_theme()
+	panel.custom_minimum_size.x = width
+
+
+## Light input fields and buttons for the panels (Godot's own theme is dark), at the panels' font size.
 func _light_theme() -> Theme:
+	if _theme != null:
+		return _theme
 	var t := Theme.new()
+	_theme = t
+	t.default_font_size = FONT_SIZE
+	t.set_color("font_color", "Label", Color(0.11, 0.15, 0.2))
 	var dark := Color(0.11, 0.15, 0.2)
 	var box := func(bg: Color, border: Color) -> StyleBoxFlat:
 		var sb := StyleBoxFlat.new()
@@ -906,52 +945,65 @@ func _build_hud() -> void:
 	var top := PanelContainer.new()
 	title_panel = top
 	top.add_theme_stylebox_override("panel", _panel_style())
+	_glass(top)
 	top.position = Vector2(12, 12)
 	var vb := VBoxContainer.new()
 	top.add_child(vb)
 	title_label = Label.new()
-	title_label.add_theme_font_size_override("font_size", 16)
+	title_label.add_theme_font_size_override("font_size", 14)
+	title_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	title_label.custom_minimum_size = Vector2(PANEL_W - 20, 0)
 	title_label.add_theme_color_override("font_color", Color(0.11, 0.15, 0.2))
 	vb.add_child(title_label)
 	status_label = Label.new()
-	status_label.add_theme_color_override("font_color", Color(0.36, 0.42, 0.48))
+	status_label.add_theme_color_override("font_color", Color(0.27, 0.32, 0.38))
+	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	status_label.custom_minimum_size = Vector2(PANEL_W - 20, 0)
 	vb.add_child(status_label)
 	hud.add_child(top)
 
 	info_panel = PanelContainer.new()
 	info_panel.add_theme_stylebox_override("panel", _panel_style())
-	info_panel.custom_minimum_size = Vector2(320, 0)
+	_glass(info_panel)
 	info_panel.visible = false
 	info_text = RichTextLabel.new()
 	info_text.bbcode_enabled = true
 	info_text.fit_content = true
 	info_text.scroll_active = false
-	info_text.custom_minimum_size = Vector2(300, 0)
+	info_text.custom_minimum_size = Vector2(PANEL_W - 20, 0)
+	info_text.add_theme_font_size_override("normal_font_size", FONT_SIZE)
+	info_text.add_theme_font_size_override("bold_font_size", FONT_SIZE)
 	info_text.add_theme_color_override("default_color", Color(0.11, 0.15, 0.2))
 	info_panel.add_child(info_text)
 	hud.add_child(info_panel)
 
 	card = PanelContainer.new()
-	card.add_theme_stylebox_override("panel", _panel_style(0.85))
+	card.add_theme_stylebox_override("panel", _panel_style())
+	_glass(card)
 	var gridc := GridContainer.new()
 	gridc.columns = 2
-	gridc.add_theme_constant_override("h_separation", 14)
+	gridc.add_theme_constant_override("h_separation", 12)
+	gridc.add_theme_constant_override("v_separation", 1)
 	for row in SHORTCUTS:
 		for i in 2:
 			var l := Label.new()
 			l.text = row[i]
-			l.add_theme_font_size_override("font_size", 12)
-			l.add_theme_color_override("font_color", Color(0.11, 0.15, 0.2) if i == 0 else Color(0.36, 0.42, 0.48))
+			l.add_theme_font_size_override("font_size", 11)
+			l.add_theme_color_override("font_color", Color(0.11, 0.15, 0.2) if i == 0 else Color(0.27, 0.32, 0.38))
+			if i == 1:
+				l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+				l.custom_minimum_size = Vector2(150, 0)
 			gridc.add_child(l)
 	card.add_child(gridc)
 	hud.add_child(card)
 
 	_hover_tip = Label.new()
-	var tip_style := _panel_style(0.95)
+	var tip_style := _panel_style(0.9)
 	tip_style.set_content_margin_all(5)
 	_hover_tip.add_theme_stylebox_override("normal", tip_style)
 	_hover_tip.add_theme_color_override("font_color", Color(0.11, 0.15, 0.2))
-	_hover_tip.add_theme_font_size_override("font_size", 13)
+	_hover_tip.add_theme_font_size_override("font_size", FONT_SIZE)
 	_hover_tip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hover_tip.visible = false
 	hud.add_child(_hover_tip)
@@ -980,6 +1032,8 @@ func _process(delta: float) -> void:
 			(n as Node3D).rotate_object_local(Vector3.UP, float(n.get_meta("spin", 1.0)) * delta)
 		for n in get_tree().get_nodes_in_group("blink"):
 			(n as Node3D).visible = fmod(t * float(n.get_meta("rate", 1.0)) + float(n.get_meta("phase", 0.0)), 1.0) < 0.6
+	if crew != null and crew.panel != null:
+		crew.panel.position = Vector2((size.x - crew.panel.size.x) / 2.0, size.y - crew.panel.size.y - 12)
 	var ep := hud.get_node_or_null("environment_panel") as Control
 	if ep != null:
 		ep.position = Vector2(12, size.y - ep.size.y - 12)
@@ -1119,8 +1173,16 @@ func _run_offline() -> void:
 				for msg in more:
 					if msg is Dictionary:
 						_on_message(msg)
+	for arg in OS.get_cmdline_user_args():
+		if arg == "--rounds":
+			crew.panel.visible = true
 	if capture_dir == "":
 		return
+	# "--capture-after=<s>": let the plant live a while first (the rounds, the flow)
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--capture-after="):
+			OS.low_processor_usage_mode = false
+			await get_tree().create_timer(float(arg.get_slice("=", 1))).timeout
 	if views.is_empty():
 		views = PackedStringArray(["IsoSE"])
 	DirAccess.make_dir_recursive_absolute(capture_dir)

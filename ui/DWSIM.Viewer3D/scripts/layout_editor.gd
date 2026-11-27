@@ -262,10 +262,10 @@ func build_panel(style: StyleBox) -> PanelContainer:
 	vb.add_child(g)
 	var tl := Label.new()
 	tl.text = "Tag"
-	tl.add_theme_color_override("font_color", Color(0.36, 0.42, 0.48))
+	tl.add_theme_color_override("font_color", Color(0.27, 0.32, 0.38))
 	g.add_child(tl)
 	_tag = LineEdit.new()
-	_tag.custom_minimum_size = Vector2(140, 0)
+	_tag.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_tag.text_submitted.connect(func(t):
 		var ids := movable()
 		if not ids.is_empty() and t.strip_edges() != "":
@@ -291,13 +291,13 @@ func build_panel(style: StyleBox) -> PanelContainer:
 func _spin(parent: Control, text: String, lo: float, hi: float, changed: Callable) -> SpinBox:
 	var l := Label.new()
 	l.text = text
-	l.add_theme_color_override("font_color", Color(0.36, 0.42, 0.48))
+	l.add_theme_color_override("font_color", Color(0.27, 0.32, 0.38))
 	parent.add_child(l)
 	var s := SpinBox.new()
 	s.min_value = lo
 	s.max_value = hi
 	s.step = 0.1
-	s.custom_minimum_size = Vector2(140, 0)
+	s.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	s.value_changed.connect(func(v):
 		if not _updating:
 			changed.call(v))

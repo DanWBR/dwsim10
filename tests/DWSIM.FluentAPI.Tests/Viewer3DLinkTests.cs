@@ -370,6 +370,41 @@ namespace DWSIM.FluentAPI.Tests
         }
 
         [Test]
+        public void AControlRoomIsABuildingOfTheSite()
+        {
+            var fs = PumpAndHeater();
+            var link = new FlowsheetLink(fs.Inner);
+            string Type(JObject a) => (string)a["type"];
+            Assert.That(link.PaletteWithExtensions().Select(e => (string)e["objectType"]), Does.Contain("site:controlroom"));
+
+            var added = link.Handle(Command(SceneProtocol.Add, new { objectType = "site:controlroom", x = -20000, y = -15000 }));
+            Assert.That(Type(added), Is.EqualTo(SceneProtocol.Added), (string)added["message"]);
+            var id = (string)added["id"];
+            Assert.That(id, Is.EqualTo("site:controlroom:1"));
+            link.Sync();
+            var room = Item(link.Scene, id);
+            Assert.That((string)room["site"], Is.EqualTo("controlroom"));
+            Assert.That(room["o"].Select(v => (double)v), Is.EqualTo(new[] { -20000.0, -15000.0, 0.0 }));
+            Assert.That(fs.Inner.SimulationObjects.ContainsKey(id), Is.False, "no object of the simulation");
+
+            Assert.That(Type(link.Handle(Command(SceneProtocol.Place, new { id, x = -25000, y = -15000, z = 0, rot = 90 }))), Is.EqualTo(SceneProtocol.Ack));
+            link.Sync();
+            Assert.That((int)Item(link.Scene, id)["rot"], Is.EqualTo(90));
+            Assert.That(PlantLayout.Load(fs.Inner).ContainsKey(id), Is.False, "the equipment layout SolidCraft reads stays clean");
+            link.Handle(Command(SceneProtocol.Undo));
+            link.Sync();
+            Assert.That((double)Item(link.Scene, id)["o"][0], Is.EqualTo(-20000.0), "undo puts it back");
+
+            Assert.That(Type(link.Handle(Command(SceneProtocol.Edit, new { id }))), Is.EqualTo(SceneProtocol.Error), "no editor for a building");
+            Assert.That(Type(link.Handle(Command(SceneProtocol.Delete, new { ids = new[] { id } }))), Is.EqualTo(SceneProtocol.Ack));
+            link.Sync();
+            Assert.That(Item(link.Scene, id), Is.Null);
+            link.Handle(Command(SceneProtocol.Undo));
+            link.Sync();
+            Assert.That(Item(link.Scene, id), Is.Not.Null, "undo brings a deleted building back");
+        }
+
+        [Test]
         public void BadCommandsAreAnsweredWithAnError()
         {
             var fs = PumpAndHeater();

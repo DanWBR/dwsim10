@@ -63,12 +63,18 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             ("Logical blocks", "PID Controller", ObjectType.Controller_PID),
         };
 
-        /// <summary>The catalog as the window gets it in the welcome message.</summary>
-        public static JArray ToJson() => new JArray(Entries.Select(e => new JObject
+        /// <summary>The catalog as the window gets it in the welcome message, the buildings of the site last.</summary>
+        public static JArray ToJson()
         {
-            ["group"] = e.Group,
-            ["name"] = e.Name,
-            ["objectType"] = e.Type.ToString()
-        }));
+            var list = new JArray(Entries.Select(e => new JObject
+            {
+                ["group"] = e.Group,
+                ["name"] = e.Name,
+                ["objectType"] = e.Type.ToString()
+            }));
+            foreach (var k in SiteLayout.Kinds)
+                list.Add(new JObject { ["group"] = "Site", ["name"] = k.Name, ["objectType"] = SiteLayout.Prefix + k.Kind });
+            return list;
+        }
     }
 }

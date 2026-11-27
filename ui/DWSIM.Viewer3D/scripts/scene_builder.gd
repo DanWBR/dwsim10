@@ -195,6 +195,12 @@ func item(it: Dictionary) -> Node3D:
 	var node := Node3D.new()
 	node.name = "item"
 	node.position = vec(it.get("o"))
+	if str(it.get("site", "")) == "controlroom":
+		# a building of the site: drawn here, turned by its own "rot"
+		ControlRoomModel.build(node)
+		node.rotation.y = deg_to_rad(float(it.get("rot", 0)))
+		node.set_meta("door", ControlRoomModel.DOOR)
+		return node
 	if bool(it.get("badge", false)):
 		_badge(node, it)
 		return node

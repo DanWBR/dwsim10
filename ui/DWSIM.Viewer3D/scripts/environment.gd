@@ -30,6 +30,8 @@ var wind := 3.0
 var quality := Quality.MEDIUM
 var sound_on := true
 var volume := 0.6
+## Seconds the flyby stays on each unit (B in the window, and the recorded videos).
+var flyby_hold := 4.0
 
 var pad: MeshInstance3D
 var gravel: MeshInstance3D
@@ -124,6 +126,7 @@ func _load_settings() -> void:
 	quality = int(cfg.get_value("env", "quality", quality))
 	sound_on = bool(cfg.get_value("env", "sound", sound_on))
 	volume = float(cfg.get_value("env", "volume", volume))
+	flyby_hold = clampf(float(cfg.get_value("env", "flyby_hold", flyby_hold)), 1.0, 30.0)
 
 
 func save_settings() -> void:
@@ -134,6 +137,7 @@ func save_settings() -> void:
 	cfg.set_value("env", "quality", quality)
 	cfg.set_value("env", "sound", sound_on)
 	cfg.set_value("env", "volume", volume)
+	cfg.set_value("env", "flyby_hold", flyby_hold)
 	cfg.save(SETTINGS)
 
 
@@ -563,13 +567,15 @@ func build_panel(style: StyleBox) -> PanelContainer:
 	_panel.add_child(g)
 	_label(g, "Hour")
 	var row := HBoxContainer.new()
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	g.add_child(row)
 	_time_slider = HSlider.new()
 	_time_slider.min_value = 0.0
 	_time_slider.max_value = 24.0
 	_time_slider.step = 0.25
 	_time_slider.value = hour
-	_time_slider.custom_minimum_size = Vector2(150, 0)
+	_time_slider.custom_minimum_size = Vector2(90, 0)
+	_time_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_time_slider.focus_mode = Control.FOCUS_NONE
 	_time_slider.value_changed.connect(func(v):
 		if not _updating:
@@ -597,6 +603,7 @@ func build_panel(style: StyleBox) -> PanelContainer:
 		save_settings()))
 	_label(g, "Sound")
 	var srow := HBoxContainer.new()
+	srow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	g.add_child(srow)
 	var snd := CheckBox.new()
 	snd.button_pressed = sound_on
@@ -610,12 +617,28 @@ func build_panel(style: StyleBox) -> PanelContainer:
 	vol.max_value = 1.0
 	vol.step = 0.05
 	vol.value = volume
-	vol.custom_minimum_size = Vector2(120, 0)
+	vol.custom_minimum_size = Vector2(80, 0)
+	vol.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	vol.focus_mode = Control.FOCUS_NONE
 	vol.value_changed.connect(func(v):
 		volume = v
 		save_settings())
 	srow.add_child(vol)
+	_label(g, "Flyby stop")
+	var frow := HBoxContainer.new()
+	frow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	g.add_child(frow)
+	var hold := SpinBox.new()
+	hold.min_value = 1.0
+	hold.max_value = 30.0
+	hold.step = 0.5
+	hold.value = flyby_hold
+	hold.suffix = "s per unit"
+	hold.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hold.value_changed.connect(func(v):
+		flyby_hold = v
+		save_settings())
+	frow.add_child(hold)
 	_apply()
 	return _panel
 
@@ -623,12 +646,13 @@ func build_panel(style: StyleBox) -> PanelContainer:
 func _label(parent: Control, text: String) -> void:
 	var l := Label.new()
 	l.text = text
-	l.add_theme_color_override("font_color", Color(0.36, 0.42, 0.48))
+	l.add_theme_color_override("font_color", Color(0.27, 0.32, 0.38))
 	parent.add_child(l)
 
 
 func _options(names: Array, selected: int, picked: Callable) -> OptionButton:
 	var o := OptionButton.new()
+	o.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	for n in names:
 		o.add_item(n)
 	o.select(selected)

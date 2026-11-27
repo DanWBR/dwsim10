@@ -132,7 +132,9 @@ ends on the whole plant again.
 
 CAD Tools > Record 3D Flyby Video (DWSIM 3D) records it: a window of its own runs in Godot's Movie
 Maker mode (`--write-movie`, every frame drawn at a fixed rate, the sound mixed in and nothing
-played aloud) with `-- --flyby-record --flyby-hold=<s>`, and quits at the end. The video is
+played aloud) with `-- --flyby-record`, and quits at the end. "Flyby stop" in the panel sets how
+long the camera stays on each unit (1 to 30 s) so the cards can be read, both for B and for the
+recordings; `--flyby-hold=<s>` sets it for one run. The video is
 1920 x 1080 (the size the window starts with, which is why the project is that size and the
 window people work in shrinks itself when it opens). It goes to the folder of the 3D model next
 to the simulation, as MP4 (H.264, about 6 Mbit/s) when ffmpeg is on the PATH, else as the AVI.
@@ -142,11 +144,25 @@ to the simulation, as MP4 (H.264, about 6 Mbit/s) when ffmpeg is on the PATH, el
 The equipment keeps the sizes and colours the simulation gives it, with surface detail on top
 (scratched paint, bare metal grain, ribbed cladding on insulation; off at Low quality), concrete
 foundations under it and caged ladders up tall columns and vessels. Around the plant stand a
-chain-link fence with a gate and an access road, a control room whose windows light up at night,
-parked vehicles and a fire truck, a front loader, a storage corner, fire hydrants round the pad,
-extinguishers by pumps and compressors, workers walking round the pad or standing by, and trees
+chain-link fence with a gate and an access road, parked vehicles and a fire truck, a front loader,
+a storage corner, fire hydrants round the pad, extinguishers by pumps and compressors, and trees
 on the grass outside. O shows or hides the site. `--capture-zoom=<k>` takes k times more in the
 pictures and `--capture-clean` leaves the panels out.
+
+## The control room and the rounds
+
+The palette has a Site group with a Control Room. When you place one, it becomes a building of the
+site: it moves, turns, goes with Del and undoes like any item, and the flowsheet keeps it in its
+extra properties (key `Plant3DSite`), apart from the equipment layout. It has no editor and does
+not take part in the simulation. If the flowsheet doesn't have a control room, the window draws one
+by the road on its own.
+
+Every 20 to 45 s an operator or an engineer comes out of the control room door, walks round the
+equipment to two to four units (the ones in alarm first), stops by each one with a clipboard and
+writes a note about it: the alarm, the error, or its temperature, pressure, power or duty. A bubble
+over the person shows the note, and then the person walks back in. At most four people are out at
+once. K shows the Rounds panel with the last notes. `--rounds` opens that panel at start, and
+`--capture-after=<s>` waits s seconds before the pictures so that the rounds have started.
 
 ## Licences
 

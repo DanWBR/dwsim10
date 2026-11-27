@@ -40,8 +40,11 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
         {
             public int Fps = 30;
 
-            /// <summary>Seconds the camera stays on each unit.</summary>
-            public double Hold = 4.0;
+            /// <summary>
+            /// Seconds the camera stays on each unit; null takes the window's own setting (the
+            /// "Flyby stop" of its panel, which the user chooses and the window keeps).
+            /// </summary>
+            public double? Hold;
 
             /// <summary>The folder of the video; null for the folder of the 3D model next to the simulation.</summary>
             public string Folder;
@@ -63,7 +66,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             var link = new FlowsheetLink(fs);
             link.Start();
             var godot = "--write-movie \"" + avi + "\" --fixed-fps " + options.Fps;
-            var window = "--flyby-record --flyby-hold=" + options.Hold.ToString("0.###", CultureInfo.InvariantCulture);
+            var window = "--flyby-record" + (options.Hold.HasValue ? " --flyby-hold=" + options.Hold.Value.ToString("0.###", CultureInfo.InvariantCulture) : "");
             Process p;
             try { p = ViewerLauncher.Start(link, false, executable, godot, window); }
             catch (Exception)

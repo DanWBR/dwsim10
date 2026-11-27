@@ -96,6 +96,8 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             var props = fs.ExtraProperties as IDictionary<string, object>;
             object layout;
             if (props != null && props.TryGetValue(LayoutKey, out layout) && layout != null) sb.Append("layout:").Append(layout);
+            object site;
+            if (props != null && props.TryGetValue(SiteLayout.Key, out site) && site != null) sb.Append("site:").Append(site);
             return sb.ToString();
         }
 
