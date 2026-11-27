@@ -161,8 +161,26 @@ Every 20 to 45 s an operator or an engineer comes out of the control room door, 
 equipment to two to four units (the ones in alarm first), stops by each one with a clipboard and
 writes a note about it: the alarm, the error, or its temperature, pressure, power or duty. A bubble
 over the person shows the note, and then the person walks back in. At most four people are out at
-once. K shows the Rounds panel with the last notes. `--rounds` opens that panel at start, and
-`--capture-after=<s>` waits s seconds before the pictures so that the rounds have started.
+once.
+
+Every 35 to 70 s a maintenance team comes out too, walks to a unit (the ones in alarm or in error
+first), sets four cones and red tape round the place of the job, and works there for 30 to 50 s:
+welding (a blue arc that comes and goes, sparks and the crackle of the arc, with a second person on
+fire watch holding an extinguisher), grinding (a fan of orange sparks and the whine of the disc),
+hammering (the swing of the hammer and the clank of each blow) or tightening flange bolts (the
+clicks of a ratchet). Then the team takes the cones away and walks back in. At most two jobs go on
+at once, and the sounds are made in the window, like the sounds of the plant.
+
+Everyone on the plant wears PPE: a hard hat (white for engineers, the yellow one of the worker
+model for operators and maintenance), safety glasses, gloves and a high-visibility vest with
+reflective bands. The welder wears a welding mask, a leather apron and leather gloves; whoever
+grinds wears a face shield over the glasses; whoever grinds or hammers wears ear muffs. The people
+come in seven skin tones, from very light to very dark, dealt in turn so that every group of seven
+has one of each.
+
+K shows the Rounds and maintenance panel with the last notes and jobs. `--rounds` opens that panel
+at start, `--capture-after=<s>` waits s seconds before the pictures so that the rounds and the jobs
+have started, and `--capture-focus=<tag>` centres the pictures on a unit.
 
 ## Licences
 

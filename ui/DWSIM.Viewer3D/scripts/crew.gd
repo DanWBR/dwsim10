@@ -6,7 +6,6 @@
 class_name PlantCrew
 extends Node3D
 
-const PEOPLE := "res://assets/models/kenney/people/"
 const OPERATORS := ["character-worker"]
 const ENGINEERS := ["character-male-a", "character-female-a", "character-male-b", "character-female-b", "character-male-c", "character-female-c"]
 const MAX_OUT := 4
@@ -21,7 +20,6 @@ var _next := 3.0
 var _rng := RandomNumberGenerator.new()
 var _count := {"Operator": 0, "Engineer": 0}
 var _log: Array = []
-var _scenes := {}
 
 
 func _init(owner_main: Node3D) -> void:
@@ -36,7 +34,7 @@ func build_panel(style: StyleBox) -> PanelContainer:
 	var vb := VBoxContainer.new()
 	panel.add_child(vb)
 	var title := Label.new()
-	title.text = "Rounds"
+	title.text = "Rounds and maintenance"
 	title.add_theme_color_override("font_color", Color(0.11, 0.15, 0.2))
 	vb.add_child(title)
 	_lines = VBoxContainer.new()
@@ -138,12 +136,6 @@ static func _walk_along(r: Rect2, s0: float, s1: float) -> Array:
 
 # --- people ----------------------------------------------------------------------------------
 
-func _scene(path: String) -> PackedScene:
-	if not _scenes.has(path):
-		_scenes[path] = load(path) if ResourceLoader.exists(path) else null
-	return _scenes[path]
-
-
 func _spawn() -> void:
 	var doors: Array = main.props.doors if main.props != null else []
 	var units := _units()
@@ -153,19 +145,17 @@ func _spawn() -> void:
 	var role := "Engineer" if engineer else "Operator"
 	_count[role] += 1
 	var model: String = (ENGINEERS[_rng.randi() % ENGINEERS.size()] if engineer else OPERATORS[0])
-	var ps := _scene(PEOPLE + model + ".glb")
-	if ps == null:
+	var n := PlantPeople.make(model, _rng)
+	if n == null:
 		return
 	var door: Array = doors[_rng.randi() % doors.size()]
 	var at: Vector3 = door[0]
 	var out: Vector3 = door[1]
 	var y: float = main._bounds().position.y
 	at.y = y
-	var n: Node3D = ps.instantiate()
 	add_child(n)
-	var h := PlantProps._bounds_of(n).size.y
-	var k := 1.75 / h if h > 0.0 else 1.0
-	n.scale = Vector3.ONE * k
+	PlantPeople.dress(n, "engineer" if engineer else "operator")
+	var k: float = n.get_meta("k")
 	n.position = at
 	var clip := MeshInstance3D.new()
 	var cm := BoxMesh.new()
@@ -331,7 +321,7 @@ func _write(who: String, note: String) -> void:
 		lab.text = l
 		lab.add_theme_font_size_override("font_size", 11)
 		lab.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		lab.custom_minimum_size = Vector2(300, 0)
+		lab.custom_minimum_size = Vector2(main.PANEL_W * 1.6 - 20.0, 0)
 		lab.add_theme_color_override("font_color", Color(0.2, 0.26, 0.33))
 		_lines.add_child(lab)
 	panel.size = Vector2.ZERO

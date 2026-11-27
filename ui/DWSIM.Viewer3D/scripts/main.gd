@@ -36,7 +36,7 @@ const SHORTCUTS := [
 	["V", "Values on the plant"],
 	["B", "Flyby of the plant (Esc stops)"],
 	["O", "The site around the plant"],
-	["K", "Rounds: the notes of the crew"],
+	["K", "Rounds and maintenance log"],
 	["N", "Noon / night"],
 	["W", "Next weather"],
 	["M", "Sound on / off"],
@@ -63,6 +63,7 @@ var values_root: Node3D
 var flyby: Flyby
 var props: PlantProps
 var crew: PlantCrew
+var maintenance: PlantMaintenance
 var flyby_record := false
 ## Seconds per unit given on the command line (a recording); 0 takes the panel's setting.
 var flyby_hold := 0.0
@@ -143,6 +144,8 @@ func _ready() -> void:
 	hud.add_child(env_panel)
 	crew = PlantCrew.new(self)
 	add_child(crew)
+	maintenance = PlantMaintenance.new(self)
+	add_child(maintenance)
 	var rounds := crew.build_panel(_panel_style())
 	_glass(rounds, PANEL_W * 1.6)
 	hud.add_child(rounds)
@@ -425,6 +428,8 @@ func _after_change() -> void:
 		props.refresh()
 	if crew != null:
 		crew.clear()
+	if maintenance != null:
+		maintenance.clear()
 	_value_tags()
 	_update_title()
 
@@ -704,6 +709,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				KEY_O:
 					props.visible = not props.visible
 					crew.visible = props.visible
+					maintenance.visible = props.visible
 				KEY_K:
 					crew.panel.visible = not crew.panel.visible
 				KEY_L: labels_root.visible = not labels_root.visible
@@ -1124,6 +1130,13 @@ func _capture(view: String, width: int, height: int, fit := true) -> PackedByteA
 			if arg.begins_with("--capture-zoom="):
 				rig.view_size *= maxf(0.1, float(arg.get_slice("=", 1)))
 				rig.apply()
+			# "--capture-focus=<tag>" centres the pictures on that unit
+			elif arg.begins_with("--capture-focus="):
+				var tag := arg.get_slice("=", 1)
+				for id in entries.keys():
+					if str(entries[id]["data"].get("tag", "")) == tag:
+						rig.target = _node_bounds(entries[id]["node"]).get_center()
+						rig.apply()
 	for i in 3:
 		await get_tree().process_frame
 	RenderingServer.force_draw(false)
