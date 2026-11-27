@@ -89,6 +89,8 @@ Version 10.3.1
 - [FIX] 3D plant model picture: with SolidCraft 0.40 and later the render environment step failed and the metal parts came out nearly black; the picture is now lit by a sky, and the camera frames the plant to fill the picture
 - [FIX] PH flash with solids: a liquid just below its bubble point could fail and leave the fail-safe calculation, which drops the solids, to return a hot vapour with the wrong enthalpy (a mixer of cake and syrup at 108 C gave 338 C)
 - [FIX] Drawings: the revision and status of the CAD settings replaced the ones of the document in the title block (a fire water drawing of revision A came out as revision 0)
+- [FIX] PFR: when the reactions ran on the liquid or the vapour of a two-phase stream and the flash left that phase with slightly more of a compound than the whole stream, every volume step added the difference to the outlet, so the products came out above the reactants consumed and the duty carried the excess
+- [FIX] Flowsheet: in the dark theme, the property table that shows when the pointer rests on an object had a white panel behind light text
 
 Version 10.3.0
 
