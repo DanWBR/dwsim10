@@ -8,7 +8,7 @@ on:
       version:
         description: Version to stamp on the packages
         required: true
-        default: 10.3.0
+        default: 10.4.0
 
 env:
   DOTNET_VERSION: '10.0.x'
@@ -133,12 +133,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release download content-10.3 --repo DanWBR/dwsim10 --pattern dwsim-content.tar.gz --dir . --clobber; then
+          if gh release download content-10.4 --repo DanWBR/dwsim10 --pattern dwsim-content.tar.gz --dir . --clobber; then
             tar -xzf dwsim-content.tar.gz -C publish/${{ matrix.rid }}
             rm -f dwsim-content.tar.gz
             echo "distribution content added"
           else
-            echo "::warning::distribution content content-10.3 not found; shipping without data/help/samples/docs"
+            echo "::warning::distribution content content-10.4 not found; shipping without data/help/samples/docs"
           fi
 
       - name: Archive

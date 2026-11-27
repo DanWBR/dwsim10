@@ -7,7 +7,7 @@
 
 services:
   dwsim-mcp:
-    image: ghcr.io/danwbr/dwsim-mcp:10.3
+    image: ghcr.io/danwbr/dwsim-mcp:10.4
     container_name: dwsim-mcp
     restart: unless-stopped
     ports:

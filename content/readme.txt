@@ -1,6 +1,6 @@
 ==================================================
 DWSIM - Open Source Process Simulator
-Version 10.3.0
+Version 10.4.0
 Copyright (c) 2017-2026 Daniel Wagner and contributors
 Copyright (c) 2008-2016 Daniel Wagner, Gregor Reichert, Gustavo Leon
 ==================================================
@@ -39,7 +39,7 @@ VERSION HISTORY / CHANGELOG
 
 The full changelog including souce code changes can be viewed at https://github.com/DanWBR/dwsim10/commits/windows
 
-Version 10.3.1
+Version 10.4.0
 
 - [NEW] Download and install of new versions (Options in the classic interface, Preferences in the cross-platform one): when the startup check finds a newer version, DWSIM offers to download the installer of its edition and platform, checks it against the checksum of the release and installs it when DWSIM closes; the installer wizard on Windows, the new DWSIM.app over the installed one on macOS, the Debian package with the system password dialog on Linux, and DWSIM starts again on macOS and Linux; a portable copy opens the release page
 - [NEW] Sulfuric Acid (H2O-H2SO4-SO3) property package: water, sulfuric acid and sulfur trioxide from dilute acid to oleum, with H2SO4, H2O and SO3 in the vapour at their equilibrium and the heats of absorption and dilution in the enthalpy
@@ -70,7 +70,7 @@ Version 10.3.1
 - [CHG] Help and Tutorials site: the forum links point to the GitHub Discussions
 - [CHG] Bayer, Pulp, Sugar and Soybean Stream Analysis: Copy table puts the table of the stream on the clipboard, Export... writes it to a CSV or tab-separated text file, and Export all streams... writes one table with a column for each material stream
 - [CHG] Bayer, Pulp, Sugar and Soybean Stream Analysis: flows of 100,000 and more show as whole numbers instead of exponent notation
-- [CHG] Update 3D Plant Model Data: the labels in the 3D model show the new temperatures and pressures (models exported from 10.3.1 on)
+- [CHG] Update 3D Plant Model Data: the labels in the 3D model show the new temperatures and pressures (models exported from 10.4.0 on)
 - [CHG] Sugar Solutions package: the yeast biomass compounds are insoluble solids instead of NRTL liquids
 - [CHG] Export 3D Plant Model: the labels are flat lettering, which takes a second to build where solid lettering took over a minute, and halves the design file
 - [CHG] 3D plant model: each line carries the composition of its stream in mol %, in SolidCraft, the web viewer and the line list

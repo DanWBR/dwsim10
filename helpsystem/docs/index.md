@@ -2,7 +2,7 @@
 
 **User Guide**
 
-**Version 10.3.0**
+**Version 10.4.0**
 
 November 2026
 
