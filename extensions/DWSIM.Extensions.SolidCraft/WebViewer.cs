@@ -47,34 +47,8 @@ namespace DWSIM.Extensions.SolidCraft
                 var parts = new JArray();
                 foreach (var part in item.Parts)
                 {
-                    var p = part.Moved(item.Origin);
-                    EquipmentTemplates.ApplyFinish(p);
-                    var o = new JObject { ["k"] = p.Kind.ToString(), ["c"] = p.Color ?? EquipmentTemplates.Generic, ["m"] = p.Metallic || !string.IsNullOrEmpty(p.Look), ["p"] = V(p.Point) };
-                    switch (p.Kind)
-                    {
-                        case PrimitiveKind.Cylinder:
-                            if (!(p.Diameter > 0 && p.Height > 0)) continue;
-                            o["a"] = V(p.AxisVector ?? (p.Axis == "X" ? Vec3.PlusX : p.Axis == "Y" ? new Vec3(0, 1, 0) : Vec3.PlusZ));
-                            o["d"] = p.Diameter; o["h"] = p.Height;
-                            break;
-                        case PrimitiveKind.Box:
-                            if (!(p.SizeX > 0 && p.SizeY > 0 && p.SizeZ > 0)) continue;
-                            o["s"] = new JArray(p.SizeX, p.SizeY, p.SizeZ);
-                            break;
-                        case PrimitiveKind.Sphere:
-                            if (!(p.Diameter > 0)) continue;
-                            o["d"] = p.Diameter;
-                            break;
-                        case PrimitiveKind.Head:
-                            if (!(p.Diameter > 0 && p.Depth > 0) || !p.AxisVector.HasValue) continue;
-                            o["a"] = V(p.AxisVector.Value); o["d"] = p.Diameter; o["h"] = p.Depth;
-                            break;
-                        case PrimitiveKind.Torus:
-                            if (!(p.Major > p.Minor && p.Minor > 0)) continue;
-                            o["R"] = p.Major; o["r"] = p.Minor;
-                            break;
-                    }
-                    parts.Add(o);
+                    var o = Part(part.Moved(item.Origin));
+                    if (o != null) parts.Add(o);
                 }
                 items.Add(new JObject
                 {
@@ -111,9 +85,44 @@ namespace DWSIM.Extensions.SolidCraft
             return data;
         }
 
-        static JArray V(Vec3 v) => new JArray(Math.Round(v.X, 1), Math.Round(v.Y, 1), Math.Round(v.Z, 1));
+        /// <summary>
+        /// One solid as the viewers draw it: kind, colour, whether it is metal, its point and its
+        /// sizes, mm. Null when the solid has no size to draw.
+        /// </summary>
+        internal static JObject Part(Primitive p)
+        {
+            EquipmentTemplates.ApplyFinish(p);
+            var o = new JObject { ["k"] = p.Kind.ToString(), ["c"] = p.Color ?? EquipmentTemplates.Generic, ["m"] = p.Metallic || !string.IsNullOrEmpty(p.Look), ["p"] = V(p.Point) };
+            switch (p.Kind)
+            {
+                case PrimitiveKind.Cylinder:
+                    if (!(p.Diameter > 0 && p.Height > 0)) return null;
+                    o["a"] = V(p.AxisVector ?? (p.Axis == "X" ? Vec3.PlusX : p.Axis == "Y" ? new Vec3(0, 1, 0) : Vec3.PlusZ));
+                    o["d"] = p.Diameter; o["h"] = p.Height;
+                    break;
+                case PrimitiveKind.Box:
+                    if (!(p.SizeX > 0 && p.SizeY > 0 && p.SizeZ > 0)) return null;
+                    o["s"] = new JArray(p.SizeX, p.SizeY, p.SizeZ);
+                    break;
+                case PrimitiveKind.Sphere:
+                    if (!(p.Diameter > 0)) return null;
+                    o["d"] = p.Diameter;
+                    break;
+                case PrimitiveKind.Head:
+                    if (!(p.Diameter > 0 && p.Depth > 0) || !p.AxisVector.HasValue) return null;
+                    o["a"] = V(p.AxisVector.Value); o["d"] = p.Diameter; o["h"] = p.Depth;
+                    break;
+                case PrimitiveKind.Torus:
+                    if (!(p.Major > p.Minor && p.Minor > 0)) return null;
+                    o["R"] = p.Major; o["r"] = p.Minor;
+                    break;
+            }
+            return o;
+        }
 
-        static JObject Props(System.Collections.Generic.Dictionary<string, string> props)
+        internal static JArray V(Vec3 v) => new JArray(Math.Round(v.X, 1), Math.Round(v.Y, 1), Math.Round(v.Z, 1));
+
+        internal static JObject Props(System.Collections.Generic.Dictionary<string, string> props)
         {
             var o = new JObject();
             foreach (var kv in props) o[kv.Key] = kv.Value;

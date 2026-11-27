@@ -102,6 +102,7 @@ namespace DWSIM.Extensions.SolidCraft
                     var run = RouteStream(model, byGraphic, obj as IMaterialStream, go, index);
                     if (run != null)
                     {
+                        run.Name = obj.Name;
                         model.Pipes.Add(run);
                         index++;
                     }

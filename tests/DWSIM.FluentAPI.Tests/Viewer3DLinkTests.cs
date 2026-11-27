@@ -1,0 +1,273 @@
+using System;
+using System.IO;
+using System.Linq;
+using System.Net.Sockets;
+using System.Text;
+using DWSIM.Automation.FluentAPI;
+using DWSIM.Extensions.SolidCraft;
+using DWSIM.Extensions.SolidCraft.Viewer3D;
+using DWSIM.Interfaces;
+using Newtonsoft.Json.Linq;
+using NUnit.Framework;
+
+namespace DWSIM.FluentAPI.Tests
+{
+    /// <summary>
+    /// The link between a flowsheet and the DWSIM 3D window: the scene it builds, the changes it
+    /// sends, the commands it carries out on the flowsheet, and the connection itself, with a test
+    /// client in place of the window.
+    /// </summary>
+    [TestFixture]
+    public class Viewer3DLinkTests
+    {
+        static Flowsheet PumpAndHeater()
+        {
+            var fs = Flowsheet.Create("3D link").WithCompound("Water").WithPropertyPackage(PropertyPackages.SteamTables);
+            var feed = fs.AddMaterialStream("1").At(300.Kelvin(), 101325.0.Pascal()).WithMassFlow(10.KgPerSecond());
+            var s2 = fs.AddMaterialStream("2");
+            var s3 = fs.AddMaterialStream("3");
+            fs.AddPump("P-1").ConnectFeed(feed, 0).ConnectProduct(s2, 0);
+            fs.AddHeater("E-1").ConnectFeed(s2, 0).ConnectProduct(s3, 0);
+            fs.AutoLayout();
+            fs.Solve();
+            return fs;
+        }
+
+        static string Id(Flowsheet fs, string tag) => fs.Inner.GetFlowsheetSimulationObject(tag).Name;
+
+        static JObject Item(JObject scene, string id) => scene["items"].OfType<JObject>().SingleOrDefault(i => (string)i["id"] == id);
+
+        static JObject Command(string type, object fields = null)
+        {
+            var m = fields == null ? new JObject() : JObject.FromObject(fields);
+            m["type"] = type;
+            return m;
+        }
+
+        [Test]
+        public void TheSceneHoldsTheEquipmentAndTheLines()
+        {
+            var fs = PumpAndHeater();
+            var link = new FlowsheetLink(fs.Inner);
+            link.Sync();
+            var scene = link.Scene;
+
+            Assert.That(scene, Is.Not.Null);
+            var pump = Item(scene, Id(fs, "P-1"));
+            Assert.That(pump, Is.Not.Null, "the pump is an item");
+            Assert.That((string)pump["tag"], Is.EqualTo("P-1"));
+            Assert.That((string)pump["type"], Is.EqualTo("Pump"));
+            Assert.That(pump["parts"], Is.Not.Empty);
+            Assert.That(Item(scene, Id(fs, "E-1")), Is.Not.Null, "the heater is an item");
+            Assert.That(Item(scene, Id(fs, "2")), Is.Null, "a stream is a line, not an item");
+
+            var lineIds = scene["lines"].Select(l => (string)l["id"]).ToList();
+            Assert.That(lineIds, Does.Contain(Id(fs, "2")), "the stream between the pump and the heater is a line");
+        }
+
+        [Test]
+        public void NothingIsBuiltAgainWhenNothingChanged()
+        {
+            var fs = PumpAndHeater();
+            var link = new FlowsheetLink(fs.Inner);
+            link.Sync();
+            var first = link.Scene;
+            link.Sync();
+            Assert.That(link.Scene, Is.SameAs(first));
+
+            fs.Inner.GetFlowsheetSimulationObject("E-1").GraphicObject.X += 200;
+            link.Sync();
+            Assert.That(link.Scene, Is.Not.SameAs(first), "an icon moved on the canvas makes a new scene");
+        }
+
+        [Test]
+        public void PlacingAnItemKeepsItInTheLayout()
+        {
+            var fs = PumpAndHeater();
+            var link = new FlowsheetLink(fs.Inner);
+            link.Sync();
+            var pumpId = Id(fs, "P-1");
+
+            var answer = link.Handle(Command(SceneProtocol.Place, new { id = pumpId, x = 50000.4, y = 20000, z = 0, rot = 95 }));
+            Assert.That((string)answer["type"], Is.EqualTo(SceneProtocol.Ack), (string)answer["message"]);
+
+            link.Sync();
+            var pump = Item(link.Scene, pumpId);
+            Assert.That(pump["o"].Select(v => (double)v), Is.EqualTo(new[] { 50000.0, 20000.0, 0.0 }));
+            Assert.That((int)pump["rot"], Is.EqualTo(90), "turns are quarter turns");
+            Assert.That((bool)pump["placed"], Is.True);
+            Assert.That(PlantLayout.Load(fs.Inner).ContainsKey(pumpId), "the place is saved with the flowsheet");
+
+            link.Handle(Command(SceneProtocol.LayoutReset, new { ids = new[] { pumpId } }));
+            link.Sync();
+            Assert.That((bool)Item(link.Scene, pumpId)["placed"], Is.False, "a reset item follows the drawing again");
+        }
+
+        [Test]
+        public void TheWindowCanAddConnectRenameAndDelete()
+        {
+            var fs = PumpAndHeater();
+            var link = new FlowsheetLink(fs.Inner);
+            link.Sync();
+
+            var added = link.Handle(Command(SceneProtocol.Add, new { objectType = "Cooler", tag = "C-1", x = 30000, y = 0 }));
+            Assert.That((string)added["type"], Is.EqualTo(SceneProtocol.Added), (string)added["message"]);
+            var coolerId = (string)added["id"];
+            Assert.That(fs.Inner.SimulationObjects.ContainsKey(coolerId));
+            Assert.That(fs.Inner.GraphicObjects[coolerId].Tag, Is.EqualTo("C-1"));
+
+            var heaterId = Id(fs, "E-1");
+            var outletId = Id(fs, "3");
+            link.Handle(Command(SceneProtocol.Disconnect, new { from = heaterId, to = outletId }));
+            var joined = link.Handle(Command(SceneProtocol.Connect, new { from = heaterId, to = coolerId }));
+            Assert.That((string)joined["type"], Is.EqualTo(SceneProtocol.Added), (string)joined["message"]);
+            var streamId = (string)joined["id"];
+            var stream = fs.Inner.GraphicObjects[streamId];
+            Assert.That(stream.InputConnectors[0].AttachedConnector.AttachedFrom.Name, Is.EqualTo(heaterId));
+            Assert.That(stream.OutputConnectors[0].AttachedConnector.AttachedTo.Name, Is.EqualTo(coolerId));
+
+            link.Sync();
+            Assert.That(Item(link.Scene, coolerId), Is.Not.Null);
+            Assert.That((bool)Item(link.Scene, coolerId)["placed"], Is.True, "an object added in 3D keeps the place it was dropped at");
+
+            var renamed = link.Handle(Command(SceneProtocol.Rename, new { id = coolerId, tag = "C-101" }));
+            Assert.That((string)renamed["type"], Is.EqualTo(SceneProtocol.Ack), (string)renamed["message"]);
+            var taken = link.Handle(Command(SceneProtocol.Rename, new { id = coolerId, tag = "P-1" }));
+            Assert.That((string)taken["type"], Is.EqualTo(SceneProtocol.Error), "two objects cannot share a tag");
+
+            link.Sync();
+            Assert.That((string)Item(link.Scene, coolerId)["tag"], Is.EqualTo("C-101"));
+
+            var deleted = link.Handle(Command(SceneProtocol.Delete, new { ids = new[] { coolerId } }));
+            Assert.That((string)deleted["type"], Is.EqualTo(SceneProtocol.Ack), (string)deleted["message"]);
+            link.Sync();
+            Assert.That(Item(link.Scene, coolerId), Is.Null);
+            Assert.That(PlantLayout.Load(fs.Inner).ContainsKey(coolerId), Is.False, "a deleted object leaves the layout");
+        }
+
+        [Test]
+        public void BadCommandsAreAnsweredWithAnError()
+        {
+            var fs = PumpAndHeater();
+            var link = new FlowsheetLink(fs.Inner);
+            Assert.That((string)link.Handle(Command(SceneProtocol.Place, new { id = "nope", x = 0, y = 0 }))["type"], Is.EqualTo(SceneProtocol.Error));
+            Assert.That((string)link.Handle(Command("fly"))["type"], Is.EqualTo(SceneProtocol.Error));
+            Assert.That((string)link.Handle(Command(SceneProtocol.Add, new { objectType = "Spaceship" }))["type"], Is.EqualTo(SceneProtocol.Error));
+            var answer = link.Handle(Command(SceneProtocol.Delete, new { ids = new[] { "nope" }, @ref = "r7" }));
+            Assert.That((string)answer["ref"], Is.EqualTo("r7"), "the answer repeats the ref of the command");
+        }
+
+        [Test]
+        public void SelectionGoesBothWays()
+        {
+            var fs = PumpAndHeater();
+            var link = new FlowsheetLink(fs.Inner);
+            var pumpId = Id(fs, "P-1");
+            link.Handle(Command(SceneProtocol.Select, new { ids = new[] { pumpId } }));
+            Assert.That(FlowsheetLink.Selection.Get(fs.Inner), Is.EqualTo(new[] { pumpId }));
+        }
+
+        [Test]
+        public void ADeltaTurnsTheOldSceneIntoTheNewOne()
+        {
+            var fs = PumpAndHeater();
+            var before = SceneBuilder.Build(fs.Inner);
+            Assert.That(SceneDiff.Delta(before, SceneBuilder.Build(fs.Inner)), Is.Null, "the same flowsheet makes the same scene");
+
+            var layout = PlantLayout.Load(fs.Inner);
+            layout[Id(fs, "E-1")] = new Placement { X = 40000, Y = 10000, Z = 0, Rot = 180 };
+            PlantLayout.Save(fs.Inner, layout);
+            fs.Inner.DeleteSelectedObject(this, EventArgs.Empty, fs.Inner.GetFlowsheetSimulationObject("P-1").GraphicObject, false, false);
+            var after = SceneBuilder.Build(fs.Inner);
+
+            var delta = SceneDiff.Delta(before, after);
+            Assert.That(delta, Is.Not.Null);
+            Assert.That(delta["remove"], Is.Not.Null);
+            Assert.That(SceneDiff.Same(SceneDiff.Apply(before, delta), after), Is.True);
+        }
+
+        [Test]
+        public void TheWindowConnectsWithItsTokenAndGetsTheScene()
+        {
+            var fs = PumpAndHeater();
+            using (var link = new FlowsheetLink(fs.Inner) { PollInterval = 100 })
+            {
+                link.Start();
+                Assert.That(link.Port, Is.GreaterThan(0));
+
+                using (var intruder = Connect(link.Port))
+                {
+                    intruder.Writer.Write(SceneProtocol.Encode(Command(SceneProtocol.Hello, new { token = "wrong", version = SceneProtocol.Version })));
+                    Assert.That((string)intruder.Next()["type"], Is.EqualTo(SceneProtocol.Error));
+                    Assert.That(intruder.Reader.ReadLine(), Is.Null, "a window with the wrong token is turned away");
+                }
+
+                using (var window = Connect(link.Port))
+                {
+                    window.Writer.Write(SceneProtocol.Encode(Command(SceneProtocol.Hello, new { token = link.Token, version = SceneProtocol.Version })));
+                    Assert.That((string)window.Next()["type"], Is.EqualTo(SceneProtocol.Welcome));
+                    var full = window.Until(SceneProtocol.SceneFull);
+                    var pumpId = Id(fs, "P-1");
+                    Assert.That(Item((JObject)full["scene"], pumpId), Is.Not.Null);
+
+                    window.Writer.Write(SceneProtocol.Encode(Command(SceneProtocol.Place, new { id = pumpId, x = 1000, y = 2000, z = 0, rot = 0, @ref = "a1" })));
+                    var ack = window.Until(SceneProtocol.Ack);
+                    Assert.That((string)ack["ref"], Is.EqualTo("a1"));
+                    var delta = window.Until(SceneProtocol.SceneDelta);
+                    Assert.That(delta["upsert"].Select(i => (string)i["id"]), Does.Contain(pumpId));
+                }
+                link.Stop();
+            }
+        }
+
+        [Test]
+        public void TheLauncherPassesThePortAndToken()
+        {
+            var fs = PumpAndHeater();
+            using (var link = new FlowsheetLink(fs.Inner))
+            {
+                link.Start();
+                var args = ViewerLauncher.Arguments(link, compatibilityRenderer: true);
+                Assert.That(args, Does.StartWith("--rendering-method gl_compatibility -- "));
+                Assert.That(args, Does.Contain("--dwsim-port=" + link.Port));
+                Assert.That(args, Does.Contain("--dwsim-token=" + link.Token));
+            }
+        }
+
+        sealed class TestWindow : IDisposable
+        {
+            public TcpClient Client;
+            public StreamReader Reader;
+            public StreamWriter Writer;
+
+            public JObject Next() => SceneProtocol.Decode(Reader.ReadLine());
+
+            /// <summary>Reads messages until one of a type comes (others, like the selection, may come first).</summary>
+            public JObject Until(string type)
+            {
+                for (var k = 0; k < 20; k++)
+                {
+                    var m = Next();
+                    Assert.That(m, Is.Not.Null, "the link closed before sending " + type);
+                    if ((string)m["type"] == type) return m;
+                }
+                Assert.Fail("no " + type + " came");
+                return null;
+            }
+
+            public void Dispose() => Client.Close();
+        }
+
+        static TestWindow Connect(int port)
+        {
+            var c = new TcpClient("127.0.0.1", port) { ReceiveTimeout = 30000 };
+            var s = c.GetStream();
+            return new TestWindow
+            {
+                Client = c,
+                Reader = new StreamReader(s, new UTF8Encoding(false)),
+                Writer = new StreamWriter(s, new UTF8Encoding(false)) { AutoFlush = true }
+            };
+        }
+    }
+}

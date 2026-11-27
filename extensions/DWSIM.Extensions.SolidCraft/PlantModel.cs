@@ -346,6 +346,8 @@ namespace DWSIM.Extensions.SolidCraft
     /// <summary>A pipe between two nozzles, or from a nozzle to the battery limit.</summary>
     public class PipeRun
     {
+        /// <summary>The name (id) of the material stream the line carries; null for an item's own line.</summary>
+        public string Name;
         public string Tag;
         public string Phase;
         public string Size;
