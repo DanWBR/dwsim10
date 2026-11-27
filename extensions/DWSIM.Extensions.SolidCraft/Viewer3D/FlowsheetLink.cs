@@ -402,6 +402,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                 case SceneProtocol.Rename: return Rename(m);
                 case SceneProtocol.Select: return Select(m);
                 case SceneProtocol.Edit: return Edit(m);
+                case SceneProtocol.Flyby: return FlybyPlan();
                 case SceneProtocol.SceneFull:
                     scene = null;
                     selection = null;
@@ -786,6 +787,16 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             Snapshot(SnapshotType.ObjectData, go.Owner);
             go.Tag = tag;
             return null;
+        }
+
+        /// <summary>The items of the scene the flyby visits, in process order.</summary>
+        JObject FlybyPlan()
+        {
+            var shown = new HashSet<string>((scene?["items"] as JArray ?? new JArray()).OfType<JObject>()
+                .Where(i => (bool?)i["badge"] != true && (bool?)i["inst"] != true).Select(i => (string)i["id"]));
+            var plan = SceneProtocol.Message(SceneProtocol.FlybyPlan);
+            plan["ids"] = new JArray(ProcessOrder.Of(fs, shown));
+            return plan;
         }
 
         JObject Edit(JObject m)

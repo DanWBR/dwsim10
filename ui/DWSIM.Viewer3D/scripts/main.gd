@@ -30,6 +30,7 @@ const SHORTCUTS := [
 	["Shift+F", "Frame the selection"],
 	["A", "Animation on / off"],
 	["V", "Values on the plant"],
+	["B", "Flyby of the plant (Esc stops)"],
 	["N", "Noon / night"],
 	["W", "Next weather"],
 	["M", "Sound on / off"],
@@ -53,6 +54,11 @@ var errors := {}
 var _alarm_mat: StandardMaterial3D
 var _error_mat: StandardMaterial3D
 var values_root: Node3D
+var flyby: Flyby
+var flyby_record := false
+var flyby_hold := 4.0
+var _flyby_asked := false
+var _hud_before := {}
 var world_env: Environment
 
 var world: Node3D
@@ -102,6 +108,24 @@ func _ready() -> void:
 	var edit_panel := editor.build_panel(_panel_style())
 	edit_panel.theme = _light_theme()
 	hud.add_child(edit_panel)
+	flyby = Flyby.new(self)
+	add_child(flyby)
+	flyby.build_card(hud)
+	flyby.finished.connect(_on_flyby_finished)
+	for arg in OS.get_cmdline_user_args():
+		if arg == "--flyby-record":
+			flyby_record = true
+		elif arg.begins_with("--flyby-hold="):
+			flyby_hold = float(arg.get_slice("=", 1))
+	if flyby_record:
+		get_window().title = "DWSIM 3D - recording a flyby"
+	else:
+		# the project starts at 1920 x 1080, the size of the flyby videos (Movie Maker records at the
+		# size the window starts with); the window people work in opens smaller
+		var screen := DisplayServer.screen_get_usable_rect(get_window().current_screen)
+		var size := Vector2i(mini(1400, screen.size.x - 80), mini(900, screen.size.y - 80))
+		get_window().size = size
+		get_window().position = screen.position + (screen.size - size) / 2
 	surroundings = PlantEnvironment.new(self, world_env, sun)
 	add_child(surroundings)
 	var env_panel := surroundings.build_panel(_panel_style())
@@ -303,6 +327,8 @@ func _on_message(m: Dictionary) -> void:
 			_apply_delta(m)
 		"select":
 			_set_selection(m.get("ids", []), false)
+		"flyby.plan":
+			_start_flyby(m.get("ids", []))
 		"values":
 			_apply_values(m)
 		"capture":
@@ -338,6 +364,9 @@ func _load_scene(scene: Dictionary) -> void:
 		_fitted = true
 		rig.fit_points(_corners(), _aspect())
 		_fit_ground()
+	if flyby_record and not _flyby_asked:
+		_flyby_asked = true
+		_ask_flyby()
 
 
 func _apply_delta(m: Dictionary) -> void:
@@ -574,6 +603,14 @@ func _pick(screen: Vector2) -> String:
 # --- input -----------------------------------------------------------------------------------
 
 func _unhandled_input(event: InputEvent) -> void:
+	if flyby != null and flyby.active:
+		# during a flyby only B and Esc count: they stop it
+		if event is InputEventKey and event.pressed and (event.keycode == KEY_B or event.keycode == KEY_ESCAPE):
+			flyby.stop()
+		return
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_B and not event.ctrl_pressed:
+		_ask_flyby()
+		return
 	if event is InputEventMouseMotion:
 		_mouse = (event as InputEventMouseMotion).position
 		_mouse_dirty = true
@@ -736,6 +773,47 @@ func _value_tags() -> void:
 		l.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 		l.position = at
 		values_root.add_child(l)
+
+
+## Asks DWSIM for the order of the flyby; without DWSIM the units go west to east.
+func _ask_flyby() -> void:
+	if link.state == "connected":
+		link.send({"type": "flyby"})
+		return
+	var ids := []
+	for id in entries.keys():
+		var d: Dictionary = entries[id]["data"]
+		if entries[id]["kind"] == "item" and not bool(d.get("badge", false)) and not bool(d.get("inst", false)):
+			ids.append(id)
+	ids.sort_custom(func(a, b): return float(entries[a]["data"]["o"][0]) < float(entries[b]["data"]["o"][0]))
+	_start_flyby(ids)
+
+
+func _start_flyby(ids: Array) -> void:
+	if ids.is_empty():
+		_show_toast("There is no unit to fly over.")
+		if flyby_record:
+			get_tree().quit()
+		return
+	_hud_before.clear()
+	for c in hud.get_children():
+		if c == title_panel or c == flyby._card:
+			continue
+		if c is CanvasItem:
+			_hud_before[c] = (c as CanvasItem).visible
+			(c as CanvasItem).visible = false
+	_mouse = Vector2(-1, -1)
+	_set_hover("")
+	flyby.start(ids, flyby_hold)
+
+
+func _on_flyby_finished() -> void:
+	for c in _hud_before.keys():
+		if is_instance_valid(c):
+			(c as CanvasItem).visible = _hud_before[c]
+	_hud_before.clear()
+	if flyby_record:
+		get_tree().quit()
 
 
 ## Asks DWSIM to open the editor of an object in a floating window.

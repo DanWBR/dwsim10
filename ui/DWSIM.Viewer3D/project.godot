@@ -14,8 +14,8 @@ run/low_processor_mode=true
 
 [display]
 
-window/size/viewport_width=1400
-window/size/viewport_height=900
+window/size/viewport_width=1920
+window/size/viewport_height=1080
 window/stretch/mode="disabled"
 window/subwindows/embed_subwindows=true
 
@@ -33,3 +33,7 @@ textures/vram_compression/import_etc2_astc=true
 lights_and_shadows/directional_shadow/size=8192
 lights_and_shadows/directional_shadow/soft_shadow_filter_quality=3
 environment/defaults/default_clear_color=Color(0.86, 0.89, 0.92, 1)
+
+[editor]
+
+movie_writer/mjpeg_quality=0.92

@@ -45,7 +45,7 @@ namespace DWSIM.Extensions.SolidCraft
 
         public ExtenderLevel Level => ExtenderLevel.FlowsheetWindow;
 
-        public List<IExtender> Collection { get; } = new List<IExtender> { new Viewer3D.Viewer3DExtender(), new PlantModelExtender(), new UpdateDataExtender(), new ResetLayoutExtender(), new ProcessFlowDiagramExtender(), new PipingAndInstrumentationExtender(), new EquipmentDrawingsExtender(), new PipingIsometricsExtender(), new DataSheetsExtender(), new PlotPlanExtender(), new AllDrawingsExtender(), new DexpiExportExtender(), new DexpiPidExportExtender(), new DrawingImportExtender(), new IsometricImportExtender(), new DataSheetImportExtender() };
+        public List<IExtender> Collection { get; } = new List<IExtender> { new Viewer3D.Viewer3DExtender(), new Viewer3D.Viewer3DFlybyExtender(), new PlantModelExtender(), new UpdateDataExtender(), new ResetLayoutExtender(), new ProcessFlowDiagramExtender(), new PipingAndInstrumentationExtender(), new EquipmentDrawingsExtender(), new PipingIsometricsExtender(), new DataSheetsExtender(), new PlotPlanExtender(), new AllDrawingsExtender(), new DexpiExportExtender(), new DexpiPidExportExtender(), new DrawingImportExtender(), new IsometricImportExtender(), new DataSheetImportExtender() };
 
         /// <summary>After Results, before the menus of the window itself.</summary>
         public int InsertAtPosition => 9;

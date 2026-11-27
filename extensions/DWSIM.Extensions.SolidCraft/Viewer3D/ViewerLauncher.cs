@@ -112,13 +112,22 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
         /// is for computers without Vulkan, Direct3D 12 or Metal (old graphics, virtual machines).
         /// </summary>
         public static Process Start(FlowsheetLink link, bool compatibilityRenderer = false, string executable = null)
+            => Start(link, compatibilityRenderer, executable, "", "");
+
+        /// <summary>
+        /// Starts the window with more options: Godot's own (before "--", such as a movie to write)
+        /// and the window's (after it, such as a flyby).
+        /// </summary>
+        public static Process Start(FlowsheetLink link, bool compatibilityRenderer, string executable, string godotOptions, string windowOptions)
         {
             if (link == null) throw new ArgumentNullException(nameof(link));
             if (link.Port == 0) throw new InvalidOperationException("the link must be started before the window");
             string exe = executable, prefix = "";
             if (exe == null && !Resolve(out exe, out prefix))
                 throw new FileNotFoundException("This installation of DWSIM does not include the 3D window (" + FolderName + " folder).");
-            var info = new ProcessStartInfo(exe, prefix + Arguments(link, compatibilityRenderer))
+            var args = prefix + (string.IsNullOrWhiteSpace(godotOptions) ? "" : godotOptions.Trim() + " ") + Arguments(link, compatibilityRenderer)
+                + (string.IsNullOrWhiteSpace(windowOptions) ? "" : " " + windowOptions.Trim());
+            var info = new ProcessStartInfo(exe, args)
             {
                 UseShellExecute = false,
                 WorkingDirectory = Path.GetDirectoryName(Path.GetFullPath(exe)) ?? ""

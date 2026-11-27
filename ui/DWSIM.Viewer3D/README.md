@@ -122,6 +122,21 @@ The textures and sounds, all CC0, are listed in `assets/CREDITS.md`.
 would send them (values, a selection), and `--audio-driver Dummy` (a Godot option) runs it without
 any sound reaching the speakers.
 
+## Flyby videos
+
+B plays a flyby in the window (B or Esc stops it): a perspective camera opens on the whole plant,
+flies in an arc to each unit in the order the material goes through them (DWSIM works it out from
+the feeds to the products; a recycle does not take the tour back), closes in from an angle no
+other item hides, turns slowly around it while a card shows its tag, kind and main values, and
+ends on the whole plant again.
+
+CAD Tools > Record 3D Flyby Video (DWSIM 3D) records it: a window of its own runs in Godot's Movie
+Maker mode (`--write-movie`, every frame drawn at a fixed rate, the sound mixed in and nothing
+played aloud) with `-- --flyby-record --flyby-hold=<s>`, and quits at the end. The video is
+1920 x 1080 (the size the window starts with, which is why the project is that size and the
+window people work in shrinks itself when it opens). It goes to the folder of the 3D model next
+to the simulation, as MP4 (H.264, about 6 Mbit/s) when ffmpeg is on the PATH, else as the AVI.
+
 ## Licences
 
 The window is part of DWSIM (GPL 3). The Godot Engine is MIT licensed; `licenses/` holds its

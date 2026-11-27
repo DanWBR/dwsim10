@@ -354,6 +354,22 @@ namespace DWSIM.FluentAPI.Tests
         }
 
         [Test]
+        public void TheFlybyFollowsTheProcess()
+        {
+            var fs = PumpAndHeater();
+            var link = new FlowsheetLink(fs.Inner);
+            // a cooler after the heater, fed by its product
+            var added = (string)link.Handle(Command(SceneProtocol.Add, new { objectType = "Cooler", tag = "C-1", x = 40000, y = 0 }))["id"];
+            link.Handle(Command(SceneProtocol.Connect, new { from = Id(fs, "3"), to = added }));
+            Assert.That(ProcessOrder.Of(fs.Inner).Select(id => fs.Inner.SimulationObjects[id].GraphicObject.Tag), Is.EqualTo(new[] { "P-1", "E-1", "C-1" }), "from the feed to the product");
+            link.Sync();
+            var plan = link.Handle(Command(SceneProtocol.Flyby));
+            Assert.That((string)plan["type"], Is.EqualTo(SceneProtocol.FlybyPlan));
+            Assert.That(plan["ids"].Select(t => (string)t), Is.EqualTo(new[] { Id(fs, "P-1"), Id(fs, "E-1"), added }));
+            Assert.That(FlybyRecorder.Width, Is.EqualTo(1920));
+        }
+
+        [Test]
         public void BadCommandsAreAnsweredWithAnError()
         {
             var fs = PumpAndHeater();

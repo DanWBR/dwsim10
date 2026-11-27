@@ -73,6 +73,12 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
         /// <summary>{from, to}: takes the connection between two objects apart.</summary>
         public const string Disconnect = "disconnect";
 
+        /// <summary>Asks for the tour of a flyby; DWSIM answers <see cref="FlybyPlan"/>.</summary>
+        public const string Flyby = "flyby";
+
+        /// <summary>{ids}: the items of the scene in the order the material goes through them (see <see cref="ProcessOrder"/>).</summary>
+        public const string FlybyPlan = "flyby.plan";
+
         /// <summary>{id}: opens the object's editor in a floating window of DWSIM.</summary>
         public const string Edit = "edit";
 
