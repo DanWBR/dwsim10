@@ -69,11 +69,16 @@ namespace DWSIM.Drawing.SkiaSharp.PlantDesigner
             Raise();
         }
 
-        /// <summary>Runs an edit as one undo step. If the edit throws, the drawing goes back to where it was.</summary>
+        private int _depth;
+
+        /// <summary>Runs an edit as one undo step. If the edit throws, the drawing goes back to where it was. The edits
+        /// made inside it (such as <see cref="DrawRun"/> called from it) belong to the same step.</summary>
         public T Edit<T>(Func<T> edit)
         {
+            if (_depth > 0) return edit();
             Checkpoint();
             T r;
+            _depth++;
             try { r = edit(); }
             catch
             {
@@ -81,6 +86,7 @@ namespace DWSIM.Drawing.SkiaSharp.PlantDesigner
                 _undo.RemoveAt(_undo.Count - 1);
                 throw;
             }
+            finally { _depth--; }
             Raise();
             return r;
         }
@@ -210,6 +216,13 @@ namespace DWSIM.Drawing.SkiaSharp.PlantDesigner
             // split off the pipe before the component, then the pipe after it
             if (t1 > tol) { var v1 = Drawing.SplitLeg(l, a + dir * t1); mid = Drawing.LegsAt(v1.Id).First(x => x.A == v1.Id); }
             if (len - t2 > tol) { Drawing.SplitLeg(mid, a + dir * t2); }
+            // the fittings of a leg the component takes over go to the pipe after it
+            if (mid.FittingsK != 0.0)
+            {
+                var after = Drawing.LegsAt(mid.B).FirstOrDefault(x => x.Id != mid.Id && x.Kind == LegKind.Pipe && x.A == mid.B);
+                if (after != null) after.FittingsK += mid.FittingsK;
+                mid.FittingsK = 0.0;
+            }
             mid.Kind = LegKind.Component;
             mid.ComponentKind = kind ?? "";
             mid.BlockName = "";

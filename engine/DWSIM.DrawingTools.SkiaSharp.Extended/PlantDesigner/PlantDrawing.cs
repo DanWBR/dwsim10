@@ -89,6 +89,9 @@ namespace DWSIM.Drawing.SkiaSharp.PlantDesigner
         /// <summary>The host block this leg belongs to. The legs of one pipe run share it.</summary>
         public string BlockName = "";
         public string Tag = "";
+        /// <summary>The loss coefficient of the fittings on a pipe leg (valves, tees...), on top of the elbows at the
+        /// corners of the run. The legs of one pipe add up their coefficients.</summary>
+        public double FittingsK = 0.0;
     }
 
     /// <summary>A terminal item on a point (a hydrant, a nozzle, a tank, a source or a sink).</summary>
@@ -225,7 +228,7 @@ namespace DWSIM.Drawing.SkiaSharp.PlantDesigner
         }
 
         /// <summary>Splits a leg at a point of it: the leg keeps A to the new point, a copy runs from the new point to B
-        /// (same kind, pen, block and tag). Returns the new point.</summary>
+        /// (same kind, pen, block and tag). The leg keeps its fittings coefficient, so that it is not counted twice. Returns the new point.</summary>
         public PlantVertex SplitLeg(PlantLeg l, V3 at)
         {
             var v = AddVertex(at);
@@ -280,6 +283,7 @@ namespace DWSIM.Drawing.SkiaSharp.PlantDesigner
                 var e = l.Pen.Save("L");
                 e.Add(new XAttribute("Id", l.Id), new XAttribute("A", l.A), new XAttribute("B", l.B), new XAttribute("Kind", l.Kind.ToString()),
                     new XAttribute("Component", l.ComponentKind ?? ""), new XAttribute("Block", l.BlockName ?? ""), new XAttribute("LegTag", l.Tag ?? ""));
+                if (l.FittingsK != 0.0) e.Add(new XAttribute("K", PipePen.D(l.FittingsK)));
                 xl.Add(e);
             }
             x.Add(xl);
@@ -312,7 +316,8 @@ namespace DWSIM.Drawing.SkiaSharp.PlantDesigner
                 d.Legs.Add(new PlantLeg
                 {
                     Id = PipePen.I(e, "Id", 0), A = PipePen.I(e, "A", 0), B = PipePen.I(e, "B", 0), Kind = k, Pen = PipePen.Load(e),
-                    ComponentKind = PipePen.S(e, "Component", ""), BlockName = PipePen.S(e, "Block", ""), Tag = PipePen.S(e, "LegTag", "")
+                    ComponentKind = PipePen.S(e, "Component", ""), BlockName = PipePen.S(e, "Block", ""), Tag = PipePen.S(e, "LegTag", ""),
+                    FittingsK = PipePen.N(e, "K", 0.0)
                 });
             }
             foreach (var e in x.Element("Items")?.Elements("I") ?? Enumerable.Empty<XElement>())

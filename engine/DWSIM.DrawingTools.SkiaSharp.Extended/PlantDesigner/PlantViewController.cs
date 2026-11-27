@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
@@ -219,6 +220,15 @@ namespace DWSIM.Drawing.SkiaSharp.PlantDesigner
             bool add = (mods & KeyMods.Ctrl) != 0;
             if (h.IsElement) View.Toggle(h, add);
             else if (!add) View.ClearSelection();
+            var sc = SelectionChanged; if (sc != null) sc();
+            Redraw();
+        }
+
+        /// <summary>Selects these legs (after the host drew them, as an import does) and tells the host.</summary>
+        public void SelectLegs(IEnumerable<int> legIds)
+        {
+            View.ClearSelection();
+            foreach (var id in legIds) if (View.Drawing.Leg(id) != null) View.SelectedLegs.Add(id);
             var sc = SelectionChanged; if (sc != null) sc();
             Redraw();
         }
