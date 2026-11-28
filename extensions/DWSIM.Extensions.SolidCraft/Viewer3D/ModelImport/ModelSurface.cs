@@ -515,6 +515,124 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
             }
         }
 
+        /// <summary>
+        /// The regions of a surface that are vessels with something on them (the saddles a noisy
+        /// scan leaves on a drum, a platform): most of their vertices lie at one distance from an
+        /// axis, all round it, and the rest stand out. The shape of all the vertices calls them
+        /// boxes; the shell alone says what they are. A region of a CAD file is never looked at.
+        /// </summary>
+        public static void FindVessels(ImportedModel model, List<Island> islands)
+        {
+            foreach (var island in islands)
+            {
+                if (!island.Region || island.Shape == null) continue;
+                if (island.Shape.Class != ShapeClass.Box && island.Shape.Class != ShapeClass.Unknown) continue;
+                var size = island.Size;
+                if (Math.Max(size[0], Math.Max(size[1], size[2])) < 1.0) continue;
+                // the middles of the faces, each as much as its area: the way the mesh is cut up
+                // (vertices split at sharp edges, a finer tessellation at the corners) does not count
+                var part = model.Parts[island.Part];
+                var pts = new List<double[]>(island.Triangles.Length);
+                var weights = new List<double>(island.Triangles.Length);
+                foreach (var t in island.Triangles)
+                {
+                    var a = ModelGeometry.TriangleArea(part, t);
+                    if (a <= 0) continue;
+                    var c = new double[3];
+                    for (var k = 0; k < 3; k++)
+                    {
+                        var v = part.Indices[3 * t + k] * 3;
+                        for (var d = 0; d < 3; d++) c[d] += part.Positions[v + d] / 3.0;
+                    }
+                    pts.Add(c);
+                    weights.Add(a);
+                }
+                if (pts.Count < 32) continue;
+                double[] mean, e1, e2, e3;
+                IslandShapes.Principal(pts, out mean, out e1, out e2, out e3);
+                double[] best = null, bestAxis = null;
+                foreach (var axis in new[] { e1, e2, e3 })
+                {
+                    var fit = Shell(pts, weights, mean, axis);
+                    if (best == null || fit[1] > best[1]) { best = fit; bestAxis = axis; }
+                }
+                // [radius, share of the vertices on the shell, sectors round the axis, length]
+                if (best[1] < VesselShare || best[2] < 7 || best[0] <= 0.35) continue;
+                var vertical = Math.Abs(bestAxis[2]) > 0.85;
+                var horizontal = Math.Abs(bestAxis[2]) < 0.3;
+                if (!vertical && !horizontal) continue;
+                island.Shape.Axis = bestAxis;
+                island.Shape.Radius = best[0];
+                island.Shape.Length = best[3];
+                island.Shape.Class = vertical ? (best[3] > 8 * best[0] ? ShapeClass.Column : ShapeClass.VerticalVessel) : ShapeClass.HorizontalVessel;
+            }
+        }
+
+        /// <summary>The share of a region's area that must lie on the shell of a vessel.</summary>
+        public static double VesselShare = 0.6;
+
+        /// <summary>
+        /// The shell of the faces about an axis: the median distance of their middles from it (by
+        /// area), the share of the area within 12 % of that distance, how many of eight sectors round
+        /// the axis it fills, and its length along it. The axis goes through the middle of the shell
+        /// (a second pass moves it there from the middle of all the faces).
+        /// </summary>
+        static double[] Shell(List<double[]> pts, List<double> weights, double[] mean, double[] axis)
+        {
+            var centre = (double[])mean.Clone();
+            var h = Math.Abs(axis[2]) < 0.9 ? new[] { 0.0, 0, 1 } : new[] { 1.0, 0, 0 };
+            var u = new[] { axis[1] * h[2] - axis[2] * h[1], axis[2] * h[0] - axis[0] * h[2], axis[0] * h[1] - axis[1] * h[0] };
+            var ul = Math.Sqrt(u[0] * u[0] + u[1] * u[1] + u[2] * u[2]);
+            for (var k = 0; k < 3; k++) u[k] /= ul;
+            var w = new[] { axis[1] * u[2] - axis[2] * u[1], axis[2] * u[0] - axis[0] * u[2], axis[0] * u[1] - axis[1] * u[0] };
+            double radius = 0, share = 0, length = 0;
+            var sectors = 0;
+            var d = new double[pts.Count];
+            for (var pass = 0; pass < 2; pass++)
+            {
+                for (var i = 0; i < pts.Count; i++)
+                {
+                    double vx = pts[i][0] - centre[0], vy = pts[i][1] - centre[1], vz = pts[i][2] - centre[2];
+                    var along = vx * axis[0] + vy * axis[1] + vz * axis[2];
+                    double rx = vx - along * axis[0], ry = vy - along * axis[1], rz = vz - along * axis[2];
+                    d[i] = Math.Sqrt(rx * rx + ry * ry + rz * rz);
+                }
+                var order = Enumerable.Range(0, pts.Count).OrderBy(i => d[i]).ToList();
+                var total = weights.Sum();
+                double acc = 0;
+                radius = 0;
+                foreach (var i in order)
+                {
+                    acc += weights[i];
+                    if (acc >= total / 2) { radius = d[i]; break; }
+                }
+                if (radius <= 0 || total <= 0) return new double[] { 0, 0, 0, 0 };
+                double sx = 0, sy = 0, sz = 0, lo = double.MaxValue, hi = double.MinValue, on = 0;
+                var n = 0;
+                var filled = new bool[8];
+                for (var i = 0; i < pts.Count; i++)
+                {
+                    if (Math.Abs(d[i] - radius) > 0.12 * radius) continue;
+                    double vx = pts[i][0] - centre[0], vy = pts[i][1] - centre[1], vz = pts[i][2] - centre[2];
+                    var along = vx * axis[0] + vy * axis[1] + vz * axis[2];
+                    double rx = vx - along * axis[0], ry = vy - along * axis[1], rz = vz - along * axis[2];
+                    sx += rx; sy += ry; sz += rz;
+                    on += weights[i];
+                    lo = Math.Min(lo, along); hi = Math.Max(hi, along);
+                    var angle = Math.Atan2(rx * w[0] + ry * w[1] + rz * w[2], rx * u[0] + ry * u[1] + rz * u[2]) + Math.PI;
+                    filled[Math.Min(7, (int)(angle / (Math.PI / 4)))] = true;
+                    n++;
+                }
+                share = on / total;
+                sectors = filled.Count(x => x);
+                length = n > 0 ? hi - lo : 0;
+                if (n == 0) break;
+                // the middle of the shell: the mean of the shell's offsets from the axis
+                centre[0] += sx / n; centre[1] += sy / n; centre[2] += sz / n;
+            }
+            return new[] { radius, share, sectors, length };
+        }
+
         /// <summary>The thickest wall a tube may have (twice the radius of a large pipe), metres.</summary>
         public static double MaxTube = 0.8;
 

@@ -234,7 +234,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
         }
 
         /// <summary>The mean of the points and the eigenvectors of their covariance, largest spread first (Jacobi rotations).</summary>
-        static void Principal(List<double[]> pts, out double[] mean, out double[] e1, out double[] e2, out double[] e3)
+        internal static void Principal(List<double[]> pts, out double[] mean, out double[] e1, out double[] e2, out double[] e3)
         {
             mean = new double[3];
             foreach (var p in pts) for (var k = 0; k < 3; k++) mean[k] += p[k];

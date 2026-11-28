@@ -311,6 +311,8 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
                 switch (op)
                 {
                     case '\0': return true;
+                    // the end of the stream, once at the end of every file
+                    case 'z': return true;
                     case '(':
                         {
                             var n = _d[_p++];
@@ -646,8 +648,10 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
 
             /// <summary>
             /// The optional records after the points (normals and the like), skipped: 1, type, scheme,
-            /// length, data, and 0 at the end. Normals by vertex (2) have a layout the reader does not
-            /// follow; they end the shell's segment, and the walker goes on from the next object.
+            /// length, data, and 0 at the end. Normals by vertex (2), and the other records some
+            /// exporters write there (1c 02 in a file of a gas plant), have a layout the reader does not
+            /// follow; the shell is drawn already, so they end its segment quietly, and the walker goes
+            /// on from the next object.
             /// </summary>
             bool Optionals(int sub)
             {
@@ -657,8 +661,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
                 {
                     var more = _d[_p++];
                     if (more == 0) return true;
-                    if (more == 2) { _quiet = true; return false; }
-                    if (more != 1) return false;
+                    if (more != 1) { _quiet = true; return false; }
                     _p += 2;
                     var len = I();
                     if (len < 0 || _p + (long)len > _d.Length) return false;

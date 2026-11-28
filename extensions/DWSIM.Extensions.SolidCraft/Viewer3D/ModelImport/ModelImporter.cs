@@ -59,7 +59,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
     public static class ModelImporter
     {
         /// <summary>The version of what the cache holds; a cache of another version is made again.</summary>
-        public const int CacheVersion = 5;
+        public const int CacheVersion = 6;
 
         public static readonly string[] Extensions = { ".glb", ".gltf", ".obj", ".stl", ".ply", ".fbx", ".dwf", ".dwfx", ".ifc", ".step", ".stp", ".igs", ".iges", ".3dm", ".fcstd" };
 
@@ -245,6 +245,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
             var shapes = IslandShapes.Classify(model, islands);
             for (var i = 0; i < islands.Count; i++) islands[i].Shape = shapes[i];
             ModelSurface.FindTubes(model, islands);
+            ModelSurface.FindVessels(model, islands);
             Directory.CreateDirectory(result.CacheFolder);
             GlbWriter.WriteIslands(model, islands, result.GlbPath);
             GlbWriter.WriteTiles(model, result.ViewPath);

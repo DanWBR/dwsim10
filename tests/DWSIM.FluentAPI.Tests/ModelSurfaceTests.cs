@@ -223,18 +223,11 @@ namespace DWSIM.FluentAPI.Tests
             Assert.That(v1.Body, Is.EqualTo(ShapeClass.VerticalVessel));
             Assert.That(v1.Diameter, Is.EqualTo(2.0).Within(0.2));
             Assert.That(v1.Length, Is.EqualTo(5.0).Within(0.4));
-            if (noise == 0)
-            {
-                Assert.That(v2.Body, Is.EqualTo(ShapeClass.HorizontalVessel));
-                Assert.That(v2.Diameter, Is.EqualTo(1.6).Within(0.2));
-                Assert.That(v2.Length, Is.EqualTo(4.0).Within(0.4));
-            }
-            else
-            {
-                // the noise hides the shallow crease under the saddles: they stay in the drum's
-                // region, which the review cuts off with a plane
-                Assert.That(v2.Max[0] - v2.Min[0], Is.EqualTo(4.0).Within(0.4));
-            }
+            // with noise the shallow crease under the saddles hides and they stay in the drum's
+            // region; its shell still says it is a drum
+            Assert.That(v2.Body, Is.EqualTo(ShapeClass.HorizontalVessel));
+            Assert.That(v2.Diameter, Is.EqualTo(1.6).Within(0.2));
+            Assert.That(v2.Length, Is.EqualTo(4.0).Within(0.4));
             Assert.That(v2.Min[2], Is.LessThan(dz + 0.1), "the saddles go with the drum");
             Assert.That(Math.Abs(pump.Center[0] + 0.4) < 0.3 && Math.Abs(pump.Center[1] + 3.7) < 0.3, Is.True, "the pump skid is a machine of its own");
 
