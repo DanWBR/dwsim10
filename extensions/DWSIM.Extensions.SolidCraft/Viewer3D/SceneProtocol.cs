@@ -90,6 +90,25 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
         public const string SiteAdd = "site.add";
 
         /// <summary>
+        /// {path, name, cat, cost, height}: brings a 3D model file in as a prop of the user's library
+        /// (name, category, cost and height optional), off the interface thread; DWSIM answers with
+        /// <see cref="PropStatus"/> and sends the catalog again.
+        /// </summary>
+        public const string PropImport = "prop.import";
+
+        /// <summary>{kind, name, cat, cost, height}: changes a prop of the library (the fields given).</summary>
+        public const string PropEdit = "prop.edit";
+
+        /// <summary>{kind}: takes a prop out of the library; the sites that use it draw a box in its place.</summary>
+        public const string PropRemove = "prop.remove";
+
+        /// <summary>{state: importing, done or failed, message, kind}: how a change of the library goes (DWSIM to the window).</summary>
+        public const string PropStatus = "prop.status";
+
+        /// <summary>{site: [as in welcome]}: the catalog of the site again, after the library changed (DWSIM to the window).</summary>
+        public const string SiteCatalogMessage = "site.catalog";
+
+        /// <summary>
         /// {ids} and/or {rect: [x0, y0, x1, y1]}: the bulldozer takes away objects of the site, by id
         /// or all those that touch the rectangle; the answer lists them in "removed". Equipment stays.
         /// </summary>

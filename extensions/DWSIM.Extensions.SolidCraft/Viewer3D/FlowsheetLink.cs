@@ -190,7 +190,10 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                 welcome["version"] = SceneProtocol.Version;
                 welcome["name"] = PlantModelExtender.ModelName(fs);
                 welcome["palette"] = PaletteWithExtensions();
-                welcome["site"] = SiteCatalog.ToJson();
+                SiteLayout.Site loaded = null;
+                try { OnUi(() => loaded = SiteLayout.LoadSite(fs)); }
+                catch (Exception) { }
+                welcome["site"] = SiteCatalog.ToJson(loaded);
                 Send(welcome);
                 Refresh();
                 Connected?.Invoke(this, EventArgs.Empty);
@@ -674,6 +677,108 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             return null;
         }
 
+        int propBusy;
+
+        /// <summary>True while a prop is read in the background.</summary>
+        public bool ImportingProp => Volatile.Read(ref propBusy) != 0;
+
+        void PropStatus(string state, string message, string kind = null)
+        {
+            var m = SceneProtocol.Message(SceneProtocol.PropStatus);
+            m["state"] = state;
+            m["message"] = message;
+            if (kind != null) m["kind"] = kind;
+            Send(m);
+        }
+
+        /// <summary>The catalog again, with the library as it is now and the site's own props, and the scene again so the site's props are drawn anew.</summary>
+        void SendCatalog()
+        {
+            SiteLayout.Site site = null;
+            try
+            {
+                OnUi(() =>
+                {
+                    lock (gate)
+                    {
+                        site = SiteLayout.LoadSite(fs);
+                        // the flowsheet keeps the props it uses as the library has them now
+                        if (site.Items.Any(b => PropLibrary.IsUser(b.Kind))) SiteLayout.SaveSite(fs, site);
+                    }
+                });
+            }
+            catch (Exception) { }
+            var m = SceneProtocol.Message(SceneProtocol.SiteCatalogMessage);
+            m["site"] = SiteCatalog.ToJson(site);
+            Send(m);
+            Refresh();
+        }
+
+        /// <summary>
+        /// A change of the user's library of props: a model brought in (read off the interface
+        /// thread, as a plant model is), a prop changed, or one taken out. The library is the user's
+        /// and not the flowsheet's, so the change is not a step of the window's undo.
+        /// </summary>
+        JObject StartProp(string type, JObject m)
+        {
+            if (type == SceneProtocol.PropImport)
+            {
+                var path = (string)m["path"];
+                if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return Error("the file '" + path + "' was not found", type);
+            }
+            else if (PropLibrary.Find((string)m["kind"]) == null) return Error("there is no prop '" + m["kind"] + "' in the library", type);
+            double? cost = null, height = null;
+            double v;
+            if (m["cost"] != null && m["cost"].Type != JTokenType.Null)
+            {
+                if (!Finite(m["cost"], out v) || v < 0) return Error("a cost must be a number of 0 or more", type);
+                cost = v;
+            }
+            if (m["height"] != null && m["height"].Type != JTokenType.Null)
+            {
+                if (!Finite(m["height"], out v) || v <= 0 || v > 500) return Error("a height must lie between 0 and 500 m", type);
+                height = v;
+            }
+            if (type == SceneProtocol.PropRemove)
+            {
+                var name = PropLibrary.Find((string)m["kind"]).Name;
+                if (!PropLibrary.Remove((string)m["kind"])) return Error("the prop could not be taken out of the library", type);
+                PropStatus("done", name + " was taken out of the library.");
+                SendCatalog();
+                return null;
+            }
+            if (Interlocked.CompareExchange(ref propBusy, 1, 0) != 0) return Error("a prop is being read already", type);
+            Action work = () =>
+            {
+                try
+                {
+                    PropInfo p;
+                    if (type == SceneProtocol.PropImport)
+                    {
+                        var path = (string)m["path"];
+                        PropStatus("importing", "Reading " + Path.GetFileName(path) + "...");
+                        p = PropLibrary.Import(path, (string)m["name"], (string)m["cat"], cost, height);
+                        PropStatus("done", string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                            "{0} is in My objects: {1:0.##} m by {2:0.##} m, {3:0.##} m high, {4:N0} triangles.", p.Name, p.W, p.D, p.H, p.Triangles), p.Kind);
+                    }
+                    else
+                    {
+                        p = PropLibrary.Edit((string)m["kind"], (string)m["name"], (string)m["cat"], cost, height);
+                        PropStatus("done", p.Name + " was changed.", p.Kind);
+                    }
+                    SendCatalog();
+                }
+                catch (Exception ex)
+                {
+                    PropStatus("failed", "DWSIM could not " + (type == SceneProtocol.PropImport ? "read the prop" : "change the prop") + ": " + (ex.InnerException?.Message ?? ex.Message));
+                }
+                finally { Interlocked.Exchange(ref propBusy, 0); }
+            };
+            if (ModelEditsInline) work();
+            else Task.Run(work);
+            return null;
+        }
+
         /// <summary>
         /// Puts the objects the plant model's groups stand for where their groups are (the 3D layout):
         /// the middle of the group's plan and its bottom. Their turn stays.
@@ -835,6 +940,14 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             {
                 Captured(message);
                 return null;
+            }
+            if (type == SceneProtocol.PropImport || type == SceneProtocol.PropEdit || type == SceneProtocol.PropRemove)
+            {
+                answer = StartProp(type, message) ?? SceneProtocol.Message(SceneProtocol.Ack);
+                if (message["ref"] != null) answer["ref"] = message["ref"].DeepClone();
+                if (answer["for"] == null) answer["for"] = type;
+                Send(answer);
+                return answer;
             }
             if (type == SceneProtocol.ModelImport || type == SceneProtocol.ModelSuggest || type == SceneProtocol.ModelCut || ModelEdits.Contains(type))
             {

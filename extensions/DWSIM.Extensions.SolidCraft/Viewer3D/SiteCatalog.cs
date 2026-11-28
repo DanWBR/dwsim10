@@ -135,7 +135,31 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             L("powerline", "Power Line", Utilities, 2, 12, 120),
         };
 
-        public static Entry Find(string kind) => Entries.FirstOrDefault(e => e.Kind == kind);
+        /// <summary>
+        /// The entry of a kind: one of the catalog, or a prop of the user's library ("user:id"), or
+        /// a prop a loaded site uses that is not in this computer's library (as the site keeps it).
+        /// </summary>
+        public static Entry Find(string kind)
+        {
+            if (kind == null) return null;
+            if (!PropLibrary.IsUser(kind)) return Entries.FirstOrDefault(e => e.Kind == kind);
+            var p = PropLibrary.Find(kind);
+            if (p == null)
+                lock (Known) Known.TryGetValue(kind, out p);
+            return p == null ? null : PropLibrary.EntryOf(p);
+        }
+
+        /// <summary>The props the loaded sites use, by kind, for those not in the library.</summary>
+        static readonly Dictionary<string, PropInfo> Known = new Dictionary<string, PropInfo>();
+
+        /// <summary>Notes the props a site uses (its table), so a prop missing from the library still has a size and a cost.</summary>
+        public static void Remember(IDictionary<string, PropInfo> props)
+        {
+            if (props == null) return;
+            lock (Known)
+                foreach (var kv in props)
+                    if (kv.Value != null && PropLibrary.IsUser(kv.Key)) Known[kv.Key] = kv.Value;
+        }
 
         public static string NameOf(string kind) => Find(kind)?.Name ?? kind;
 
@@ -305,7 +329,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
         }
 
         /// <summary>The catalog as the window gets it in the welcome message.</summary>
-        public static JArray ToJson() => new JArray(Entries.Select(e => new JObject
+        static JObject Json(Entry e) => new JObject
         {
             ["kind"] = e.Kind,
             ["name"] = e.Name,
@@ -316,6 +340,37 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             ["h"] = e.H,
             ["cost"] = e.Cost,
             ["unit"] = e.Unit
-        }));
+        };
+
+        /// <summary>
+        /// The catalog for the window: the entries, then the props of the user's library ("user":
+        /// true, with the path of their model, "glb"), then the props the site uses that are not in
+        /// the library ("missing": true), which the window draws as boxes.
+        /// </summary>
+        public static JArray ToJson(SiteLayout.Site site = null)
+        {
+            var list = new JArray(Entries.Select(Json));
+            var have = new HashSet<string>();
+            foreach (var p in PropLibrary.All())
+            {
+                var o = Json(PropLibrary.EntryOf(p));
+                o["user"] = true;
+                o["glb"] = PropLibrary.GlbPath(p).Replace(System.IO.Path.DirectorySeparatorChar, '/');
+                o["tris"] = p.Triangles;
+                list.Add(o);
+                have.Add(p.Kind);
+            }
+            if (site?.Props != null)
+                foreach (var kv in site.Props)
+                {
+                    if (kv.Value == null || have.Contains(kv.Key)) continue;
+                    var e = PropLibrary.EntryOf(kv.Value);
+                    var o = Json(e);
+                    o["user"] = true;
+                    o["missing"] = true;
+                    list.Add(o);
+                }
+            return list;
+        }
     }
 }

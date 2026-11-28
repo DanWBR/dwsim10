@@ -69,6 +69,12 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             [JsonProperty("v")] public int Version = 2;
             [JsonProperty("adopted")] public bool Adopted;
             [JsonProperty("items")] public List<Building> Items = new List<Building>();
+            /// <summary>
+            /// The user's props the site uses (see <see cref="PropLibrary"/>), by kind: their name,
+            /// size, cost and hash, never the model, so that a computer without them still counts
+            /// them in the budget and draws a box of their size.
+            /// </summary>
+            [JsonProperty("props", NullValueHandling = NullValueHandling.Ignore)] public Dictionary<string, PropInfo> Props;
         }
 
         public static bool IsSite(string id) => id != null && id.StartsWith(Prefix, StringComparison.Ordinal);
@@ -103,6 +109,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                 var site = token.ToObject<Site>() ?? new Site();
                 if (site.Items == null) site.Items = new List<Building>();
                 site.Items.RemoveAll(b => b?.Id == null);
+                SiteCatalog.Remember(site.Props);
                 return site;
             }
             catch (Exception) { return new Site(); }
@@ -110,9 +117,29 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
 
         public static void SaveSite(IFlowsheet fs, Site site)
         {
+            if (site != null) KeepProps(site);
             if (site == null || !site.Adopted && site.Items.Count == 0) Write(fs, Key, null);
             else Write(fs, Key, JsonConvert.SerializeObject(site));
             UpdateSummary(fs);
+        }
+
+        /// <summary>
+        /// The props table of a site: one reference for each prop its objects use, as the library
+        /// has it now (or as the table had it, when the prop is not in this computer's library).
+        /// </summary>
+        public static void KeepProps(Site site)
+        {
+            var used = new HashSet<string>(site.Items.Where(b => PropLibrary.IsUser(b.Kind)).Select(b => b.Kind));
+            var table = new Dictionary<string, PropInfo>();
+            foreach (var kind in used)
+            {
+                var p = PropLibrary.Find(kind);
+                PropInfo was;
+                if (p != null) table[kind] = p.Reference();
+                else if (site.Props != null && site.Props.TryGetValue(kind, out was) && was != null) table[kind] = was;
+            }
+            site.Props = table.Count > 0 ? table : null;
+            SiteCatalog.Remember(site.Props);
         }
 
         /// <summary>
