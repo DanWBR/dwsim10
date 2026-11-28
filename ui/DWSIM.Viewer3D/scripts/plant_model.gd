@@ -26,8 +26,9 @@ var _model_box: CheckBox
 var _equipment_box: CheckBox
 var _dialog: FileDialog
 
-const FILTERS := ["*.dwf, *.dwfx ; 3D DWF (Navisworks, AutoCAD)", "*.glb, *.gltf ; glTF", "*.fbx ; FBX", "*.obj ; OBJ",
-	"*.stl ; STL", "*.ply ; PLY"]
+const FILTERS := ["*.dwf, *.dwfx, *.ifc, *.step, *.stp, *.igs, *.iges, *.glb, *.gltf, *.fbx, *.obj, *.stl, *.ply, *.3dm, *.fcstd ; Plant models",
+	"*.dwf, *.dwfx ; 3D DWF (Navisworks, AutoCAD)", "*.ifc ; IFC", "*.step, *.stp ; STEP (through SolidCraft)", "*.igs, *.iges ; IGES (through SolidCraft)",
+	"*.glb, *.gltf ; glTF", "*.fbx ; FBX", "*.obj ; OBJ", "*.stl ; STL", "*.ply ; PLY", "*.3dm ; Rhino (through SolidCraft)", "*.fcstd ; FreeCAD (through SolidCraft)"]
 
 
 func has_model() -> bool:

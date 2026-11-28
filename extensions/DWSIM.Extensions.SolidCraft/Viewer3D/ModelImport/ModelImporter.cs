@@ -43,28 +43,37 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
         /// <summary>The name of each part, and its path in the file's tree when the file has one (else null).</summary>
         public List<string> PartNames = new List<string>();
         public List<string[]> PartPaths = new List<string[]>();
+        /// <summary>The role the file gives each part (an IFC class does), or null.</summary>
+        public List<string> PartRoles = new List<string>();
         /// <summary>True when the cache of an earlier import was used as it was.</summary>
         public bool FromCache;
         public List<string> Warnings = new List<string>();
     }
 
     /// <summary>
-    /// Reads a 3D model of the plant (glTF, GLB, OBJ, STL, PLY, 3D DWF, or FBX through the 3D window), puts
+    /// Reads a 3D model of the plant (glTF, GLB, OBJ, STL, PLY, 3D DWF, IFC, FBX through the 3D window, or
+    /// STEP, IGES, Rhino and FreeCAD through SolidCraft), puts
     /// it in the frame of the plant, splits it into islands and keeps a cache of the result in the
     /// user's data folder: the model file itself is never copied into the flowsheet.
     /// </summary>
     public static class ModelImporter
     {
         /// <summary>The version of what the cache holds; a cache of another version is made again.</summary>
-        public const int CacheVersion = 3;
+        public const int CacheVersion = 4;
 
-        public static readonly string[] Extensions = { ".glb", ".gltf", ".obj", ".stl", ".ply", ".fbx", ".dwf", ".dwfx" };
+        public static readonly string[] Extensions = { ".glb", ".gltf", ".obj", ".stl", ".ply", ".fbx", ".dwf", ".dwfx", ".ifc", ".step", ".stp", ".igs", ".iges", ".3dm", ".fcstd" };
+
+        /// <summary>The CAD formats SolidCraft reads (STEP, IGES, Rhino and FreeCAD) and writes as GLB for the importer.</summary>
+        public static readonly string[] CadExtensions = { ".step", ".stp", ".igs", ".iges", ".3dm", ".fcstd" };
 
         /// <summary>Where the caches go; tests point it somewhere else.</summary>
         public static string CacheRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DWSIM", "Plant3DModels");
 
         /// <summary>Turns an FBX file into a GLB file (in, out); the 3D window does it when this is not set.</summary>
         public static Func<string, string, bool> FbxConverter = ConvertWithWindow;
+
+        /// <summary>Turns a STEP, IGES, Rhino or FreeCAD file into a GLB file (in, out); SolidCraft does it when this is not set.</summary>
+        public static Func<string, string, bool> CadConverter = ConvertWithSolidCraft;
 
         /// <summary>Reads a model file in the frame of the file, by its extension.</summary>
         public static ImportedModel Read(string path)
@@ -80,6 +89,27 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
                 case ".ply": return PlyReader.Read(path);
                 case ".dwf":
                 case ".dwfx": return DwfReader.Read(path);
+                case ".ifc": return IfcReader.Read(path);
+                case ".step":
+                case ".stp":
+                case ".igs":
+                case ".iges":
+                case ".3dm":
+                case ".fcstd":
+                    {
+                        var glb = Path.Combine(Path.GetTempPath(), "dwsim-cad-" + Guid.NewGuid().ToString("N") + ".glb");
+                        try
+                        {
+                            if (CadConverter == null || !CadConverter(path, glb) || !File.Exists(glb))
+                                throw new InvalidOperationException("DWSIM reads STEP, IGES, Rhino and FreeCAD files through SolidCraft, and SolidCraft could not convert this one (or it is not installed). Install SolidCraft and set its folder in the options, or export the model as glTF (GLB), FBX or OBJ.");
+                            var model = GltfReader.Read(glb);
+                            model.SourcePath = path;
+                            model.Format = ext.TrimStart('.');
+                            TidyCadPaths(model);
+                            return model;
+                        }
+                        finally { try { if (File.Exists(glb)) File.Delete(glb); } catch { } }
+                    }
                 case ".fbx":
                     {
                         var glb = Path.Combine(Path.GetTempPath(), "dwsim-fbx-" + Guid.NewGuid().ToString("N") + ".glb");
@@ -95,7 +125,42 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
                         finally { try { if (File.Exists(glb)) File.Delete(glb); } catch { } }
                     }
                 default:
-                    throw new NotSupportedException("DWSIM does not read " + ext + " files. Export the model as glTF (GLB), FBX, OBJ, STL, PLY or 3D DWF.");
+                    throw new NotSupportedException("DWSIM does not read " + ext + " files. Export the model as glTF (GLB), FBX, OBJ, STL, PLY, IFC, STEP, IGES or 3D DWF.");
+            }
+        }
+
+        static readonly System.Text.RegularExpressions.Regex OccurrenceSuffix = new System.Text.RegularExpressions.Regex(@":\d+$");
+
+        /// <summary>
+        /// SolidCraft names each placement of a component "name:1" and puts the design and the
+        /// imported file at the top of the tree: the paths start at the file and keep the names of its
+        /// own products, and a product with a tag (V-101) inside an area becomes the top of its branch.
+        /// </summary>
+        internal static void TidyCadPaths(ImportedModel model)
+        {
+            var paths = model.Parts.Select(p =>
+            {
+                var segments = (p.Path ?? (p.Name ?? "").Split('/')).Select(x => OccurrenceSuffix.Replace(x, "")).ToList();
+                // the design goes; the component named after the file is the root, as a DWF's model is
+                if (segments.Count > 2) segments.RemoveAt(0);
+                return segments;
+            }).ToList();
+            // the file's own top assembly, when every part is in it, is the root too
+            while (paths.Count > 0 && paths.All(s => s.Count > 3) && paths.All(s => s[1] == paths[0][1]))
+                foreach (var s in paths) s.RemoveAt(1);
+            for (var i = 0; i < model.Parts.Count; i++)
+            {
+                var segments = paths[i];
+                // an area or a unit that holds tagged products: the tagged product is the group
+                if (segments.Count > 3 && ModelSegmentation.TagOf(segments[1]) == null)
+                {
+                    var tagged = -1;
+                    for (var k = 2; k < segments.Count - 1 && tagged < 0; k++)
+                        if (ModelSegmentation.TagOf(segments[k]) != null) tagged = k;
+                    if (tagged > 1) segments.RemoveRange(1, tagged - 1);
+                }
+                model.Parts[i].Path = segments.ToArray();
+                model.Parts[i].Name = string.Join("/", segments);
             }
         }
 
@@ -187,6 +252,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
             result.Parts = model.Parts.Count;
             result.PartNames = model.Parts.Select(x => x.Name).ToList();
             result.PartPaths = model.Parts.Select(x => x.Path).ToList();
+            result.PartRoles = model.Parts.Select(x => x.Role).ToList();
             result.Warnings.AddRange(model.Warnings);
             return result;
         }
@@ -223,6 +289,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
                 ["max"] = new JArray(max.Select(R)),
                 ["parts"] = new JArray(model.Parts.Select(p => p.Name)),
                 ["paths"] = new JArray(model.Parts.Select(p => p.Path == null ? (JToken)JValue.CreateNull() : new JArray(p.Path))),
+                ["roles"] = new JArray(model.Parts.Select(p => p.Role)),
                 ["islands"] = new JArray(islands.Select(i =>
                 {
                     var j = new JObject
@@ -265,6 +332,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
                 result.PartNames = (o["parts"] as JArray ?? new JArray()).Select(t => (string)t).ToList();
                 result.Parts = result.PartNames.Count;
                 result.PartPaths = (o["paths"] as JArray ?? new JArray()).Select(t => t.Type == JTokenType.Array ? t.Select(x => (string)x).ToArray() : null).ToList();
+                result.PartRoles = (o["roles"] as JArray ?? new JArray()).Select(t => (string)t).ToList();
                 result.Islands = ((JArray)o["islands"]).Select(t => new Island
                 {
                     Index = (int)t["i"],
@@ -328,6 +396,45 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
         /// Converts an FBX file with the 3D window in headless mode (Godot reads FBX at run time and
         /// writes glTF). False when this installation has no window or the conversion fails.
         /// </summary>
+        public static bool ConvertWithSolidCraft(string cad, string glb)
+        {
+            var folder = SolidCraftRunner.FindInstallFolder();
+            if (folder == null) return false;
+            var cli = Path.Combine(folder, Environment.OSVersion.Platform == PlatformID.Win32NT ? "solidcraft-cli.exe" : "solidcraft-cli");
+            var script = Path.Combine(Path.GetTempPath(), "dwsim-cad-" + Guid.NewGuid().ToString("N") + ".json");
+            var commands = new JObject
+            {
+                ["commands"] = new JArray
+                {
+                    new JObject { ["command"] = "file.insert_step", ["params"] = new JObject { ["path"] = Path.GetFullPath(cad), ["link"] = false } },
+                    new JObject { ["command"] = "file.export", ["params"] = new JObject { ["path"] = Path.GetFullPath(glb) } }
+                }
+            };
+            File.WriteAllText(script, commands.ToString());
+            try
+            {
+                var info = new ProcessStartInfo(cli, "run \"" + script + "\" --quiet")
+                {
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    WorkingDirectory = Path.GetTempPath()
+                };
+                using (var p = Process.Start(info))
+                {
+                    if (p == null) return false;
+                    p.OutputDataReceived += (s, e) => { };
+                    p.ErrorDataReceived += (s, e) => { };
+                    p.BeginOutputReadLine();
+                    p.BeginErrorReadLine();
+                    if (!p.WaitForExit(900000)) { try { p.Kill(); } catch { } return false; }
+                    return p.ExitCode == 0 && File.Exists(glb);
+                }
+            }
+            finally { try { File.Delete(script); } catch { } }
+        }
+
         public static bool ConvertWithWindow(string fbx, string glb)
         {
             string exe, prefix;

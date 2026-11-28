@@ -586,6 +586,358 @@ Connections:  {
             Assert.That(gap / sizes[0], Is.EqualTo(2.5).Within(1e-3), "the second cube is 5 units away, 2.5 sizes of a 2-unit cube");
             Assert.That(m.Materials[m.Parts[0].Material].Color[0], Is.GreaterThan(m.Materials[m.Parts[0].Material].Color[1]), "the red material is kept");
         }
+
+        // ---- M5: IFC, and STEP, IGES, Rhino and FreeCAD through SolidCraft ----
+
+        /// <summary>
+        /// A small IFC4 plant in millimetres: a drum (V-101, an extruded circle, blue), a pump (P-102,
+        /// a CSG block through a mapped item) inside a skid assembly, a line with a bend (a swept disk),
+        /// a beam with an I profile and a slab as a faceted brep.
+        /// </summary>
+        const string IfcPlant = @"ISO-10303-21;
+HEADER;
+FILE_DESCRIPTION(('ViewDefinition [ReferenceView]'),'2;1');
+FILE_NAME('plant.ifc','2026-11-28T10:00:00',(''),(''),'','','');
+FILE_SCHEMA(('IFC4'));
+ENDSEC;
+DATA;
+#1=IFCSIUNIT(*,.LENGTHUNIT.,.MILLI.,.METRE.);
+#2=IFCSIUNIT(*,.PLANEANGLEUNIT.,$,.RADIAN.);
+#3=IFCUNITASSIGNMENT((#1,#2));
+#4=IFCPROJECT('0p',$,'Plant',$,$,$,$,$,#3);
+#10=IFCCARTESIANPOINT((0.,0.,0.));
+#11=IFCAXIS2PLACEMENT3D(#10,$,$);
+#12=IFCLOCALPLACEMENT($,#11);
+#13=IFCSITE('0s',$,'Site',$,$,#12,$,$,.ELEMENT.,$,$,$,$,$);
+#14=IFCRELAGGREGATES('0r',$,$,$,#4,(#13));
+/* the drum */
+#20=IFCCARTESIANPOINT((5000.,0.,0.));
+#21=IFCAXIS2PLACEMENT3D(#20,$,$);
+#22=IFCLOCALPLACEMENT(#12,#21);
+#23=IFCCIRCLEPROFILEDEF(.AREA.,$,$,1000.);
+#24=IFCDIRECTION((0.,0.,1.));
+#25=IFCEXTRUDEDAREASOLID(#23,$,#24,3000.);
+#26=IFCSHAPEREPRESENTATION($,'Body','SweptSolid',(#25));
+#27=IFCPRODUCTDEFINITIONSHAPE($,$,(#26));
+#28=IFCTANK('0t',$,'Separador',$,$,#22,#27,'V-101',.NOTDEFINED.);
+#29=IFCCOLOURRGB($,0.,0.,1.);
+#30=IFCSURFACESTYLERENDERING(#29,0.,$,$,$,$,$,$,.NOTDEFINED.);
+#31=IFCSURFACESTYLE($,.BOTH.,(#30));
+#32=IFCSTYLEDITEM(#25,(#31),$);
+/* the pump, in a skid */
+#40=IFCCARTESIANPOINT((10000.,0.,0.));
+#41=IFCAXIS2PLACEMENT3D(#40,$,$);
+#42=IFCLOCALPLACEMENT(#12,#41);
+#43=IFCBLOCK(#11,1000.,500.,600.);
+#44=IFCCSGSOLID(#43);
+#45=IFCSHAPEREPRESENTATION($,'Body','CSG',(#44));
+#46=IFCREPRESENTATIONMAP(#11,#45);
+#47=IFCCARTESIANTRANSFORMATIONOPERATOR3D($,$,#10,1.,$);
+#48=IFCMAPPEDITEM(#46,#47);
+#49=IFCSHAPEREPRESENTATION($,'Body','MappedRepresentation',(#48));
+#50=IFCPRODUCTDEFINITIONSHAPE($,$,(#49));
+#51=IFCPUMP('0u',$,'P-102 booster',$,$,#42,#50,$,.NOTDEFINED.);
+#52=IFCELEMENTASSEMBLY('0k',$,'SKID-200',$,$,$,$,$,.FACTORY.,.NOTDEFINED.);
+#53=IFCRELAGGREGATES('0a',$,$,$,#52,(#51));
+/* the line between them, with a bend */
+#60=IFCCARTESIANPOINT((6000.,0.,500.));
+#61=IFCCARTESIANPOINT((8000.,0.,500.));
+#62=IFCCARTESIANPOINT((8000.,0.,300.));
+#63=IFCPOLYLINE((#60,#61,#62));
+#64=IFCSWEPTDISKSOLID(#63,50.,$,$,$);
+#65=IFCSHAPEREPRESENTATION($,'Body','AdvancedSweptSolid',(#64));
+#66=IFCPRODUCTDEFINITIONSHAPE($,$,(#65));
+#67=IFCPIPESEGMENT('0l',$,'Line 2""-P-001',$,$,#12,#66,$,.RIGIDSEGMENT.);
+/* a beam along x and a slab */
+#70=IFCISHAPEPROFILEDEF(.AREA.,$,$,200.,300.,10.,15.,$,$,$);
+#71=IFCDIRECTION((1.,0.,0.));
+#72=IFCCARTESIANPOINT((0.,5000.,3000.));
+#73=IFCAXIS2PLACEMENT3D(#72,#71,$);
+#74=IFCEXTRUDEDAREASOLID(#70,#73,#24,4000.);
+#75=IFCSHAPEREPRESENTATION($,'Body','SweptSolid',(#74));
+#76=IFCPRODUCTDEFINITIONSHAPE($,$,(#75));
+#77=IFCBEAM('0b',$,'Beam',$,$,#12,#76,$,$);
+#80=IFCCARTESIANPOINT((0.,-5000.,0.));
+#81=IFCCARTESIANPOINT((1000.,-5000.,0.));
+#82=IFCCARTESIANPOINT((1000.,-4000.,0.));
+#83=IFCCARTESIANPOINT((0.,-4000.,0.));
+#84=IFCCARTESIANPOINT((0.,-5000.,1000.));
+#85=IFCCARTESIANPOINT((1000.,-5000.,1000.));
+#86=IFCCARTESIANPOINT((1000.,-4000.,1000.));
+#87=IFCCARTESIANPOINT((0.,-4000.,1000.));
+#89=IFCPOLYLOOP((#80,#83,#82,#81));
+#90=IFCFACE((#91));
+#91=IFCFACEOUTERBOUND(#92,.T.);
+#92=IFCPOLYLOOP((#84,#85,#86,#87));
+#93=IFCFACE((#94));
+#94=IFCFACEOUTERBOUND(#95,.T.);
+#95=IFCPOLYLOOP((#80,#81,#85,#84));
+#96=IFCFACE((#97));
+#97=IFCFACEOUTERBOUND(#98,.T.);
+#98=IFCPOLYLOOP((#81,#82,#86,#85));
+#99=IFCFACE((#100));
+#100=IFCFACEOUTERBOUND(#101,.T.);
+#101=IFCPOLYLOOP((#82,#83,#87,#86));
+#102=IFCFACE((#103));
+#103=IFCFACEOUTERBOUND(#104,.T.);
+#104=IFCPOLYLOOP((#83,#80,#84,#87));
+#105=IFCCLOSEDSHELL((#90,#93,#96,#99,#102,#106));
+#106=IFCFACE((#107));
+#107=IFCFACEOUTERBOUND(#89,.T.);
+#108=IFCFACETEDBREP(#105);
+#109=IFCSHAPEREPRESENTATION($,'Body','Brep',(#108));
+#110=IFCPRODUCTDEFINITIONSHAPE($,$,(#109));
+#111=IFCSLAB('0c',$,'Slab \X2\00E9\X0\',$,$,#12,#110,$,.FLOOR.);
+/* an opening is never drawn */
+#120=IFCOPENINGELEMENT('0o',$,'Opening',$,$,#12,#110,$,.OPENING.);
+ENDSEC;
+END-ISO-10303-21;
+";
+
+        static double Volume(MeshPart p)
+        {
+            double v = 0;
+            var a = p.Positions;
+            for (var k = 0; k + 2 < p.Indices.Length; k += 3)
+            {
+                int i = 3 * p.Indices[k], j = 3 * p.Indices[k + 1], l = 3 * p.Indices[k + 2];
+                v += a[i] * (a[j + 1] * a[l + 2] - a[j + 2] * a[l + 1]) - a[i + 1] * (a[j] * a[l + 2] - a[j + 2] * a[l]) + a[i + 2] * (a[j] * a[l + 1] - a[j + 1] * a[l]);
+            }
+            return v / 6;
+        }
+
+        static double[][] BoundsOf(MeshPart p)
+        {
+            var min = new[] { double.MaxValue, double.MaxValue, double.MaxValue };
+            var max = new[] { double.MinValue, double.MinValue, double.MinValue };
+            for (var i = 0; i + 2 < p.Positions.Length; i += 3)
+                for (var k = 0; k < 3; k++) { min[k] = Math.Min(min[k], p.Positions[i + k]); max[k] = Math.Max(max[k], p.Positions[i + k]); }
+            return new[] { min, max };
+        }
+
+        [Test]
+        public void IfcElementsComeWithTheirPlacesShapesRolesAndTags()
+        {
+            var path = Path.Combine(_dir, "plant.ifc");
+            File.WriteAllText(path, IfcPlant);
+            var m = ModelImporter.Read(path);
+            Assert.That(m.Format, Is.EqualTo("ifc"));
+            Assert.That(m.Units, Is.EqualTo(ModelUnits.Meters), "the millimetres of the file come in as metres");
+            Assert.That(m.Up, Is.EqualTo(UpAxis.Z));
+            Assert.That(m.Parts.Count, Is.EqualTo(5), "the opening is left out: " + string.Join(", ", m.Parts.Select(p => p.Name)));
+            Assert.That(m.Warnings, Is.Empty);
+
+            var drum = m.Parts.Single(p => p.Role == "equipment" && p.Path.Last().Contains("V-101"));
+            Assert.That(drum.Path, Is.EqualTo(new[] { "plant", "V-101 Separador" }), "the tag goes in front of a name without one");
+            var b = BoundsOf(drum);
+            Assert.That(new[] { b[0][0], b[1][0], b[0][2], b[1][2] }, Is.EqualTo(new[] { 4.0, 6.0, 0.0, 3.0 }).Within(1e-3));
+            Assert.That(Volume(drum), Is.EqualTo(Math.PI * 3).Within(Math.PI * 3 * 0.02), "a closed drum that faces out");
+            var color = m.Materials[drum.Material].Color;
+            Assert.That(color[2], Is.EqualTo(1f).Within(1e-3));
+            Assert.That(color[0], Is.EqualTo(0f).Within(1e-3));
+
+            var pump = m.Parts.Single(p => p.Path.Last() == "P-102 booster");
+            Assert.That(pump.Path, Is.EqualTo(new[] { "plant", "SKID-200", "P-102 booster" }), "the skid that holds the pump is in its path");
+            Assert.That(pump.Role, Is.EqualTo("equipment"));
+            b = BoundsOf(pump);
+            Assert.That(b[0].Concat(b[1]), Is.EqualTo(new[] { 10.0, 0, 0, 11, 0.5, 0.6 }).Within(1e-3), "the block goes through the mapped item and the placement");
+            Assert.That(Volume(pump), Is.EqualTo(0.3).Within(1e-4));
+
+            var pipe = m.Parts.Single(p => p.Role == "piping");
+            b = BoundsOf(pipe);
+            Assert.That(new[] { b[0][0], b[1][0], b[0][2], b[1][2] }, Is.EqualTo(new[] { 6.0, 8.05, 0.3, 0.55 }).Within(1e-3), "the swept disk turns down at the bend");
+            Assert.That(Volume(pipe), Is.EqualTo(Math.PI * 0.05 * 0.05 * 2.2).Within(Math.PI * 0.05 * 0.05 * 2.2 * 0.06));
+
+            var beam = m.Parts.Single(p => p.Path.Last() == "Beam");
+            Assert.That(beam.Role, Is.EqualTo("structure"));
+            b = BoundsOf(beam);
+            Assert.That(b[0].Concat(b[1]), Is.EqualTo(new[] { 0.0, 4.9, 2.85, 4, 5.1, 3.15 }).Within(1e-3), "the profile stands across the beam's axis");
+            var area = 2 * 0.2 * 0.015 + (0.3 - 2 * 0.015) * 0.01;
+            Assert.That(Volume(beam), Is.EqualTo(area * 4).Within(area * 4 * 1e-3));
+
+            var slab = m.Parts.Single(p => p.Path.Last() == "Slab é");
+            Assert.That(slab.Role, Is.EqualTo("structure"));
+            Assert.That(Volume(slab), Is.EqualTo(1.0).Within(1e-6), "the brep is closed and faces out");
+
+            // the importer groups by the elements and their roles
+            var result = ModelImporter.Import(path);
+            var groups = ModelSegmentation.Groups(result);
+            Assert.That(groups.Single(g => g.Tag == "V-101").Role, Is.EqualTo("equipment"));
+            Assert.That(groups.Single(g => g.Name == "SKID-200").Role, Is.EqualTo("equipment"));
+            Assert.That(groups.Count(g => g.Role == "piping"), Is.EqualTo(1));
+            Assert.That(groups.Count(g => g.Role == "structure"), Is.EqualTo(2));
+            var cached = ModelImporter.Cached(result.Reference);
+            Assert.That(cached.PartRoles, Is.EqualTo(result.PartRoles), "the roles are kept in the cache");
+        }
+
+        [Test]
+        public void IfcInFeetWithDegreesAndArcs()
+        {
+            // a ring of 1 ft radius swept round a quarter circle given in degrees, as IFC2x3 files have it
+            var text = @"ISO-10303-21;
+HEADER;FILE_SCHEMA(('IFC2X3'));ENDSEC;
+DATA;
+#1=IFCSIUNIT(*,.LENGTHUNIT.,$,.METRE.);
+#2=IFCMEASUREWITHUNIT(IFCLENGTHMEASURE(0.3048),#1);
+#3=IFCCONVERSIONBASEDUNIT(#9,.LENGTHUNIT.,'FOOT',#2);
+#4=IFCSIUNIT(*,.PLANEANGLEUNIT.,$,.RADIAN.);
+#5=IFCMEASUREWITHUNIT(IFCPLANEANGLEMEASURE(0.0174532925199433),#4);
+#6=IFCCONVERSIONBASEDUNIT(#9,.PLANEANGLEUNIT.,'DEGREE',#5);
+#7=IFCUNITASSIGNMENT((#3,#6));
+#8=IFCPROJECT('p',$,'P',$,$,$,$,$,#7);
+#9=IFCDIMENSIONALEXPONENTS(1,0,0,0,0,0,0);
+#10=IFCCARTESIANPOINT((0.,0.,0.));
+#11=IFCAXIS2PLACEMENT3D(#10,$,$);
+#12=IFCLOCALPLACEMENT($,#11);
+#20=IFCCIRCLE(#11,10.);
+#21=IFCTRIMMEDCURVE(#20,(IFCPARAMETERVALUE(0.)),(IFCPARAMETERVALUE(90.)),.T.,.PARAMETER.);
+#22=IFCCOMPOSITECURVESEGMENT(.CONTINUOUS.,.T.,#21);
+#23=IFCCOMPOSITECURVE((#22),.F.);
+#24=IFCSWEPTDISKSOLID(#23,1.,$,$,$);
+#25=IFCSHAPEREPRESENTATION($,'Body','SweptSolid',(#24));
+#26=IFCPRODUCTDEFINITIONSHAPE($,$,(#25));
+#27=IFCPIPEFITTING('e',$,'Elbow',$,$,#12,#26,$);
+ENDSEC;
+END-ISO-10303-21;
+";
+            var path = Path.Combine(_dir, "elbow.ifc");
+            File.WriteAllText(path, text);
+            var m = ModelImporter.Read(path);
+            var elbow = m.Parts.Single();
+            Assert.That(elbow.Role, Is.EqualTo("piping"));
+            var b = BoundsOf(elbow);
+            Assert.That(b[1][0], Is.EqualTo(11 * 0.3048).Within(0.01), "10 ft of bend radius and 1 ft of pipe radius");
+            Assert.That(b[1][1], Is.EqualTo(11 * 0.3048).Within(0.01), "the quarter turn ends on the y axis");
+            Assert.That(b[0][0], Is.GreaterThan(-0.31), "the turn stays in the first quadrant");
+            var expected = Math.PI * 0.3048 * 0.3048 * (Math.PI / 2 * 10 * 0.3048);
+            Assert.That(Volume(elbow), Is.EqualTo(expected).Within(expected * 0.05));
+        }
+
+        /// <summary>A glTF file with the tree SolidCraft writes for an imported STEP assembly.</summary>
+        static void WriteCadTree(string glb)
+        {
+            var m = new ImportedModel { Format = "test", Up = UpAxis.Z, Units = ModelUnits.Meters };
+            m.Materials.Add(new ModelMaterial());
+            m.Parts.Add(Cylinder("shell", new[] { 0.0, 0, 0 }, new[] { 0.0, 0, 6 }, 1.0, 0));
+            m.Parts.Add(Box("casing", new[] { 5.0, 0, 0 }, new[] { 6.0, 1, 1 }, 0));
+            m.Parts.Add(Box("beam", new[] { -5.0, -5, 5 }, new[] { 5.0, -4.8, 5.2 }, 0));
+            GlbWriter.WriteParts(m, glb);
+            // the parts again, under the products and the occurrences of a SolidCraft design
+            var bytes = File.ReadAllBytes(glb);
+            var jsonLength = BitConverter.ToInt32(bytes, 12);
+            var doc = JObject.Parse(Encoding.UTF8.GetString(bytes, 20, jsonLength));
+            var nodes = (JArray)doc["nodes"];
+            var meshNodes = nodes.Count;
+            Func<string, int[], int> add = (name, children) =>
+            {
+                nodes.Add(new JObject { ["name"] = name, ["children"] = new JArray(children) });
+                return nodes.Count - 1;
+            };
+            var vessel = add("V-101:1", new[] { 0 });
+            var area = add("Area 100:1", new[] { vessel });
+            var pump = add("P-201:1", new[] { 1 });
+            var rack = add("Pipe rack:1", new[] { 2 });
+            var file = add("plant:1", new[] { area, pump, rack });
+            var design = add("plant", new[] { file });
+            doc["scenes"] = new JArray(new JObject { ["nodes"] = new JArray(design) });
+            doc["scene"] = 0;
+            var json = Encoding.UTF8.GetBytes(doc.ToString(Newtonsoft.Json.Formatting.None));
+            var pad = (4 - json.Length % 4) % 4;
+            var binStart = 20 + jsonLength;
+            var bin = bytes.Skip(binStart).ToArray();
+            using (var f = File.Create(glb))
+            using (var w = new BinaryWriter(f))
+            {
+                w.Write(0x46546C67); w.Write(2); w.Write(12 + 8 + json.Length + pad + bin.Length);
+                w.Write(json.Length + pad); w.Write(0x4E4F534A); w.Write(json); for (var k = 0; k < pad; k++) w.Write((byte)0x20);
+                w.Write(bin);
+            }
+            Assert.That(meshNodes, Is.EqualTo(3));
+        }
+
+        [Test]
+        public void CadFilesGoThroughSolidCraftAndKeepTheirProducts()
+        {
+            var converter = ModelImporter.CadConverter;
+            try
+            {
+                string seen = null;
+                ModelImporter.CadConverter = (cad, glb) => { seen = cad; WriteCadTree(glb); return true; };
+                var step = Path.Combine(_dir, "plant.step");
+                File.WriteAllText(step, "ISO-10303-21;");
+                var m = ModelImporter.Read(step);
+                Assert.That(seen, Is.EqualTo(step));
+                Assert.That(m.Format, Is.EqualTo("step"));
+                Assert.That(m.SourcePath, Is.EqualTo(step));
+                Assert.That(m.Parts.Select(p => string.Join("/", p.Path)), Is.EquivalentTo(new[] { "plant/V-101/shell", "plant/P-201/casing", "plant/Pipe rack/beam" }),
+                    "the design and the occurrence numbers go, and the tagged vessel comes up from its area");
+
+                var result = ModelImporter.Import(step);
+                var groups = ModelSegmentation.Groups(result);
+                Assert.That(groups.Single(g => g.Name == "V-101").Role, Is.EqualTo("equipment"));
+                Assert.That(groups.Select(g => g.Name), Is.EquivalentTo(new[] { "V-101", "P-201", "beam" }), "a rack is structure, and its members are its groups, as in a DWF");
+                Assert.That(groups.Single(g => g.Name == "beam").Role, Is.EqualTo("structure"));
+            }
+            finally { ModelImporter.CadConverter = converter; }
+        }
+
+        [Test]
+        public void ACadFileSolidCraftCannotConvertSaysWhatToDo()
+        {
+            var converter = ModelImporter.CadConverter;
+            try
+            {
+                ModelImporter.CadConverter = (cad, glb) => false;
+                var igs = Path.Combine(_dir, "plant.igs");
+                File.WriteAllText(igs, "x");
+                var ex = Assert.Throws<InvalidOperationException>(() => ModelImporter.Read(igs));
+                Assert.That(ex.Message, Does.Contain("SolidCraft"));
+            }
+            finally { ModelImporter.CadConverter = converter; }
+        }
+
+        /// <summary>The real conversion, where SolidCraft is installed: a STEP file it writes (two boxes made solids) comes back with its products.</summary>
+        [Test]
+        public void SolidCraftConvertsAStepFile()
+        {
+            var folder = SolidCraftRunner.FindInstallFolder();
+            Assume.That(folder, Is.Not.Null, "SolidCraft is not installed");
+            // a STEP file of two products, as SolidCraft's own writer makes it from a mesh design
+            var m = new ImportedModel { Format = "test", Up = UpAxis.Z, Units = ModelUnits.Meters };
+            m.Materials.Add(new ModelMaterial());
+            m.Parts.Add(Box("V-301", new[] { 0.0, 0, 0 }, new[] { 1.0, 1, 2 }, 0));
+            m.Parts.Add(Box("P-302", new[] { 3.0, 0, 0 }, new[] { 4.0, 1, 1 }, 0));
+            var glb = Path.Combine(_dir, "two.glb");
+            GlbWriter.WriteParts(m, glb);
+            var step = Path.Combine(_dir, "two.step");
+            var script = Path.Combine(_dir, "two.json");
+            File.WriteAllText(script, new JObject
+            {
+                ["commands"] = new JArray
+                {
+                    new JObject { ["command"] = "file.insert_mesh", ["params"] = new JObject { ["path"] = glb } },
+                    new JObject { ["command"] = "mesh.convert", ["params"] = new JObject { ["body"] = "V-301" } },
+                    new JObject { ["command"] = "mesh.convert", ["params"] = new JObject { ["body"] = "P-302" } },
+                    new JObject { ["command"] = "file.export", ["params"] = new JObject { ["path"] = step } }
+                }
+            }.ToString());
+            var cli = Path.Combine(folder, Environment.OSVersion.Platform == PlatformID.Win32NT ? "solidcraft-cli.exe" : "solidcraft-cli");
+            var p = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(cli, "run \"" + script + "\" --quiet") { UseShellExecute = false, CreateNoWindow = true });
+            p.WaitForExit(120000);
+            Assume.That(File.Exists(step), Is.True, "this SolidCraft could not write the STEP file of the test");
+
+            var read = ModelImporter.Read(step);
+            Assert.That(read.Format, Is.EqualTo("step"));
+            Assert.That(read.Parts.Count, Is.EqualTo(2));
+            Assert.That(read.Parts.Select(x => x.Path[1]), Is.EquivalentTo(new[] { "V-301", "P-302" }), "each product is the top of its branch: " + string.Join(", ", read.Parts.Select(x => x.Name)));
+            Assert.That(read.Parts.All(x => x.Path != null && x.Path.Length >= 2 && !x.Path.Any(s => System.Text.RegularExpressions.Regex.IsMatch(s, @":\d+$"))), Is.True,
+                string.Join(", ", read.Parts.Select(x => x.Name)));
+            ModelGeometry.Normalize(read, new Placement3D { Scale = 1, Up = UpAxis.Y });
+            double[] min, max;
+            read.Bounds(out min, out max);
+            Assert.That(max[2] - min[2], Is.EqualTo(2.0).Within(0.01), "the drum keeps its 2 m height through STEP");
+            Assert.That(max[0] - min[0], Is.EqualTo(4.0).Within(0.01), "and the pump stays 3 m away");
+        }
             // ---- 3D DWF: the Edgebreaker decoder and a package made here ----
 
         /// <summary>

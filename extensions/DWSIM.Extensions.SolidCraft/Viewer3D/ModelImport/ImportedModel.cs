@@ -58,6 +58,8 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
         public string[] Path;
         /// <summary>The id of the object in the file's tree, when it has one.</summary>
         public string ObjectId;
+        /// <summary>The role the file says the part has (equipment, piping, structure or scenery: an IFC class does), or null.</summary>
+        public string Role;
         /// <summary>x, y, z of each vertex.</summary>
         public float[] Positions = new float[0];
         /// <summary>u, v of each vertex (v down, as glTF has it), or null.</summary>
@@ -73,7 +75,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
     public class ImportedModel
     {
         public string SourcePath;
-        /// <summary>gltf, obj, stl, ply or fbx.</summary>
+        /// <summary>gltf, obj, stl, ply, fbx, dwf, ifc, step, stp, igs, iges, 3dm or fcstd.</summary>
         public string Format;
         public UpAxis Up = UpAxis.Unknown;
         public ModelUnits Units = ModelUnits.Unknown;

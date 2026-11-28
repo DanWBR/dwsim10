@@ -111,10 +111,14 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
             // round: the far vertices at one distance from the axis, and all round it (a square
             // prism has its corners at one distance too, but in four directions only)
             var longRound = b > 0 && c / b > 0.75 && r1 > 0 && s1 / r1 < 0.12 && n1 >= 7;
-            var diskRound = a > 0 && b / a > 0.8 && r3 > 0 && s3 / r3 < 0.12 && n3 >= 7 && c < 0.6 * a;
+            // round about the short axis: a disk, or a squat tank (a storage tank is often wider than tall)
+            var diskRound = a > 0 && b / a > 0.8 && r3 > 0 && s3 / r3 < 0.12 && n3 >= 7;
             double rs, ss;
             Spherical(pts, mean, out rs, out ss);
-            var sphere = a > 0 && c / a > 0.85 && rs > 0 && ss / rs < 0.06 && n1 >= 7 && n3 >= 7;
+            // a sphere has vertices at every height along each axis; a cylinder as tall as it is wide
+            // has its rims at one distance from the centre too, but at two heights only
+            var sphere = a > 0 && c / a > 0.85 && rs > 0 && ss / rs < 0.06 && n1 >= 7 && n3 >= 7
+                && Heights(pts, mean, e1, rs) >= 4 && Heights(pts, mean, e2, rs) >= 4 && Heights(pts, mean, e3, rs) >= 4;
 
             if (biggest < 0.05) shape.Class = ShapeClass.Fitting;
             else if (sphere)
@@ -139,7 +143,11 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
                 shape.Axis = e3;
                 shape.Radius = r3;
                 shape.Length = c;
-                shape.Class = a < 1.5 ? ShapeClass.Fitting : ShapeClass.Plate;
+                if (a < 1.5) shape.Class = ShapeClass.Fitting;
+                else if (c < 0.15 * a || c < 0.3) shape.Class = ShapeClass.Plate;
+                else if (Math.Abs(e3[2]) > 0.85) shape.Class = ShapeClass.VerticalVessel;
+                else if (Math.Abs(e3[2]) < 0.3) shape.Class = ShapeClass.HorizontalVessel;
+                else shape.Class = ShapeClass.Box;
             }
             else if (c < 0.5 && a > 10 && Math.Abs(e3[2]) > 0.9 && island.Min[2] - floor < 0.5) shape.Class = ShapeClass.Ground;
             else if (biggest < 0.6) shape.Class = ShapeClass.Fitting;
@@ -198,6 +206,18 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
             mean = n > 0 ? s / n : 0;
             spread = n > 1 ? Math.Sqrt(Math.Max(0, s2 / n - mean * mean)) : 0;
             directions = bins.Count(x => x);
+        }
+
+        /// <summary>In how many of 8 bands of height along an axis (from -r to r round the centre) the vertices lie.</summary>
+        static int Heights(List<double[]> pts, double[] c, double[] axis, double r)
+        {
+            var bands = new bool[8];
+            foreach (var p in pts)
+            {
+                var h = ((p[0] - c[0]) * axis[0] + (p[1] - c[1]) * axis[1] + (p[2] - c[2]) * axis[2]) / r;
+                bands[Math.Max(0, Math.Min(7, (int)Math.Floor((h + 1) * 4)))] = true;
+            }
+            return bands.Count(x => x);
         }
 
         static void Spherical(List<double[]> pts, double[] c, out double mean, out double spread)

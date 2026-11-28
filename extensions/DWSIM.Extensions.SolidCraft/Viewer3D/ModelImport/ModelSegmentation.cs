@@ -120,16 +120,23 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
             for (var p = 0; p < index.Parts; p++)
             {
                 var path = p < index.PartPaths.Count && index.PartPaths[p] != null ? index.PartPaths[p] : new[] { index.PartNames[p] ?? "part" + p };
+                var hint = index.PartRoles != null && p < index.PartRoles.Count ? index.PartRoles[p] : null;
                 string role = null;
                 var roleAt = -1;
+                var at = -1;
+                string tag = null;
+                if (hint != null)
+                {
+                    // the file says what the part is (an IFC class): the group is the element at the top of its branch
+                    role = hint;
+                    at = Math.Min(1, path.Length - 1);
+                }
                 for (var k = 0; k < path.Length && role == null; k++)
                 {
                     role = RoleOf(path[k]);
                     if (role != null) roleAt = k;
                 }
-                var at = -1;
-                string tag = null;
-                if (role == "equipment")
+                if (hint == null && role == "equipment")
                     for (var k = roleAt; k < path.Length && at < 0; k++)
                     {
                         tag = TagOf(path[k]);
@@ -140,6 +147,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
                     for (var k = roleAt + 1; k < path.Length && at < 0; k++)
                         if (LinePattern.IsMatch(path[k])) at = k;
                 if (at < 0) at = Math.Min(path.Length - 1, roleAt < 0 ? Math.Min(1, path.Length - 1) : roleAt + 2);
+                if (tag == null && role == "equipment") tag = TagOf(path[at]);
                 var key = string.Join("\u001f", path.Take(at + 1));
                 SegmentGroup g;
                 if (!byKey.TryGetValue(key, out g))
