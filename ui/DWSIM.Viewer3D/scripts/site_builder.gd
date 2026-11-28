@@ -500,6 +500,7 @@ func _shoot(k: String) -> void:
 	var c := b.get_center()
 	var size := maxf(b.size.length(), 0.5)
 	_stage_cam.size = size * 0.95
+	picture_frames[k] = [size * 0.95, c]
 	var dir := Vector3(1.0, 0.85, 1.25).normalized()
 	_stage_cam.look_at_from_position(c + dir * size * 3.0, c, Vector3.UP)
 	_stage_cam.near = 0.05
@@ -1073,6 +1074,19 @@ func _demolish(event: InputEvent) -> bool:
 
 
 # --- the user's own props --------------------------------------------------------------------------
+
+## The picture of a kind for a stand-in far away: the bar's own picture, made when first asked
+## (null until it is ready); with the size of the view it shows, metres, and its middle.
+func picture(k: String):
+	if _thumbs.has(k):
+		return _thumbs[k]
+	if not _queue.has(k):
+		_queue.append(k)
+	return null
+
+
+## The size (metres of the height of the picture) and the middle of the view the picture of a kind was taken with.
+var picture_frames := {}
 
 var _prop_dialog: FileDialog
 var _prop_panel: PopupPanel

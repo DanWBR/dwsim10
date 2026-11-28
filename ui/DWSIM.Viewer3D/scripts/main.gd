@@ -483,6 +483,45 @@ func _on_state(state: String) -> void:
 		get_tree().quit()
 
 
+const IMPOSTOR_PIXELS := 48.0
+var _impostor_clock := 0.0
+
+
+## The user's props small on the screen show as their pictures, the larger ones as their models;
+## looked at a few times a second.
+func _prop_impostors(delta: float) -> void:
+	_impostor_clock -= delta
+	if _impostor_clock > 0.0:
+		return
+	_impostor_clock = 0.25
+	var cam: Camera3D = rig.camera if rig != null else null
+	if cam == null:
+		return
+	var per_m := float(get_viewport().get_visible_rect().size.y) / maxf(cam.size, 0.01)
+	for node in get_tree().get_nodes_in_group("user_props"):
+		var body := node as Node3D
+		# the stage of the bar's pictures is a world of its own
+		if not body.is_inside_tree() or body.get_viewport() != get_viewport():
+			continue
+		var model := body.get_node_or_null("prop_model") as Node3D
+		var sprite := body.get_node_or_null("prop_impostor") as Sprite3D
+		if model == null or sprite == null:
+			continue
+		var h := float(body.get_meta("prop_height", 1.0)) * body.global_transform.basis.get_scale().y
+		var small := h * per_m < IMPOSTOR_PIXELS
+		if small and sprite.texture == null:
+			var k := str(body.get_meta("prop_kind", ""))
+			var tex = site_builder.picture(k)
+			if tex == null or not site_builder.picture_frames.has(k):
+				continue
+			var frame: Array = site_builder.picture_frames[k]
+			sprite.texture = tex
+			sprite.pixel_size = float(frame[0]) / float(tex.get_height())
+			sprite.position = frame[1]
+		model.visible = not small
+		sprite.visible = small
+
+
 ## The user's props of the site drawn again, after the catalog changed (a prop brought in, resized
 ## or taken out of the library).
 func _rebuild_user_props() -> void:
@@ -1369,6 +1408,7 @@ func _build_hud() -> void:
 
 
 func _process(delta: float) -> void:
+	_prop_impostors(delta)
 	var size := _viewport_size()
 	if model_review != null and model_review.panel != null and model_review.panel.visible:
 		model_review.panel.position = Vector2(size.x - model_review.panel.size.x - 12, 12)
@@ -1586,6 +1626,10 @@ func _run_offline() -> void:
 		elif arg == "--hide-keys":
 			# the card of the keys (F1) off, for a picture of the whole plant
 			card.visible = false
+		elif arg.begins_with("--zoom="):
+			# the view this many times wider (a check of the plant seen from far)
+			rig.view_size *= float(arg.get_slice("=", 1))
+			rig.apply()
 	# more messages, as DWSIM would send them (values, a selection), from "--dwsim-messages=file"
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--dwsim-messages="):

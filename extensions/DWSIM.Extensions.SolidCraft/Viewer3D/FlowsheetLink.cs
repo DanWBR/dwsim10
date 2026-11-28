@@ -679,6 +679,9 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
 
         int propBusy;
 
+        /// <summary>The triangles above which a prop is heavy enough to say so when it comes in.</summary>
+        public const int HeavyProp = 300000;
+
         /// <summary>True while a prop is read in the background.</summary>
         public bool ImportingProp => Volatile.Read(ref propBusy) != 0;
 
@@ -758,8 +761,11 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                         var path = (string)m["path"];
                         PropStatus("importing", "Reading " + Path.GetFileName(path) + "...");
                         p = PropLibrary.Import(path, (string)m["name"], (string)m["cat"], cost, height);
-                        PropStatus("done", string.Format(System.Globalization.CultureInfo.InvariantCulture,
-                            "{0} is in My objects: {1:0.##} m by {2:0.##} m, {3:0.##} m high, {4:N0} triangles.", p.Name, p.W, p.D, p.H, p.Triangles), p.Kind);
+                        var text = string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                            "{0} is in My objects: {1:0.##} m by {2:0.##} m, {3:0.##} m high, {4:N0} triangles.", p.Name, p.W, p.D, p.H, p.Triangles);
+                        if (p.Triangles > HeavyProp)
+                            text += " It is a heavy model: close up, many copies of it slow the 3D window down (far away they show as pictures).";
+                        PropStatus("done", text, p.Kind);
                     }
                     else
                     {

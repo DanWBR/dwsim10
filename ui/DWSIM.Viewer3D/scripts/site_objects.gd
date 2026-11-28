@@ -1197,7 +1197,21 @@ static func _user(parent: Node3D, kind: String) -> void:
 		parent.add_child(q)
 		return
 	var n := model.duplicate() as Node3D
+	n.name = "prop_model"
 	parent.add_child(n)
 	var reach := clampf(40.0 * maxf(size.y, maxf(size.x, size.z)), 80.0, 1500.0)
 	for g in n.find_children("*", "GeometryInstance3D", true, false):
 		(g as GeometryInstance3D).visibility_range_end = reach
+	# small on the screen, the prop is its picture (see main.gd, _prop_impostors): a detailed tree
+	# of millions of triangles costs as much far away as near
+	var sprite := Sprite3D.new()
+	sprite.name = "prop_impostor"
+	sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+	sprite.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+	sprite.shaded = false
+	sprite.visible = false
+	parent.add_child(sprite)
+	parent.set_meta("prop_kind", kind)
+	parent.set_meta("prop_height", size.y)
+	parent.add_to_group("user_props")
