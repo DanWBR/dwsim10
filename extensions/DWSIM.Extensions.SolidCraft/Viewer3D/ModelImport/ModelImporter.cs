@@ -194,6 +194,9 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
         /// <summary>The view file of a reference's cache, which the window draws; it may not exist yet.</summary>
         public static string ViewPathOf(ModelReference r) => Path.Combine(CacheFolder(r), "view.glb");
 
+        /// <summary>The file with one node per island ("island_N"), which the window's review draws.</summary>
+        public static string IslandsPathOf(ModelReference r) => Path.Combine(CacheFolder(r), "model.glb");
+
         /// <summary>The cache of a file and its placement: a change of unit, axis or tolerance makes another one.</summary>
         public static string CacheFolder(ModelReference r)
         {
@@ -385,6 +388,8 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
         [JsonProperty("suggested", NullValueHandling = NullValueHandling.Ignore)] public string Suggested;
         [JsonProperty("score", NullValueHandling = NullValueHandling.Ignore)] public double? Score;
         [JsonProperty("why", NullValueHandling = NullValueHandling.Ignore)] public string Why;
+        /// <summary>A group the user made (joined, split or given a role): its islands leave the groups the segmentation finds.</summary>
+        [JsonProperty("user", DefaultValueHandling = DefaultValueHandling.Ignore)] public bool User;
         /// <summary>equipment, piping, structure, scenery or hidden.</summary>
         [JsonProperty("role")] public string Role = "scenery";
     }

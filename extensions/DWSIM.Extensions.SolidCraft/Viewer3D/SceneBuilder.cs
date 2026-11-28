@@ -149,6 +149,16 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
         /// the window to draw: the file's name, its view in the cache ("glb", null until the cache is
         /// made), whether the file is found, and its hash. Null when the flowsheet has none.
         /// </summary>
+        static string IslandsPath(ModelImport.ModelReference r)
+        {
+            try
+            {
+                var p = ModelImport.ModelImporter.IslandsPathOf(r);
+                return System.IO.File.Exists(p) ? p.Replace(System.IO.Path.DirectorySeparatorChar, '/') : null;
+            }
+            catch (Exception) { return null; }
+        }
+
         public static JObject PlantModelInfo(IFlowsheet fs)
         {
             var m = ModelImport.ModelStore.Load(fs);
@@ -163,6 +173,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                 ["sha"] = m.Model.Sha256,
                 ["glb"] = view != null && System.IO.File.Exists(view) ? view.Replace(System.IO.Path.DirectorySeparatorChar, '/') : null,
                 ["found"] = file != null,
+                ["islands"] = IslandsPath(m.Model),
                 ["equipment"] = m.Groups.Count(g => g.Role == "equipment"),
                 ["proposed"] = m.Groups.Count(g => g.Suggested != null),
                 ["chosen"] = m.Groups.Count(g => g.Object != null)

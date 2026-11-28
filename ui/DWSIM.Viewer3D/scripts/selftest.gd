@@ -25,8 +25,74 @@ func _ready() -> void:
 		_run_site()
 	elif item_id.begins_with("edit:"):
 		_run_edit(item_id.substr(5))
+	elif item_id.begins_with("review:"):
+		_run_review(item_id.substr(7))
 	else:
 		_run()
+
+
+## The review self-test ("review:<tag>"): in the review of the plant model, frames the group
+## with that tag, clicks its largest island, then Alt+clicks it, as the user would, and writes what
+## each click picked to review.txt, with a picture after each.
+func _run_review(tag: String) -> void:
+	OS.low_processor_usage_mode = false
+	var review = main.model_review
+	var gid := ""
+	for i in 600:
+		if not review.loading and not review.groups.is_empty():
+			for k in review.groups.keys():
+				if str(review.groups[k].get("tag", "")) == tag:
+					gid = k
+		if gid != "":
+			break
+		await _wait(0.1)
+	var log := []
+	if gid == "":
+		log.append("no group tagged " + tag)
+	else:
+		if not review.active:
+			review.enter()
+		review.select([])
+		review.frame(gid)
+		await _wait(1.0)
+		var best := -1
+		var area := 0.0
+		for i in review.groups[gid].get("islands", []):
+			if review.nodes.has(int(i)):
+				var b: AABB = review.nodes[int(i)].get_aabb()
+				var a := b.size.x * b.size.y + b.size.y * b.size.z + b.size.x * b.size.z
+				if a > area:
+					area = a
+					best = int(i)
+		var mi: MeshInstance3D = review.nodes[best]
+		var at: Vector2 = main.rig.camera.unproject_position((mi.global_transform * mi.get_aabb()).get_center())
+		var under: int = review.pick(at)
+		log.append("target %s island %d, the pick under its centre: island %d of group %s" % [gid, best, under, review.island_group.get(under, "-")])
+		await _click(at)
+		await _wait(0.5)
+		log.append("click selects: %s" % str(review.selected_groups))
+		await _shot("review_click", false)
+		var e := InputEventMouseButton.new()
+		e.button_index = MOUSE_BUTTON_LEFT
+		e.alt_pressed = true
+		e.position = at
+		e.global_position = at
+		e.pressed = true
+		e.button_mask = MOUSE_BUTTON_MASK_LEFT
+		Input.parse_input_event(e)
+		await get_tree().process_frame
+		var r := e.duplicate()
+		r.pressed = false
+		r.button_mask = 0
+		Input.parse_input_event(r)
+		await _wait(0.5)
+		log.append("alt+click picks islands: %s of group %s" % [str(review.selected_islands), str(review.selected_groups)])
+		await _shot("review_alt", false)
+	var f := FileAccess.open(out_dir.path_join("review.txt"), FileAccess.WRITE)
+	if f != null:
+		f.store_string("\n".join(log) + "\n")
+		f.close()
+	get_tree().quit()
 
 
 ## The editor self-test ("edit:<tag>"): selects the item with that tag and asks DWSIM for its

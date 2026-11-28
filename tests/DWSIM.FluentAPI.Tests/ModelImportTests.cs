@@ -23,6 +23,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using DWSIM.Automation.FluentAPI;
+using DWSIM.Extensions.SolidCraft;
 using DWSIM.Extensions.SolidCraft.Viewer3D;
 using DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport;
 using Newtonsoft.Json.Linq;
@@ -1043,6 +1044,95 @@ Connections:  {
             Assert.That(vessel.Category, Is.EqualTo("vessel"));
             Assert.That(vessel.Length, Is.GreaterThan(0));
             Assert.That(pump.Neighbours, Is.EquivalentTo(new[] { vessel.Name }), "the stream reaches the vessel through the valve");
+        }
+            // ---- M3: the review of the groups through the link ----
+
+        static JObject LastOf(List<JObject> sent, string type)
+        {
+            lock (sent) return sent.LastOrDefault(x => (string)x["type"] == type);
+        }
+
+        static JObject GroupOf(JObject payload, Func<JObject, bool> where) => payload["groups"].OfType<JObject>().FirstOrDefault(where);
+
+        [Test]
+        public void TheReviewAssignsJoinsSplitsCreatesAndUndoes()
+        {
+            var fs = Flowsheet.Create("review").WithCompound("Water").WithPropertyPackage(PropertyPackages.SteamTables);
+            var feed = fs.AddMaterialStream("1").At(300.Kelvin(), 101325.0.Pascal()).WithMassFlow(1.KgPerSecond());
+            var s2 = fs.AddMaterialStream("2");
+            var s3 = fs.AddMaterialStream("3");
+            var s4 = fs.AddMaterialStream("4");
+            fs.AddSeparator("V-20").ConnectFeed(feed, 0).ConnectProduct(s2, 0).ConnectProduct(s3, 1);
+            fs.AddPump("B-30").ConnectFeed(s3, 0).ConnectProduct(s4, 0);
+            fs.AutoLayout();
+            var glb = Path.Combine(_dir, "review.glb");
+            GlbWriter.WriteProp(Plant(), "Plant", glb);
+
+            var link = new FlowsheetLink(fs.Inner);
+            var sent = new List<JObject>();
+            link.MessageSent += m => { lock (sent) sent.Add(m); };
+            link.Handle(new JObject { ["type"] = SceneProtocol.ModelImport, ["path"] = glb });
+            Assert.That((string)Wait(sent, SceneProtocol.ModelStatus)["state"], Is.EqualTo("done"));
+            link.ModelEditsInline = true;
+            Func<string, JObject, JObject> edit = (type, fields) =>
+            {
+                fields["type"] = type;
+                var a = link.Handle(fields);
+                Assert.That((string)a["type"], Is.EqualTo(SceneProtocol.Ack), type);
+                var err = LastOf(sent, SceneProtocol.Error);
+                var last = LastOf(sent, SceneProtocol.ModelGroups);
+                Assert.That(err == null || sent.IndexOf(err) < sent.IndexOf(last), Is.True, type + ": " + err?["message"]);
+                return last;
+            };
+            Func<string, string> id = tag => fs.Inner.GetFlowsheetSimulationObject(tag).Name;
+
+            var payload = edit(SceneProtocol.ModelGroups, new JObject());
+            Assert.That(payload["groups"].Count(), Is.EqualTo(5), "the three equipment groups and the two lines");
+            Assert.That(payload["units"].Select(u => (string)u["tag"]), Is.EquivalentTo(new[] { "B-30", "V-20" }));
+            var column = GroupOf(payload, g => (string)g["kind"] == "column");
+            var drum = GroupOf(payload, g => (string)g["kind"] == "vessel");
+            var pump = GroupOf(payload, g => (string)g["role"] == "equipment" && (string)g["kind"] != "column" && (string)g["kind"] != "vessel");
+            var line = GroupOf(payload, g => (string)g["role"] == "piping");
+            Assert.That((string)drum["suggested"], Is.EqualTo(id("V-20")), "the drum is proposed for the separator");
+
+            // the user takes the proposal; the undo of the window takes it back
+            payload = edit(SceneProtocol.ModelAssign, new JObject { ["group"] = drum["id"], ["accept"] = true });
+            Assert.That((string)GroupOf(payload, g => (string)g["id"] == (string)drum["id"])["object"], Is.EqualTo(id("V-20")));
+            Assert.That(ModelStore.Load(fs.Inner).Groups.Single(g => g.Id == (string)drum["id"]).Object, Is.EqualTo(id("V-20")));
+            link.Handle(new JObject { ["type"] = SceneProtocol.Undo });
+            Assert.That(ModelStore.Load(fs.Inner).Groups.Single(g => g.Id == (string)drum["id"]).Object, Is.Null);
+            link.Handle(new JObject { ["type"] = SceneProtocol.Redo });
+
+            // a line is hidden: it becomes a group of the user's, with its islands
+            payload = edit(SceneProtocol.ModelRole, new JObject { ["group"] = line["id"], ["role"] = "hidden" });
+            var hidden = GroupOf(payload, g => (string)g["role"] == "hidden");
+            Assert.That(hidden, Is.Not.Null);
+            Assert.That((bool?)hidden["user"], Is.True);
+            Assert.That(hidden["islands"].Select(t => (int)t), Is.EquivalentTo(line["islands"].Select(t => (int)t)));
+
+            // the drum and the pump joined, then the pump split off again
+            payload = edit(SceneProtocol.ModelMerge, new JObject { ["groups"] = new JArray(drum["id"], pump["id"]) });
+            var joined = GroupOf(payload, g => g["islands"].Count() == drum["islands"].Count() + pump["islands"].Count());
+            Assert.That(joined, Is.Not.Null, "one group holds the drum and the pump");
+            Assert.That((string)joined["object"], Is.EqualTo(id("V-20")), "the join keeps the object the drum stood for");
+            payload = edit(SceneProtocol.ModelSplit, new JObject { ["group"] = joined["id"], ["islands"] = pump["islands"].DeepClone() });
+            Assert.That(GroupOf(payload, g => g["islands"].Select(t => (int)t).OrderBy(x => x).SequenceEqual(pump["islands"].Select(t => (int)t).OrderBy(x => x))), Is.Not.Null);
+
+            // the column has no object in the flowsheet: DWSIM adds one where the column stands
+            var before = fs.Inner.SimulationObjects.Count;
+            payload = edit(SceneProtocol.ModelCreate, new JObject { ["group"] = column["id"] });
+            Assert.That(fs.Inner.SimulationObjects.Count, Is.EqualTo(before + 1));
+            var made = (string)GroupOf(payload, g => (string)g["id"] == (string)column["id"])["object"];
+            Assert.That(made, Is.Not.Null);
+            Assert.That(fs.Inner.SimulationObjects[made].GraphicObject.ObjectType.ToString(), Is.EqualTo("ShortcutColumn"));
+            Assert.That(PlantLayout.Load(fs.Inner).ContainsKey(made), Is.True, "the new object stands where the model's column is");
+            link.Handle(new JObject { ["type"] = SceneProtocol.Undo });
+            Assert.That(fs.Inner.SimulationObjects.ContainsKey(made), Is.False, "one undo takes back the object and the choice");
+            Assert.That(ModelStore.Load(fs.Inner).Groups.Any(g => g.Object == made), Is.False);
+
+            // a wrong request says why
+            link.Handle(new JObject { ["type"] = SceneProtocol.ModelAssign, ["group"] = "nope", ["object"] = null });
+            Assert.That((string)LastOf(sent, SceneProtocol.Error)["message"], Does.Contain("no group"));
         }
     }
 }

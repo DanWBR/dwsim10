@@ -291,9 +291,12 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
             {
                 var j = assign[i];
                 if (j < 0) continue;
-                var s = score[i, j] / Best;
-                // too weak to propose, unless the tag says so
-                if (s < 0.3 && name[i, j] < 1) continue;
+                // how sure: the score without the tag, over the most it can be; a tag that matches makes it sure
+                var s = (score[i, j] - WName * name[i, j]) / (Best - WName);
+                if (name[i, j] >= 1) s = Math.Max(s, 0.9);
+                else if (name[i, j] > 0) s = Math.Max(s, 0.6);
+                // too weak to propose
+                if (s < 0.35) continue;
                 var why = new List<string>();
                 if (name[i, j] >= 1) why.Add("same tag");
                 else if (name[i, j] > 0) why.Add("similar tag");

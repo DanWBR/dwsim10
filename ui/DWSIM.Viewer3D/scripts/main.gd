@@ -10,6 +10,7 @@ extends Node3D
 
 const _ModelConvert = preload("res://scripts/model_convert.gd")
 const _PlantModel = preload("res://scripts/plant_model.gd")
+const _ModelReview = preload("res://scripts/model_review.gd")
 
 ## The width of the panels at the sides; the Rounds panel at the bottom is wider.
 const PANEL_W := 280.0
@@ -88,6 +89,8 @@ var world_env: Environment
 var world: Node3D
 ## The 3D model of the plant DWSIM imported, drawn under the equipment (plant_model.gd).
 var plant_model: Node3D
+## The review of the plant model's groups (model_review.gd).
+var model_review: Node3D
 var _model_fitted := ""
 var items_root: Node3D
 var lines_root: Node3D
@@ -174,6 +177,10 @@ func _ready() -> void:
 	env_panel.name = "environment_panel"
 	plant_model.add_rows(env_panel.get_child(0) as GridContainer, self)
 	hud.add_child(env_panel)
+	var review_panel: PanelContainer = model_review.build_panel(_panel_style())
+	_glass(review_panel, 0.0)
+	review_panel.name = "review_panel"
+	hud.add_child(review_panel)
 	crew = PlantCrew.new(self)
 	add_child(crew)
 	maintenance = PlantMaintenance.new(self)
@@ -323,6 +330,11 @@ func _build_world() -> void:
 	plant_model.name = "plant_model"
 	world.add_child(plant_model)
 	plant_model.loaded.connect(_on_model_loaded)
+	model_review = _ModelReview.new()
+	model_review.name = "model_review"
+	model_review.main = self
+	world.add_child(model_review)
+	model_review.loaded.connect(_on_model_loaded)
 
 	ground = MeshInstance3D.new()
 	ground.mesh = PlaneMesh.new()
@@ -392,6 +404,8 @@ func _drawn_roots() -> Array:
 		roots.append_array([items_root, lines_root, rack_root])
 	if plant_model != null and plant_model.has_model() and plant_model.visible:
 		roots.append(plant_model)
+	if model_review != null and model_review.has_view():
+		roots.append(model_review)
 	if roots.is_empty():
 		roots = [items_root, lines_root, rack_root]
 	return roots
@@ -442,6 +456,13 @@ func _on_message(m: Dictionary) -> void:
 			_show_toast("DWSIM: " + str(m.get("message", "")))
 		"model.status":
 			plant_model.on_status(m)
+		"model.groups":
+			model_review.on_groups(m)
+		"review.open":
+			# window-only, from a messages file of the offline mode: open the review on some groups
+			model_review.enter()
+			if m.has("select"):
+				model_review.select(m["select"])
 		"bye":
 			get_tree().quit()
 
@@ -852,6 +873,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
 		_mouse = (event as InputEventMouseMotion).position
 		_mouse_dirty = true
+	if model_review != null and model_review.handle(event):
+		return
 	if site_builder != null and site_builder.handle(event):
 		return
 	if tools != null and tools.handle(event):
@@ -1245,6 +1268,8 @@ func _build_hud() -> void:
 
 func _process(delta: float) -> void:
 	var size := _viewport_size()
+	if model_review != null and model_review.panel != null and model_review.panel.visible:
+		model_review.panel.position = Vector2(size.x - model_review.panel.size.x - 12, 12)
 	card.position = Vector2(size.x - card.size.x - 12, 12)
 	info_panel.position = Vector2(size.x - info_panel.size.x - 12, card.position.y + (card.size.y + 12 if card.visible else 0))
 	toast.position = Vector2(14, size.y - 34)
@@ -1464,6 +1489,12 @@ func _run_offline() -> void:
 				for msg in more:
 					if msg is Dictionary:
 						_on_message(msg)
+	if model_review.loading:
+		await model_review.loaded
+	if model_review.active:
+		for arg in OS.get_cmdline_user_args():
+			if arg == "--review-frame" and not model_review.selected_groups.is_empty():
+				model_review.frame(model_review.selected_groups[0])
 	for arg in OS.get_cmdline_user_args():
 		if arg == "--rounds":
 			crew.panel.visible = true

@@ -448,6 +448,139 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             return null;
         }
 
+        static readonly HashSet<string> ModelEdits = new HashSet<string>
+        {
+            SceneProtocol.ModelGroups, SceneProtocol.ModelAssign, SceneProtocol.ModelRole,
+            SceneProtocol.ModelMerge, SceneProtocol.ModelSplit, SceneProtocol.ModelCreate
+        };
+
+        /// <summary>Set by a test: the model edits run on the calling thread, so the test sees their end.</summary>
+        public bool ModelEditsInline;
+
+        /// <summary>
+        /// The window's review of the plant model: sends the groups, or changes them (an object for a
+        /// group, a role, a join, a split, a new flowsheet object) as one step of the window's undo,
+        /// matches again keeping the choices, and sends the groups again.
+        /// </summary>
+        JObject StartModelEdit(string type, JObject m)
+        {
+            if (Interlocked.CompareExchange(ref importing, 1, 0) != 0) return Error("the plant model is busy", type);
+            ModelImport.PlantModelImport stored = null;
+            try { OnUi(() => stored = ModelImport.ModelStore.Load(fs)); }
+            catch (Exception) { }
+            var index = stored == null ? null : ModelImport.ModelImporter.Cached(stored.Model);
+            if (index == null)
+            {
+                Interlocked.Exchange(ref importing, 0);
+                return Error(stored == null ? "the flowsheet does not have a plant model" : "the plant model is not ready yet", type);
+            }
+            Action work = () =>
+            {
+                try
+                {
+                    var units = FlowsheetUnits();
+                    List<ModelImport.SegmentGroup> segments;
+                    var groups = ModelImport.ModelAnalysis.Analyze(stored, index, units, out segments);
+                    string problem = null;
+                    var changed = true;
+                    var id = (string)m["group"];
+                    switch (type)
+                    {
+                        case SceneProtocol.ModelGroups:
+                            changed = false;
+                            break;
+                        case SceneProtocol.ModelAssign:
+                            {
+                                var obj = (bool?)m["accept"] == true ? groups.FirstOrDefault(g => g.Id == id)?.Suggested : (string)m["object"];
+                                if ((bool?)m["accept"] == true && obj == null) problem = "the group does not have a proposal";
+                                else if (obj != null && !units.Any(u => u.Name == obj)) problem = "there is no flowsheet object '" + obj + "' to choose";
+                                else problem = ModelImport.ModelAnalysis.Assign(groups, segments, id, obj);
+                                break;
+                            }
+                        case SceneProtocol.ModelRole:
+                            problem = ModelImport.ModelAnalysis.SetRole(groups, segments, id, (string)m["role"]);
+                            break;
+                        case SceneProtocol.ModelMerge:
+                            problem = ModelImport.ModelAnalysis.Merge(groups, segments, (m["groups"] as JArray ?? new JArray()).Select(t => (string)t).ToList());
+                            break;
+                        case SceneProtocol.ModelSplit:
+                            problem = ModelImport.ModelAnalysis.Split(groups, segments, id, (m["islands"] as JArray ?? new JArray()).Select(t => (int)t).ToList());
+                            break;
+                        case SceneProtocol.ModelCreate:
+                            {
+                                var seg = segments.FirstOrDefault(x => x.Id == id);
+                                if (seg == null) { problem = "there is no group '" + id + "'"; break; }
+                                var tag = seg.Tag;
+                                if (tag != null && units.Any(u => string.Equals(u.Tag, tag, StringComparison.OrdinalIgnoreCase))) tag = null;
+                                var add = new JObject
+                                {
+                                    ["objectType"] = (string)m["objectType"] ?? ModelImport.ModelAnalysis.ObjectTypeFor(seg.Category),
+                                    ["tag"] = tag,
+                                    ["x"] = Math.Round(seg.Center[0] * 1000),
+                                    ["y"] = Math.Round(seg.Center[1] * 1000)
+                                };
+                                OnUi(() =>
+                                {
+                                    lock (gate)
+                                    {
+                                        // the new object and the group's choice are one step of the undo
+                                        var answer = Add(add);
+                                        if (SceneProtocol.TypeOf(answer) == SceneProtocol.Error) { problem = (string)answer["message"]; return; }
+                                        var made = (string)answer["id"];
+                                        units = ModelImport.ModelMatching.Units(fs, SceneBuilder.Model(fs));
+                                        problem = ModelImport.ModelAnalysis.Assign(groups, segments, id, made);
+                                        if (problem == null)
+                                        {
+                                            stored.Groups = groups;
+                                            stored.Groups = ModelImport.ModelAnalysis.Analyze(stored, index, units, out segments);
+                                            ModelImport.ModelStore.Save(fs, stored);
+                                        }
+                                    }
+                                });
+                                changed = false;
+                                if (problem == null) wake.Set();
+                                break;
+                            }
+                        default:
+                            problem = "unknown command '" + type + "'";
+                            break;
+                    }
+                    if (problem != null)
+                    {
+                        var e = Error(problem, type);
+                        Send(e);
+                    }
+                    else if (changed)
+                    {
+                        stored.Groups = groups;
+                        var again = ModelImport.ModelAnalysis.Analyze(stored, index, units, out segments);
+                        OnUi(() =>
+                        {
+                            lock (gate)
+                            {
+                                Remember();
+                                stored.Groups = again;
+                                ModelImport.ModelStore.Save(fs, stored);
+                            }
+                        });
+                        groups = again;
+                        wake.Set();
+                    }
+                    else if (type == SceneProtocol.ModelCreate)
+                        groups = stored.Groups;
+                    Send(ModelImport.ModelAnalysis.Payload(segments, groups, units));
+                }
+                catch (Exception ex)
+                {
+                    Send(Error("the plant model could not be changed: " + (ex.InnerException?.Message ?? ex.Message), type));
+                }
+                finally { Interlocked.Exchange(ref importing, 0); }
+            };
+            if (ModelEditsInline) work();
+            else Task.Run(work);
+            return null;
+        }
+
         static string Summary(ModelImport.ModelImportResult r)
         {
             var inv = System.Globalization.CultureInfo.InvariantCulture;
@@ -547,10 +680,11 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                 Captured(message);
                 return null;
             }
-            if (type == SceneProtocol.ModelImport || type == SceneProtocol.ModelSuggest)
+            if (type == SceneProtocol.ModelImport || type == SceneProtocol.ModelSuggest || ModelEdits.Contains(type))
             {
                 // reading a plant model takes seconds: it runs apart, and the window hears of it
-                answer = (type == SceneProtocol.ModelImport ? StartImport(message) : StartSuggest()) ?? SceneProtocol.Message(SceneProtocol.Ack);
+                answer = (type == SceneProtocol.ModelImport ? StartImport(message) : type == SceneProtocol.ModelSuggest ? StartSuggest() : StartModelEdit(type, message))
+                    ?? SceneProtocol.Message(SceneProtocol.Ack);
                 if (message["ref"] != null) answer["ref"] = message["ref"].DeepClone();
                 if (answer["for"] == null) answer["for"] = type;
                 Send(answer);

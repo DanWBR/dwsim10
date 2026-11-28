@@ -117,6 +117,29 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
         /// </summary>
         public const string ModelSuggest = "model.suggest";
 
+        /// <summary>
+        /// Asks for every group of the plant model (window to DWSIM, no fields), or brings them (DWSIM
+        /// to the window: {groups: [{id, name, tag, role, kind, islands, c, length, diameter, user,
+        /// object, suggested, score, why}], units: [{name, tag, kind}]}); DWSIM sends them again after
+        /// each change of the groups.
+        /// </summary>
+        public const string ModelGroups = "model.groups";
+
+        /// <summary>{group, object}: the group stands for the flowsheet object (null for none); {group, accept: true} takes the proposal.</summary>
+        public const string ModelAssign = "model.assign";
+
+        /// <summary>{group, role}: equipment, piping, structure, scenery or hidden.</summary>
+        public const string ModelRole = "model.role";
+
+        /// <summary>{groups}: the groups become one.</summary>
+        public const string ModelMerge = "model.merge";
+
+        /// <summary>{group, islands}: those islands of the group become a group of their own.</summary>
+        public const string ModelSplit = "model.split";
+
+        /// <summary>{group, objectType}: DWSIM adds a flowsheet object for the group (by default of the group's kind), where the group stands, and the group stands for it.</summary>
+        public const string ModelCreate = "model.create";
+
         /// <summary>The flowsheet stops using its 3D model of the plant (the file and the cache stay).</summary>
         public const string ModelRemove = "model.remove";
 

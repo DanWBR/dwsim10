@@ -45,6 +45,8 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
         public bool Vertical;
         /// <summary>The other equipment groups a piping group of the model joins this one to.</summary>
         public List<string> Neighbours = new List<string>();
+        /// <summary>A group the user made (joined, split or given a role); the segmentation does not change it.</summary>
+        public bool User;
 
         public double[] Center => new[] { (Min[0] + Max[0]) / 2, (Min[1] + Max[1]) / 2, (Min[2] + Max[2]) / 2 };
     }
@@ -291,6 +293,17 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
             double px = dx - along * sa.Axis[0], py = dy - along * sa.Axis[1], pz = dz - along * sa.Axis[2];
             var off = Math.Sqrt(px * px + py * py + pz * pz);
             return off < 0.2 * sa.Radius && Math.Abs(along) < (sa.Length + sb.Length) / 2 + 0.3;
+        }
+
+        /// <summary>Measures the groups again and joins them again by the pipes, after the user changed some.</summary>
+        public static void Remeasure(List<SegmentGroup> groups, List<Island> islands)
+        {
+            foreach (var g in groups)
+            {
+                g.Neighbours.Clear();
+                Measure(g, islands);
+            }
+            Link(groups, islands);
         }
 
         static void Measure(SegmentGroup g, List<Island> islands)

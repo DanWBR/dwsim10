@@ -21,6 +21,7 @@ var _thread: Thread
 var _root: Node3D
 var _remove_button: Button
 var _match_button: Button
+var _review_button: Button
 var _model_box: CheckBox
 var _equipment_box: CheckBox
 var _dialog: FileDialog
@@ -141,6 +142,12 @@ func add_rows(g: GridContainer, owner_main: Node) -> void:
 		if main.link != null:
 			main.link.send({"type": "model.suggest"}))
 	row.add_child(_match_button)
+	_review_button = Button.new()
+	_review_button.text = "Review"
+	_review_button.focus_mode = Control.FOCUS_NONE
+	_review_button.tooltip_text = "Shows the model's groups coloured by what they are, with the equipment list and the tools to choose, join, split and create flowsheet objects."
+	_review_button.pressed.connect(func(): main.model_review.toggle())
+	row.add_child(_review_button)
 	_label(g, "Show")
 	var srow := HBoxContainer.new()
 	srow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -163,6 +170,7 @@ func _refresh_rows() -> void:
 	var any := not info.is_empty()
 	_remove_button.disabled = not any
 	_match_button.disabled = not any
+	_review_button.disabled = not any
 	_model_box.disabled = not any
 
 
