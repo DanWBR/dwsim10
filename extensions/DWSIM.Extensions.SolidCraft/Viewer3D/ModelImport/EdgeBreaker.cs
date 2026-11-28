@@ -36,7 +36,9 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
     /// <remarks>
     /// The opcode values (C 0, L 1, E 2, R 3, S 4) and the layout of the shells were found from
     /// DWF files of plant models, for interoperability; they were checked against the points of
-    /// every shell of those files (manifold and consistently oriented meshes).
+    /// every shell of those files (manifold and consistently oriented meshes). The dummy vertices
+    /// that close holes and the duplicated vertices where a mesh touches itself are numbered like
+    /// the others here; the shell's table says which they are (see DwfReader).
     /// </remarks>
     public static class EdgeBreaker
     {

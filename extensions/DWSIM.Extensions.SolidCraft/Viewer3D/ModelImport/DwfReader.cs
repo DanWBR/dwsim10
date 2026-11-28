@@ -37,14 +37,14 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
     /// The stream holds cylinders, circles, lines and shells. The shells come in two kinds: a face
     /// list of packed vertex numbers, or Edgebreaker connectivity (see <see cref="EdgeBreaker"/>),
     /// with the points as floats in both. When the reader meets a record it does not know, it goes
-    /// on from the next object of the tree and says so in the warnings. Shells with handles or
-    /// shared vertices (a table this reader does not decode yet) are left out and counted.
+    /// on from the next object of the tree and says so in the warnings; a shell it cannot decode
+    /// is left out and counted.
     /// </remarks>
     public static class DwfReader
     {
         public class Stats
         {
-            public int Objects, Cylinders, Circles, Lines, FaceShells, EdgeBreakerShells, SkippedShells, Resyncs;
+            public int Objects, Cylinders, Circles, Lines, FaceShells, EdgeBreakerShells, HandleShells, SkippedShells, Resyncs;
             public Dictionary<string, int> Unknown = new Dictionary<string, int>();
             /// <summary>The objects that lost a shell (their path in the tree), with how many.</summary>
             public Dictionary<string, int> SkippedObjects = new Dictionary<string, int>();
@@ -52,8 +52,8 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
             public override string ToString()
             {
                 return string.Format(CultureInfo.InvariantCulture,
-                    "{0} objects, {1} cylinders, {2} circles, {3} face shells, {4} Edgebreaker shells, {5} shells left out, {6} records skipped",
-                    Objects, Cylinders, Circles, FaceShells, EdgeBreakerShells, SkippedShells, Resyncs);
+                    "{0} objects, {1} cylinders, {2} circles, {3} face shells, {4} Edgebreaker shells ({5} with duplicated vertices), {6} shells left out, {7} records skipped",
+                    Objects, Cylinders, Circles, FaceShells, EdgeBreakerShells, HandleShells, SkippedShells, Resyncs);
             }
         }
 
@@ -98,7 +98,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
                     }
             }
             if (stats.SkippedShells > 0)
-                model.Warnings.Add(stats.SkippedShells + " shells with handles or shared vertices were left out.");
+                model.Warnings.Add(stats.SkippedShells + " shells DWSIM could not decode were left out.");
             if (stats.Resyncs > 0)
                 model.Warnings.Add("Records DWSIM does not read were skipped " + stats.Resyncs + " times (" +
                     string.Join(", ", stats.Unknown.OrderByDescending(k => k.Value).Take(6).Select(k => k.Key + " " + k.Value)) + ").");
@@ -687,42 +687,43 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
                 _p += 12 * points;
 
                 var decoded = false;
-                if ((mask & 0x10) == 0 && (mask & ~0x98) == 0)
+                List<int> dummies;
+                Dictionary<int, int> duplicates;
+                List<int> tris;
+                int vertices;
+                if ((mask & ~0x98) == 0 && Tables(tableAt, tableLen, mask, out dummies, out duplicates)
+                    && EdgeBreaker.Decode(_d, blk + 24, opsLen, out tris, out vertices)
+                    && vertices - dummies.Count - duplicates.Count == points)
                 {
-                    // the dummy vertices that close the holes, delta-coded
-                    var dummies = new List<int>();
-                    if ((mask & 0x08) != 0)
+                    // the points are the decoded vertices in order, without the dummies and the
+                    // duplicates; a duplicate takes the point its pair names
+                    var point = new int[vertices];
+                    foreach (var x in dummies) if (x >= 0 && x < vertices) point[x] = -1;
+                    foreach (var x in duplicates.Keys) if (x >= 0 && x < vertices) point[x] = -2;
+                    var k2 = 0;
+                    for (var v = 0; v < vertices; v++) if (point[v] == 0) point[v] = ++k2;
+                    if (k2 == points)
                     {
-                        var count = BitConverter.ToInt32(_d, tableAt + 4);
-                        var sum = 0;
-                        for (var k = 0; k < count && tableAt + 8 + 4 * k + 4 <= tableAt + tableLen; k++)
+                        for (var v = 0; v < vertices; v++)
                         {
-                            sum += BitConverter.ToInt32(_d, tableAt + 8 + 4 * k);
-                            dummies.Add(sum);
-                        }
-                    }
-                    List<int> tris;
-                    int vertices;
-                    if (EdgeBreaker.Decode(_d, blk + 24, opsLen, out tris, out vertices) && vertices - dummies.Count == points)
-                    {
-                        var isDummy = new bool[vertices];
-                        foreach (var x in dummies) if (x >= 0 && x < vertices) isDummy[x] = true;
-                        var real = new int[vertices];
-                        var k2 = 0;
-                        for (var v = 0; v < vertices; v++) real[v] = isDummy[v] ? -1 : k2++;
-                        if (k2 == points)
-                        {
-                            var b = Builder();
-                            var map = AddPoints(b, pts);
-                            for (var t = 0; t + 2 < tris.Count; t += 3)
+                            if (point[v] > 0) point[v]--;
+                            else if (point[v] == -2)
                             {
-                                int a = real[tris[t]], c = real[tris[t + 1]], e = real[tris[t + 2]];
-                                if (a < 0 || c < 0 || e < 0) continue;
-                                b.Triangle(map[a], map[c], map[e]);
+                                var o = duplicates[v];
+                                point[v] = o >= 0 && o < points ? o : -1;
                             }
-                            decoded = true;
-                            _stats.EdgeBreakerShells++;
                         }
+                        var b = Builder();
+                        var map = AddPoints(b, pts);
+                        for (var t = 0; t + 2 < tris.Count; t += 3)
+                        {
+                            int a = point[tris[t]], c = point[tris[t + 1]], e = point[tris[t + 2]];
+                            if (a < 0 || c < 0 || e < 0 || a == c || c == e || a == e) continue;
+                            b.Triangle(map[a], map[c], map[e]);
+                        }
+                        decoded = true;
+                        _stats.EdgeBreakerShells++;
+                        if (duplicates.Count > 0) _stats.HandleShells++;
                     }
                 }
                 if (!decoded)
@@ -742,6 +743,39 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
                 string id = null;
                 for (var k = _stack.Count - 1; k >= 0 && id == null; k--) id = _stack[k].Id;
                 return id;
+            }
+
+            /// <summary>
+            /// The table after the opcodes: a mask, then the number of dummy vertices (bit 3) and the
+            /// number of ints of the duplicate pairs (bit 4), then the dummies as deltas, then the
+            /// pairs, then the quantization of the points (bit 7, three ints). A dummy closes a hole of
+            /// the mesh and has no point. A duplicate is a vertex that the encoder split, where a face
+            /// with a hole or a handle touches itself: each pair is the delta of its decoded number
+            /// and the point it stands for.
+            /// </summary>
+            bool Tables(int at, int length, int mask, out List<int> dummies, out Dictionary<int, int> duplicates)
+            {
+                dummies = new List<int>();
+                duplicates = new Dictionary<int, int>();
+                var end = at + length;
+                var k = at + 4;
+                int nd = 0, npi = 0;
+                if ((mask & 0x08) != 0) { if (k + 4 > end) return false; nd = BitConverter.ToInt32(_d, k); k += 4; }
+                if ((mask & 0x10) != 0) { if (k + 4 > end) return false; npi = BitConverter.ToInt32(_d, k); k += 4; }
+                if (nd < 0 || npi < 0 || (npi & 1) != 0 || k + 4L * (nd + npi) > end) return false;
+                var sum = 0;
+                for (var i = 0; i < nd; i++, k += 4)
+                {
+                    sum += BitConverter.ToInt32(_d, k);
+                    dummies.Add(sum);
+                }
+                sum = 0;
+                for (var i = 0; i < npi / 2; i++, k += 8)
+                {
+                    sum += BitConverter.ToInt32(_d, k);
+                    duplicates[sum] = BitConverter.ToInt32(_d, k + 4);
+                }
+                return duplicates.Count == npi / 2;
             }
 
             PartBuilder Builder()

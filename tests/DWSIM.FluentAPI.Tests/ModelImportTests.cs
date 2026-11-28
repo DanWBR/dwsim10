@@ -713,8 +713,8 @@ Connections:  {
         [Test]
         public void DwfObjectsComeWithTheirNamesPlacesAndShapes()
         {
-            var xml = "<SpaceObjectDefinition><Objects>" + Obj("1001", "Plant", "1002 1003 1004 1005 1006") + Obj("1002", "/V-1") + Obj("1003", "/SLAB") +
-                Obj("1004", "/E-1") + Obj("1005", "/ODD") + Obj("1006", "/P-1") + "</Objects></SpaceObjectDefinition>";
+            var xml = "<SpaceObjectDefinition><Objects>" + Obj("1001", "Plant", "1002 1003 1004 1005 1006 1007") + Obj("1002", "/V-1") + Obj("1003", "/SLAB") +
+                Obj("1004", "/E-1") + Obj("1005", "/ODD") + Obj("1006", "/P-1") + Obj("1007", "/H-1") + "</Objects></SpaceObjectDefinition>";
             var s = new W3d();
             s.Op('}').B(1).F(0, 0, 10, 0, 0, 0, 0, 1, 0, 5, 5).B(7).B(Encoding.ASCII.GetBytes("default"));
             s.Object("1001");
@@ -741,6 +741,14 @@ Connections:  {
             s.Object("1005").Op('!').B(9, 9, 9, 9).Close();
             // the reader goes on from the next object
             s.Object("1006").Op('Y').F(0, 0, 0, 1, 0, 0, 0.2f).B(0).Close();
+            // two squares decoded apart (R E twice, vertices 0-3 and 4-7); vertices 4 and 7 are
+            // duplicates of points 1 and 2, so the squares share an edge: table mask 0x10, four
+            // pair ints, pairs (delta 4, point 1) and (delta 3, point 2)
+            var squares = new[] { EdgeBreaker.R, EdgeBreaker.E, EdgeBreaker.R, EdgeBreaker.E };
+            var handles = new[] { 0x10, 4, 4, 1, 3, 2 };
+            s.Object("1007").Op('S').B(0x5A, 0, 5).I(24 + 4 + 4 * handles.Length).B(2, 0, 0, 0).I(squares.Length, 4 * handles.Length, 0, 6, 0)
+                .B(squares).I(handles).F(0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 2, 0, 0, 2, 1, 0).B(0)
+                .Close();
             s.Close();
 
             var path = Path.Combine(_dir, "plant.dwf");
@@ -751,11 +759,13 @@ Connections:  {
             Assert.That(m.Format, Is.EqualTo("dwf"));
             Assert.That(m.Units, Is.EqualTo(ModelUnits.Meters));
             Assert.That(m.Up, Is.EqualTo(UpAxis.Z));
-            Assert.That(stats.Objects, Is.EqualTo(6));
+            Assert.That(stats.Objects, Is.EqualTo(7));
             Assert.That(stats.Cylinders, Is.EqualTo(2));
             Assert.That(stats.Circles, Is.EqualTo(1));
             Assert.That(stats.FaceShells, Is.EqualTo(1));
-            Assert.That(stats.EdgeBreakerShells, Is.EqualTo(1));
+            Assert.That(stats.EdgeBreakerShells, Is.EqualTo(2));
+            Assert.That(stats.HandleShells, Is.EqualTo(1));
+            Assert.That(stats.SkippedShells, Is.EqualTo(0));
             Assert.That(stats.Resyncs, Is.EqualTo(1), "the unknown record is skipped once");
             Assert.That(m.Warnings.Any(w => w.Contains("skipped")), Is.True);
 
@@ -778,6 +788,15 @@ Connections:  {
             Assert.That(tube.VertexCount, Is.EqualTo(n * r));
             Assert.That(m.Parts.Any(p => p.Name == "/P-1"), Is.True, "the object after the unknown record is read");
             Assert.That(m.Parts.Any(p => p.Name == "/ODD"), Is.False);
+
+            // the duplicates take the points their pairs name: two squares side by side, one island
+            var joined = m.Parts.Single(p => p.Name == "/H-1");
+            Assert.That(joined.TriangleCount, Is.EqualTo(4));
+            Assert.That(joined.VertexCount, Is.EqualTo(6), "the six points, the duplicates do not add any");
+            var h = new ImportedModel { Parts = { joined } };
+            h.Bounds(out min, out max);
+            Assert.That(max[0] - min[0], Is.EqualTo(2).Within(1e-6));
+            Assert.That(ModelGeometry.Islands(h).Count, Is.EqualTo(1), "the shared edge joins the squares");
 
             // the import splits the objects into islands as for any model
             var import = ModelImporter.Import(path);
