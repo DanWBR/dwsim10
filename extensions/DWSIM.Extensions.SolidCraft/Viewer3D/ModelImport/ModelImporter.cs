@@ -43,7 +43,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
     }
 
     /// <summary>
-    /// Reads a 3D model of the plant (glTF, GLB, OBJ, STL, PLY, or FBX through the 3D window), puts
+    /// Reads a 3D model of the plant (glTF, GLB, OBJ, STL, PLY, 3D DWF, or FBX through the 3D window), puts
     /// it in the frame of the plant, splits it into islands and keeps a cache of the result in the
     /// user's data folder: the model file itself is never copied into the flowsheet.
     /// </summary>
@@ -52,7 +52,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
         /// <summary>The version of what the cache holds; a cache of another version is made again.</summary>
         public const int CacheVersion = 1;
 
-        public static readonly string[] Extensions = { ".glb", ".gltf", ".obj", ".stl", ".ply", ".fbx" };
+        public static readonly string[] Extensions = { ".glb", ".gltf", ".obj", ".stl", ".ply", ".fbx", ".dwf", ".dwfx" };
 
         /// <summary>Where the caches go; tests point it somewhere else.</summary>
         public static string CacheRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DWSIM", "Plant3DModels");
@@ -72,6 +72,8 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
                 case ".obj": return ObjReader.Read(path);
                 case ".stl": return StlReader.Read(path);
                 case ".ply": return PlyReader.Read(path);
+                case ".dwf":
+                case ".dwfx": return DwfReader.Read(path);
                 case ".fbx":
                     {
                         var glb = Path.Combine(Path.GetTempPath(), "dwsim-fbx-" + Guid.NewGuid().ToString("N") + ".glb");
@@ -87,7 +89,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
                         finally { try { if (File.Exists(glb)) File.Delete(glb); } catch { } }
                     }
                 default:
-                    throw new NotSupportedException("DWSIM does not read " + ext + " files. Export the model as glTF (GLB), FBX, OBJ, STL or PLY.");
+                    throw new NotSupportedException("DWSIM does not read " + ext + " files. Export the model as glTF (GLB), FBX, OBJ, STL, PLY or 3D DWF.");
             }
         }
 

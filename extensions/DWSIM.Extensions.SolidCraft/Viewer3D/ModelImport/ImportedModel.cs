@@ -24,7 +24,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
     public enum UpAxis { Unknown, Y, Z }
 
     /// <summary>The length unit of a model file, when the format says it.</summary>
-    public enum ModelUnits { Unknown, Meters, Centimeters, Millimeters }
+    public enum ModelUnits { Unknown, Meters, Centimeters, Millimeters, Feet, Inches }
 
     /// <summary>A material as the importer keeps it: the base colour and its texture, and how it is see-through.</summary>
     public class ModelMaterial
@@ -54,6 +54,10 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
         public string Name;
         /// <summary>The index of the material in <see cref="ImportedModel.Materials"/>, or -1.</summary>
         public int Material = -1;
+        /// <summary>The names from the root of the file's object tree down to this part, when the file has a tree (DWF).</summary>
+        public string[] Path;
+        /// <summary>The id of the object in the file's tree, when it has one.</summary>
+        public string ObjectId;
         /// <summary>x, y, z of each vertex.</summary>
         public float[] Positions = new float[0];
         /// <summary>u, v of each vertex (v down, as glTF has it), or null.</summary>

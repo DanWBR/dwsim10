@@ -19,6 +19,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using DWSIM.Automation.FluentAPI;
@@ -29,8 +30,8 @@ using NUnit.Framework;
 namespace DWSIM.FluentAPI.Tests
 {
     /// <summary>
-    /// The model import of the 3D window, phase M0: the readers (glTF, GLB, OBJ, STL, PLY, and FBX
-    /// through the window when it is there), the unit and axis normalization, the islands of a
+    /// The model import of the 3D window, phase M0: the readers (glTF, GLB, OBJ, STL, PLY, 3D DWF, and
+    /// FBX through the window when it is there), the unit and axis normalization, the islands of a
     /// model merged into one mesh, the GLB cache and the Plant3DModel key. Every model is made
     /// here: a small plant of a column, a drum, a pump and two pipes that touch them.
     /// </summary>
@@ -582,6 +583,205 @@ Connections:  {
             var gap = Math.Abs(islands[1].Centroid[0] - islands[0].Centroid[0]);
             Assert.That(gap / sizes[0], Is.EqualTo(2.5).Within(1e-3), "the second cube is 5 units away, 2.5 sizes of a 2-unit cube");
             Assert.That(m.Materials[m.Parts[0].Material].Color[0], Is.GreaterThan(m.Materials[m.Parts[0].Material].Color[1]), "the red material is kept");
+        }
+            // ---- 3D DWF: the Edgebreaker decoder and a package made here ----
+
+        /// <summary>
+        /// The opcodes of an open tube of n vertices per ring and r rings, the last ring closed round
+        /// one dummy vertex (numbered last): the first ring is the first loop, each ring after it is
+        /// C C (R C)^(n-2) R R, and the cap is C R^(n-2) E.
+        /// </summary>
+        static byte[] TubeOps(int n, int r)
+        {
+            var ops = new List<byte>();
+            for (var k = 1; k < r; k++)
+            {
+                ops.Add(EdgeBreaker.C); ops.Add(EdgeBreaker.C);
+                for (var j = 0; j < n - 2; j++) { ops.Add(EdgeBreaker.R); ops.Add(EdgeBreaker.C); }
+                ops.Add(EdgeBreaker.R); ops.Add(EdgeBreaker.R);
+            }
+            ops.Add(EdgeBreaker.C);
+            for (var j = 0; j < n - 2; j++) ops.Add(EdgeBreaker.R);
+            ops.Add(EdgeBreaker.E);
+            return ops.ToArray();
+        }
+
+        static float[] TubePoints(int n, int r)
+        {
+            var p = new List<float>();
+            for (var k = 0; k < r; k++)
+                for (var j = 0; j < n; j++)
+                {
+                    var t = 2 * Math.PI * j / n;
+                    p.Add((float)Math.Cos(t)); p.Add((float)Math.Sin(t)); p.Add(k);
+                }
+            return p.ToArray();
+        }
+
+        [Test]
+        public void EdgeBreakerDecodesASquareAndATube()
+        {
+            List<int> tris;
+            int verts;
+            Assert.That(EdgeBreaker.Decode(new[] { EdgeBreaker.R, EdgeBreaker.E }, 0, 2, out tris, out verts), Is.True);
+            Assert.That(verts, Is.EqualTo(4), "R then E: a loop of four closed by two triangles");
+            Assert.That(tris, Is.EqualTo(new[] { 0, 1, 2, 0, 2, 3 }));
+
+            const int n = 6, r = 4;
+            var ops = TubeOps(n, r);
+            Assert.That(EdgeBreaker.Decode(ops, 0, ops.Length, out tris, out verts), Is.True);
+            Assert.That(verts, Is.EqualTo(n * r + 1), "the rings and the dummy");
+            Assert.That(tris.Count / 3, Is.EqualTo(ops.Length));
+            var pts = TubePoints(n, r);
+            var edges = new Dictionary<long, int>();
+            var real = 0;
+            for (var t = 0; t < tris.Count; t += 3)
+            {
+                if (tris[t] == n * r || tris[t + 1] == n * r || tris[t + 2] == n * r) continue;
+                real++;
+                for (var k = 0; k < 3; k++)
+                {
+                    int a = tris[t + k], b = tris[t + (k + 1) % 3];
+                    double dx = pts[3 * a] - pts[3 * b], dy = pts[3 * a + 1] - pts[3 * b + 1], dz = pts[3 * a + 2] - pts[3 * b + 2];
+                    Assert.That(Math.Sqrt(dx * dx + dy * dy + dz * dz), Is.LessThan(1.5), "every edge joins neighbours of the tube");
+                    var key = ((long)Math.Min(a, b) << 32) | (uint)Math.Max(a, b);
+                    int c;
+                    edges.TryGetValue(key, out c);
+                    edges[key] = c + 1;
+                }
+            }
+            Assert.That(real, Is.EqualTo(2 * n * (r - 1)), "the tube without the cap round the dummy");
+            Assert.That(edges.Values.Max(), Is.LessThanOrEqualTo(2), "manifold");
+
+            Assert.That(EdgeBreaker.Decode(new[] { EdgeBreaker.R, EdgeBreaker.R }, 0, 2, out tris, out verts), Is.False, "a branch must end in E");
+            Assert.That(EdgeBreaker.Decode(new byte[] { 7 }, 0, 1, out tris, out verts), Is.False, "an unknown opcode");
+        }
+
+        /// <summary>Writes the opcodes of a W3D stream.</summary>
+        class W3d
+        {
+            readonly MemoryStream _s = new MemoryStream();
+            readonly BinaryWriter _w;
+            public W3d() { _w = new BinaryWriter(_s); }
+            public W3d Op(char c) { _w.Write((byte)c); return this; }
+            public W3d B(params byte[] b) { _w.Write(b); return this; }
+            public W3d F(params float[] f) { foreach (var x in f) _w.Write(x); return this; }
+            public W3d I(params int[] i) { foreach (var x in i) _w.Write(x); return this; }
+            public W3d Open(string name) { Op('('); _w.Write((byte)name.Length); _w.Write(Encoding.ASCII.GetBytes(name)); return this; }
+            public W3d Object(string id) { Open(id).Op('q').Op('U'); _w.Write((ushort)4); _w.Write(Encoding.ASCII.GetBytes("node")); return this; }
+            public W3d Close() => Op(')');
+            public byte[] Bytes() { _w.Flush(); return _s.ToArray(); }
+        }
+
+        /// <summary>
+        /// A 3D DWF package as Navisworks writes it: the "(DWF V06.00)" header, then a zip whose offsets
+        /// count from the start of the file, with the tree of objects and the W3D stream.
+        /// </summary>
+        static void WriteDwf(string path, string objectsXml, byte[] opcodes)
+        {
+            byte[] w3d;
+            using (var ms = new MemoryStream())
+            {
+                var head = Encoding.ASCII.GetBytes(";; HSF V12.15 ");
+                ms.Write(head, 0, head.Length);
+                ms.WriteByte(0);
+                ms.WriteByte((byte)'Z');
+                using (var z = new ZLibStream(ms, CompressionLevel.Optimal, true)) z.Write(opcodes, 0, opcodes.Length);
+                w3d = ms.ToArray();
+            }
+            using (var f = File.Create(path))
+            {
+                var header = Encoding.ASCII.GetBytes("(DWF V06.00)");
+                f.Write(header, 0, header.Length);
+                using (var zip = new ZipArchive(f, ZipArchiveMode.Create, true))
+                {
+                    Action<string, byte[]> add = (name, data) =>
+                    {
+                        using (var e = zip.CreateEntry(name).Open()) e.Write(data, 0, data.Length);
+                    };
+                    add("manifest.xml", Encoding.UTF8.GetBytes("<Manifest/>"));
+                    add("com.autodesk.dwf.eModel_1/descriptor.xml", Encoding.UTF8.GetBytes("<eModel:Space xmlns:eModel=\"DWF-eModel:1.0\"><eModel:Units type=\"m\"/></eModel:Space>"));
+                    add("com.autodesk.dwf.eModel_1/objects.xml", Encoding.UTF8.GetBytes(objectsXml));
+                    add("com.autodesk.dwf.eModel_1/geometry.w3d", w3d);
+                }
+            }
+        }
+
+        static string Obj(string id, string name, string children = null) =>
+            "<Object id=\"" + id + "\"" + (children == null ? "" : " children=\"" + children + " \"") + "><Properties id=\"p" + id + "\"><Property name=\"_name\" value=\"" + name + "\" category=\"hidden\"/></Properties></Object>";
+
+        [Test]
+        public void DwfObjectsComeWithTheirNamesPlacesAndShapes()
+        {
+            var xml = "<SpaceObjectDefinition><Objects>" + Obj("1001", "Plant", "1002 1003 1004 1005 1006") + Obj("1002", "/V-1") + Obj("1003", "/SLAB") +
+                Obj("1004", "/E-1") + Obj("1005", "/ODD") + Obj("1006", "/P-1") + "</Objects></SpaceObjectDefinition>";
+            var s = new W3d();
+            s.Op('}').B(1).F(0, 0, 10, 0, 0, 0, 0, 1, 0, 5, 5).B(7).B(Encoding.ASCII.GetBytes("default"));
+            s.Object("1001");
+            // a vessel: moved 10 m along x, red, a cylinder 2 m tall with both caps and a disk of 1 m under it
+            s.Object("1002").Open("").Op('q').Op('%').F(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, 0).Op('"').B(7).B(1, 0).B(255, 0, 0)
+                .Op('Y').F(0, 0, 0, 0, 0, 2, 0.5f).B(3)
+                .Op('C').F(1, 0, -1, 0, 1, -1, -1, 0, -1).B(1).F(0, 0, -1)
+                .Close().Close();
+            // a slab: a face shell of a square (two triangles), with a normals record
+            s.Object("1003").Op('S').B(0x1A, 0).I(4).F(0, 0, 0, 4, 0, 0, 4, 3, 0, 0, 3, 0)
+                .B(1).I(9).B(8, 3, 0, 1, 2, 3, 0, 2, 3)
+                .B(1, 7, 12).I(2).B(0, 0).B(0)
+                .Close();
+            // a tube: an Edgebreaker shell of 6 x 4 points, the cap round a dummy (numbered 24)
+            const int n = 6, r = 4;
+            var ops = TubeOps(n, r);
+            var padded = (ops.Length + 3) & ~3;
+            var table = new[] { 8, 1, n * r };
+            var size = 24 + padded + 4 * table.Length;
+            s.Object("1004").Op('S').B(0x5A, 0, 5).I(size).B(2, 0, 0, 0).I(ops.Length, 4 * table.Length, 0, n * r, 0)
+                .B(ops).B(new byte[padded - ops.Length]).I(table).F(TubePoints(n, r)).B(0)
+                .Close();
+            // a record the reader does not know, with bytes that mean nothing
+            s.Object("1005").Op('!').B(9, 9, 9, 9).Close();
+            // the reader goes on from the next object
+            s.Object("1006").Op('Y').F(0, 0, 0, 1, 0, 0, 0.2f).B(0).Close();
+            s.Close();
+
+            var path = Path.Combine(_dir, "plant.dwf");
+            WriteDwf(path, xml, s.Bytes());
+            var m = ModelImporter.Read(path);
+            var stats = DwfReader.LastStats;
+
+            Assert.That(m.Format, Is.EqualTo("dwf"));
+            Assert.That(m.Units, Is.EqualTo(ModelUnits.Meters));
+            Assert.That(m.Up, Is.EqualTo(UpAxis.Z));
+            Assert.That(stats.Objects, Is.EqualTo(6));
+            Assert.That(stats.Cylinders, Is.EqualTo(2));
+            Assert.That(stats.Circles, Is.EqualTo(1));
+            Assert.That(stats.FaceShells, Is.EqualTo(1));
+            Assert.That(stats.EdgeBreakerShells, Is.EqualTo(1));
+            Assert.That(stats.Resyncs, Is.EqualTo(1), "the unknown record is skipped once");
+            Assert.That(m.Warnings.Any(w => w.Contains("skipped")), Is.True);
+
+            var vessel = m.Parts.Single(p => p.Name == "/V-1");
+            Assert.That(vessel.Path, Is.EqualTo(new[] { "Plant", "/V-1" }));
+            Assert.That(vessel.ObjectId, Is.EqualTo("1002"));
+            Assert.That(m.Materials[vessel.Material].Color[0], Is.EqualTo(1f).Within(1e-6));
+            Assert.That(m.Materials[vessel.Material].Color[1], Is.EqualTo(0f).Within(1e-6));
+            var v = new ImportedModel { Parts = { vessel } };
+            double[] min, max;
+            v.Bounds(out min, out max);
+            Assert.That(min[0], Is.EqualTo(9).Within(1e-4), "the disk of 1 m round x = 10");
+            Assert.That(max[0], Is.EqualTo(11).Within(1e-4));
+            Assert.That(min[2], Is.EqualTo(-1).Within(1e-4));
+            Assert.That(max[2], Is.EqualTo(2).Within(1e-4));
+
+            Assert.That(m.Parts.Single(p => p.Name == "/SLAB").TriangleCount, Is.EqualTo(2));
+            var tube = m.Parts.Single(p => p.Name == "/E-1");
+            Assert.That(tube.TriangleCount, Is.EqualTo(2 * n * (r - 1)), "the dummy's cap is left out");
+            Assert.That(tube.VertexCount, Is.EqualTo(n * r));
+            Assert.That(m.Parts.Any(p => p.Name == "/P-1"), Is.True, "the object after the unknown record is read");
+            Assert.That(m.Parts.Any(p => p.Name == "/ODD"), Is.False);
+
+            // the import splits the objects into islands as for any model
+            var import = ModelImporter.Import(path);
+            Assert.That(import.Islands.Count, Is.GreaterThanOrEqualTo(4));
         }
     }
 }

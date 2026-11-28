@@ -87,6 +87,8 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
                 case ModelUnits.Meters: return 1;
                 case ModelUnits.Centimeters: return 0.01;
                 case ModelUnits.Millimeters: return 0.001;
+                case ModelUnits.Feet: return 0.3048;
+                case ModelUnits.Inches: return 0.0254;
                 default: return 0;
             }
         }
