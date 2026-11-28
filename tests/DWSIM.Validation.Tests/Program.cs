@@ -66,6 +66,7 @@ namespace DWSIM.Validation.Tests
             // Compounds
             { "c01", Compounds.C01_PseudoComponent_HeavyCut.Run },
             { "c02", Compounds.C02_CompoundFromJson.Run },
+            { "c03", Compounds.C03_FoodPropSugars.Run },
             // Refining (Plus, gracefully skipped without patron key)
             // Property package configuration
             { "p01", PropertyPackageConfig.P01_PR_KijEffect.Run },

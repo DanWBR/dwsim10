@@ -6,8 +6,7 @@
     <ID>28817</ID>
     <OriginalDB>User</OriginalDB>
     <CurrentDB>User</CurrentDB>
-    <Comments>
-    </Comments>
+    <Comments>D-fructose. Formation enthalpy and Gibbs energy DERIVED from glucose and the measured glucose(aq) = fructose(aq) equilibrium, K = 0.869 and dH = +2.78 kJ/mol at 25 C (Tewari and Goldberg 1984, J. Solution Chem. 13, 523); the old values gave K = 5e4 and dH = -21.8 kJ/mol. Liquid heat capacity and density of the carbohydrate component of Choi and Okos (1986, ASHRAE Handbook - Refrigeration 2006, ch. 9), as DWSIM's corn compounds have them. Dissolved and non-volatile.</Comments>
     <CompCreatorStudyFile>C:\Users\nicol\Dropbox\PUC\Aulas\Disciplinas\DWSIM\Exercícios DWSIM\Criação de Componentes\Fructose.dwcsd2</CompCreatorStudyFile>
     <Formula>C6H12O6</Formula>
     <SMILES>O=C(CO)C(O)C(O)C(O)CO</SMILES>
@@ -23,8 +22,8 @@
     <CS_Acentric_Factor>2.67</CS_Acentric_Factor>
     <CS_Solubility_Parameter>55.35</CS_Solubility_Parameter>
     <CS_Liquid_Molar_Volume>12.87</CS_Liquid_Molar_Volume>
-    <IG_Enthalpy_of_Formation_25C>-5865.69</IG_Enthalpy_of_Formation_25C>
-    <IG_Gibbs_Energy_of_Formation_25C>-4555.5</IG_Gibbs_Energy_of_Formation_25C>
+    <IG_Enthalpy_of_Formation_25C>-7039.964476</IG_Enthalpy_of_Formation_25C>
+    <IG_Gibbs_Energy_of_Formation_25C>-5081.893452</IG_Gibbs_Energy_of_Formation_25C>
     <Vapor_Pressure_Constant_EqNo>0</Vapor_Pressure_Constant_EqNo>
     <Vapor_Pressure_Constant_A>0</Vapor_Pressure_Constant_A>
     <Vapor_Pressure_Constant_B>0</Vapor_Pressure_Constant_B>
@@ -37,10 +36,10 @@
     <Ideal_Gas_Heat_Capacity_Const_C>-0.4455</Ideal_Gas_Heat_Capacity_Const_C>
     <Ideal_Gas_Heat_Capacity_Const_D>9.866E-05</Ideal_Gas_Heat_Capacity_Const_D>
     <Ideal_Gas_Heat_Capacity_Const_E>0</Ideal_Gas_Heat_Capacity_Const_E>
-    <Liquid_Heat_Capacity_EqNo>0</Liquid_Heat_Capacity_EqNo>
-    <Liquid_Heat_Capacity_Const_A>0</Liquid_Heat_Capacity_Const_A>
-    <Liquid_Heat_Capacity_Const_B>0</Liquid_Heat_Capacity_Const_B>
-    <Liquid_Heat_Capacity_Const_C>0</Liquid_Heat_Capacity_Const_C>
+    <Liquid_Heat_Capacity_EqNo>3</Liquid_Heat_Capacity_EqNo>
+    <Liquid_Heat_Capacity_Const_A>102612.325952</Liquid_Heat_Capacity_Const_A>
+    <Liquid_Heat_Capacity_Const_B>938.181759</Liquid_Heat_Capacity_Const_B>
+    <Liquid_Heat_Capacity_Const_C>-1.070132</Liquid_Heat_Capacity_Const_C>
     <Liquid_Heat_Capacity_Const_D>0</Liquid_Heat_Capacity_Const_D>
     <Liquid_Heat_Capacity_Const_E>0</Liquid_Heat_Capacity_Const_E>
     <Liquid_Heat_Capacity_TMin>0</Liquid_Heat_Capacity_TMin>
@@ -59,9 +58,9 @@
     <Liquid_Viscosity_Const_C>0</Liquid_Viscosity_Const_C>
     <Liquid_Viscosity_Const_D>0</Liquid_Viscosity_Const_D>
     <Liquid_Viscosity_Const_E>0</Liquid_Viscosity_Const_E>
-    <Liquid_Density_EqNo>0</Liquid_Density_EqNo>
-    <Liquid_Density_Const_A>0</Liquid_Density_Const_A>
-    <Liquid_Density_Const_B>0</Liquid_Density_Const_B>
+    <Liquid_Density_EqNo>2</Liquid_Density_EqNo>
+    <Liquid_Density_Const_A>1683.9021</Liquid_Density_Const_A>
+    <Liquid_Density_Const_B>-0.31046</Liquid_Density_Const_B>
     <Liquid_Density_Const_C>0</Liquid_Density_Const_C>
     <Liquid_Density_Const_D>0</Liquid_Density_Const_D>
     <Liquid_Density_Const_E>0</Liquid_Density_Const_E>
@@ -149,8 +148,7 @@
     <ID>93962</ID>
     <OriginalDB>User</OriginalDB>
     <CurrentDB>User</CurrentDB>
-    <Comments>
-    </Comments>
+    <Comments>D-glucose. Formation enthalpy -1271.1 kJ/mol (NIST WebBook), the basis of DWSIM's corn compounds, so that hydrolysis and isomerisation heats are the calorimetric ones. Gibbs energy of glucose(aq), -915.90 kJ/mol (Goldberg and Tewari 1989, J. Phys. Chem. Ref. Data 18, 809). Liquid heat capacity and density of the carbohydrate component of Choi and Okos (1986, ASHRAE Handbook - Refrigeration 2006, ch. 9), as DWSIM's corn compounds have them. Dissolved and non-volatile.</Comments>
     <CompCreatorStudyFile>C:\Users\nicol\Dropbox\PUC\Aulas\Disciplinas\DWSIM\Exercícios DWSIM\Criação de Componentes\Glucose.dwcsd2</CompCreatorStudyFile>
     <Formula>C6H12O6</Formula>
     <SMILES>O=CC(O)C(O)C(O)C(O)CO</SMILES>
@@ -166,8 +164,8 @@
     <CS_Acentric_Factor>2.7</CS_Acentric_Factor>
     <CS_Solubility_Parameter>58.69</CS_Solubility_Parameter>
     <CS_Liquid_Molar_Volume>11.47</CS_Liquid_Molar_Volume>
-    <IG_Enthalpy_of_Formation_25C>-5745.00444049734</IG_Enthalpy_of_Formation_25C>
-    <IG_Gibbs_Energy_of_Formation_25C>-4405.75044404973</IG_Gibbs_Energy_of_Formation_25C>
+    <IG_Enthalpy_of_Formation_25C>-7055.395204</IG_Enthalpy_of_Formation_25C>
+    <IG_Gibbs_Energy_of_Formation_25C>-5083.825488</IG_Gibbs_Energy_of_Formation_25C>
     <Vapor_Pressure_Constant_EqNo>0</Vapor_Pressure_Constant_EqNo>
     <Vapor_Pressure_Constant_A>0</Vapor_Pressure_Constant_A>
     <Vapor_Pressure_Constant_B>0</Vapor_Pressure_Constant_B>
@@ -180,10 +178,10 @@
     <Ideal_Gas_Heat_Capacity_Const_C>-0.4604</Ideal_Gas_Heat_Capacity_Const_C>
     <Ideal_Gas_Heat_Capacity_Const_D>0.0001051</Ideal_Gas_Heat_Capacity_Const_D>
     <Ideal_Gas_Heat_Capacity_Const_E>0</Ideal_Gas_Heat_Capacity_Const_E>
-    <Liquid_Heat_Capacity_EqNo>0</Liquid_Heat_Capacity_EqNo>
-    <Liquid_Heat_Capacity_Const_A>0</Liquid_Heat_Capacity_Const_A>
-    <Liquid_Heat_Capacity_Const_B>0</Liquid_Heat_Capacity_Const_B>
-    <Liquid_Heat_Capacity_Const_C>0</Liquid_Heat_Capacity_Const_C>
+    <Liquid_Heat_Capacity_EqNo>3</Liquid_Heat_Capacity_EqNo>
+    <Liquid_Heat_Capacity_Const_A>102612.325952</Liquid_Heat_Capacity_Const_A>
+    <Liquid_Heat_Capacity_Const_B>938.181759</Liquid_Heat_Capacity_Const_B>
+    <Liquid_Heat_Capacity_Const_C>-1.070132</Liquid_Heat_Capacity_Const_C>
     <Liquid_Heat_Capacity_Const_D>0</Liquid_Heat_Capacity_Const_D>
     <Liquid_Heat_Capacity_Const_E>0</Liquid_Heat_Capacity_Const_E>
     <Liquid_Heat_Capacity_TMin>0</Liquid_Heat_Capacity_TMin>
@@ -202,9 +200,9 @@
     <Liquid_Viscosity_Const_C>0</Liquid_Viscosity_Const_C>
     <Liquid_Viscosity_Const_D>0</Liquid_Viscosity_Const_D>
     <Liquid_Viscosity_Const_E>0</Liquid_Viscosity_Const_E>
-    <Liquid_Density_EqNo>0</Liquid_Density_EqNo>
-    <Liquid_Density_Const_A>0</Liquid_Density_Const_A>
-    <Liquid_Density_Const_B>0</Liquid_Density_Const_B>
+    <Liquid_Density_EqNo>2</Liquid_Density_EqNo>
+    <Liquid_Density_Const_A>1683.9021</Liquid_Density_Const_A>
+    <Liquid_Density_Const_B>-0.31046</Liquid_Density_Const_B>
     <Liquid_Density_Const_C>0</Liquid_Density_Const_C>
     <Liquid_Density_Const_D>0</Liquid_Density_Const_D>
     <Liquid_Density_Const_E>0</Liquid_Density_Const_E>
@@ -575,8 +573,7 @@
     <ID>10433</ID>
     <OriginalDB>User</OriginalDB>
     <CurrentDB>User</CurrentDB>
-    <Comments>
-    </Comments>
+    <Comments>Maltose. Formation enthalpy DERIVED from glucose and the calorimetric heat of maltose + H2O -&gt; 2 glucose, -4.59 kJ/mol; Gibbs energy from its equilibrium constant, 322 at 30 C (both in Goldberg and Tewari 1994, J. Phys. Chem. Ref. Data 23, 1035). No fusion data: with 767.8 K and 68.9 kJ/mol, and a forced solid in the package, a 10 % maltose solution at 60 C came out all crystal, where 78 g dissolve in 100 mL at 20 C. Liquid heat capacity and density of the carbohydrate component of Choi and Okos (1986, ASHRAE Handbook - Refrigeration 2006, ch. 9), as DWSIM's corn compounds have them. Dissolved and non-volatile.</Comments>
     <CompCreatorStudyFile>C:\Users\nicol\Dropbox\PUC\Aulas\Disciplinas\DWSIM\Exercícios DWSIM\Criação de Componentes\Maltose.dwcsd2</CompCreatorStudyFile>
     <Formula>C12H22O11</Formula>
     <SMILES>OCC1OC(OC2C(CO)OC(O)C(O)C2O)C(O)C(O)C1O</SMILES>
@@ -592,8 +589,8 @@
     <CS_Acentric_Factor>0.84</CS_Acentric_Factor>
     <CS_Solubility_Parameter>11.32</CS_Solubility_Parameter>
     <CS_Liquid_Molar_Volume>258.65</CS_Liquid_Molar_Volume>
-    <IG_Enthalpy_of_Formation_25C>-5723.54</IG_Enthalpy_of_Formation_25C>
-    <IG_Gibbs_Energy_of_Formation_25C>-3898.43</IG_Gibbs_Energy_of_Formation_25C>
+    <IG_Enthalpy_of_Formation_25C>-6578.381537</IG_Enthalpy_of_Formation_25C>
+    <IG_Gibbs_Energy_of_Formation_25C>-4616.665001</IG_Gibbs_Energy_of_Formation_25C>
     <Vapor_Pressure_Constant_EqNo>0</Vapor_Pressure_Constant_EqNo>
     <Vapor_Pressure_Constant_A>0</Vapor_Pressure_Constant_A>
     <Vapor_Pressure_Constant_B>0</Vapor_Pressure_Constant_B>
@@ -606,10 +603,10 @@
     <Ideal_Gas_Heat_Capacity_Const_C>-0.4522</Ideal_Gas_Heat_Capacity_Const_C>
     <Ideal_Gas_Heat_Capacity_Const_D>-6.85999999999999E-05</Ideal_Gas_Heat_Capacity_Const_D>
     <Ideal_Gas_Heat_Capacity_Const_E>0</Ideal_Gas_Heat_Capacity_Const_E>
-    <Liquid_Heat_Capacity_EqNo>0</Liquid_Heat_Capacity_EqNo>
-    <Liquid_Heat_Capacity_Const_A>0</Liquid_Heat_Capacity_Const_A>
-    <Liquid_Heat_Capacity_Const_B>0</Liquid_Heat_Capacity_Const_B>
-    <Liquid_Heat_Capacity_Const_C>0</Liquid_Heat_Capacity_Const_C>
+    <Liquid_Heat_Capacity_EqNo>3</Liquid_Heat_Capacity_EqNo>
+    <Liquid_Heat_Capacity_Const_A>194961.14106</Liquid_Heat_Capacity_Const_A>
+    <Liquid_Heat_Capacity_Const_B>1782.524512</Liquid_Heat_Capacity_Const_B>
+    <Liquid_Heat_Capacity_Const_C>-2.033228</Liquid_Heat_Capacity_Const_C>
     <Liquid_Heat_Capacity_Const_D>0</Liquid_Heat_Capacity_Const_D>
     <Liquid_Heat_Capacity_Const_E>0</Liquid_Heat_Capacity_Const_E>
     <Liquid_Heat_Capacity_TMin>0</Liquid_Heat_Capacity_TMin>
@@ -628,9 +625,9 @@
     <Liquid_Viscosity_Const_C>0</Liquid_Viscosity_Const_C>
     <Liquid_Viscosity_Const_D>0</Liquid_Viscosity_Const_D>
     <Liquid_Viscosity_Const_E>0</Liquid_Viscosity_Const_E>
-    <Liquid_Density_EqNo>0</Liquid_Density_EqNo>
-    <Liquid_Density_Const_A>0</Liquid_Density_Const_A>
-    <Liquid_Density_Const_B>0</Liquid_Density_Const_B>
+    <Liquid_Density_EqNo>2</Liquid_Density_EqNo>
+    <Liquid_Density_Const_A>1683.9021</Liquid_Density_Const_A>
+    <Liquid_Density_Const_B>-0.31046</Liquid_Density_Const_B>
     <Liquid_Density_Const_C>0</Liquid_Density_Const_C>
     <Liquid_Density_Const_D>0</Liquid_Density_Const_D>
     <Liquid_Density_Const_E>0</Liquid_Density_Const_E>
@@ -669,8 +666,8 @@
     <Normal_Boiling_Point>1289.66</Normal_Boiling_Point>
     <UNIQUAC_q>0</UNIQUAC_q>
     <UNIQUAC_r>0</UNIQUAC_r>
-    <Temperature_of_fusion>767.77</Temperature_of_fusion>
-    <Enthalpy_of_fusion>68.92</Enthalpy_of_fusion>
+    <Temperature_of_fusion>0</Temperature_of_fusion>
+    <Enthalpy_of_fusion>0</Enthalpy_of_fusion>
     <PC_SAFT_sigma>0</PC_SAFT_sigma>
     <PC_SAFT_m>0</PC_SAFT_m>
     <PC_SAFT_epsilon_k>0</PC_SAFT_epsilon_k>
@@ -701,8 +698,8 @@
     <DelGF_kJ_mol>0</DelGF_kJ_mol>
     <DelHf_kJ_mol>0</DelHf_kJ_mol>
     <Cp_J_mol_K>0</Cp_J_mol_K>
-    <Tf_C>767.77</Tf_C>
-    <Hfus_at_Tf_kJ_mol>68.92</Hfus_at_Tf_kJ_mol>
+    <Tf_C>0</Tf_C>
+    <Hfus_at_Tf_kJ_mol>0</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>0</DenS_T_C>
     <DenS_g_mL>0</DenS_g_mL>
     <elements>
@@ -5828,8 +5825,7 @@
     <ID>61508</ID>
     <OriginalDB>User</OriginalDB>
     <CurrentDB>User</CurrentDB>
-    <Comments>
-    </Comments>
+    <Comments>Sucrose. Formation enthalpy and Gibbs energy DERIVED from glucose, fructose and the hydrolysis sucrose + H2O -&gt; glucose + fructose, dH = -15.00 kJ/mol and K = 4.44e4 at 25 C (Goldberg, Tewari and Ahluwalia 1989, J. Biol. Chem. 264, 9901). Liquid heat capacity and density of the carbohydrate component of Choi and Okos (1986, ASHRAE Handbook - Refrigeration 2006, ch. 9), as DWSIM's corn compounds have them. Dissolved and non-volatile.</Comments>
     <CompCreatorStudyFile>C:\Users\nicol\Dropbox\PUC\Aulas\Disciplinas\DWSIM\Exercícios DWSIM\Criação de Componentes\Sucrose.dwcsd2</CompCreatorStudyFile>
     <Formula>C12H22O11</Formula>
     <SMILES>OCC1OC(CO)(OC2OC(CO)C(O)C(O)C2O)C(O)C1O</SMILES>
@@ -5845,8 +5841,8 @@
     <CS_Acentric_Factor>0.89</CS_Acentric_Factor>
     <CS_Solubility_Parameter>12.1</CS_Solubility_Parameter>
     <CS_Liquid_Molar_Volume>232.83</CS_Liquid_Molar_Volume>
-    <IG_Enthalpy_of_Formation_25C>-5601.6</IG_Enthalpy_of_Formation_25C>
-    <IG_Gibbs_Energy_of_Formation_25C>-3856.59</IG_Gibbs_Energy_of_Formation_25C>
+    <IG_Enthalpy_of_Formation_25C>-6539.848086</IG_Enthalpy_of_Formation_25C>
+    <IG_Gibbs_Energy_of_Formation_25C>-4580.191698</IG_Gibbs_Energy_of_Formation_25C>
     <Vapor_Pressure_Constant_EqNo>0</Vapor_Pressure_Constant_EqNo>
     <Vapor_Pressure_Constant_A>0</Vapor_Pressure_Constant_A>
     <Vapor_Pressure_Constant_B>0</Vapor_Pressure_Constant_B>
@@ -5859,10 +5855,10 @@
     <Ideal_Gas_Heat_Capacity_Const_C>-1.0866</Ideal_Gas_Heat_Capacity_Const_C>
     <Ideal_Gas_Heat_Capacity_Const_D>0.0002875</Ideal_Gas_Heat_Capacity_Const_D>
     <Ideal_Gas_Heat_Capacity_Const_E>0</Ideal_Gas_Heat_Capacity_Const_E>
-    <Liquid_Heat_Capacity_EqNo>0</Liquid_Heat_Capacity_EqNo>
-    <Liquid_Heat_Capacity_Const_A>0</Liquid_Heat_Capacity_Const_A>
-    <Liquid_Heat_Capacity_Const_B>0</Liquid_Heat_Capacity_Const_B>
-    <Liquid_Heat_Capacity_Const_C>0</Liquid_Heat_Capacity_Const_C>
+    <Liquid_Heat_Capacity_EqNo>3</Liquid_Heat_Capacity_EqNo>
+    <Liquid_Heat_Capacity_Const_A>194961.14106</Liquid_Heat_Capacity_Const_A>
+    <Liquid_Heat_Capacity_Const_B>1782.524512</Liquid_Heat_Capacity_Const_B>
+    <Liquid_Heat_Capacity_Const_C>-2.033228</Liquid_Heat_Capacity_Const_C>
     <Liquid_Heat_Capacity_Const_D>0</Liquid_Heat_Capacity_Const_D>
     <Liquid_Heat_Capacity_Const_E>0</Liquid_Heat_Capacity_Const_E>
     <Liquid_Heat_Capacity_TMin>0</Liquid_Heat_Capacity_TMin>
@@ -5881,9 +5877,9 @@
     <Liquid_Viscosity_Const_C>0</Liquid_Viscosity_Const_C>
     <Liquid_Viscosity_Const_D>0</Liquid_Viscosity_Const_D>
     <Liquid_Viscosity_Const_E>0</Liquid_Viscosity_Const_E>
-    <Liquid_Density_EqNo>0</Liquid_Density_EqNo>
-    <Liquid_Density_Const_A>0</Liquid_Density_Const_A>
-    <Liquid_Density_Const_B>0</Liquid_Density_Const_B>
+    <Liquid_Density_EqNo>2</Liquid_Density_EqNo>
+    <Liquid_Density_Const_A>1683.9021</Liquid_Density_Const_A>
+    <Liquid_Density_Const_B>-0.31046</Liquid_Density_Const_B>
     <Liquid_Density_Const_C>0</Liquid_Density_Const_C>
     <Liquid_Density_Const_D>0</Liquid_Density_Const_D>
     <Liquid_Density_Const_E>0</Liquid_Density_Const_E>
