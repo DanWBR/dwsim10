@@ -62,6 +62,79 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
             w.Save(path);
         }
 
+        /// <summary>
+        /// The model for the 3D window to draw: the plan cut into square tiles (about 16 across the
+        /// largest side, 10 m at least), one mesh per tile and material, named "tile_i_j_m". A plant
+        /// of a million triangles makes a few hundred meshes, which the window draws and culls far
+        /// faster than one per object.
+        /// </summary>
+        public static void WriteTiles(ImportedModel model, string path, double tile = 0)
+        {
+            double[] min, max;
+            if (!model.Bounds(out min, out max)) { min = new double[3]; max = new double[3]; }
+            if (tile <= 0) tile = Math.Max(10.0, Math.Max(max[0] - min[0], max[1] - min[1]) / 16.0);
+            var groups = new Dictionary<string, List<int[]>>();
+            var order = new List<string>();
+            for (var pi = 0; pi < model.Parts.Count; pi++)
+            {
+                var part = model.Parts[pi];
+                var v = part.Positions;
+                for (var t = 0; t < part.TriangleCount; t++)
+                {
+                    int a = part.Indices[3 * t] * 3, b = part.Indices[3 * t + 1] * 3, c = part.Indices[3 * t + 2] * 3;
+                    var cx = (v[a] + v[b] + v[c]) / 3.0;
+                    var cy = (v[a + 1] + v[b + 1] + v[c + 1]) / 3.0;
+                    var key = ((int)Math.Floor((cx - min[0]) / tile)) + "_" + ((int)Math.Floor((cy - min[1]) / tile)) + "_" + part.Material;
+                    List<int[]> list;
+                    if (!groups.TryGetValue(key, out list)) { groups[key] = list = new List<int[]>(); order.Add(key); }
+                    list.Add(new[] { pi, t });
+                }
+            }
+            var w = new Writer(model);
+            foreach (var key in order)
+            {
+                var list = groups[key];
+                var material = int.Parse(key.Substring(key.LastIndexOf('_') + 1), System.Globalization.CultureInfo.InvariantCulture);
+                var merged = MergeTriangles(model, list);
+                var mesh = w.Mesh("tile_" + key, new[] { w.Primitive(merged, Enumerable.Range(0, merged.TriangleCount).ToArray(), material) });
+                w.Node("tile_" + key, mesh, null);
+            }
+            w.Save(path);
+        }
+
+        /// <summary>Some triangles of some parts as one part, with only the vertices they use.</summary>
+        static MeshPart MergeTriangles(ImportedModel model, List<int[]> triangles)
+        {
+            var remap = new Dictionary<long, int>();
+            var pos = new List<float>();
+            var anyUv = triangles.Any(x => model.Parts[x[0]].UV != null);
+            var uv = anyUv ? new List<float>() : null;
+            var idx = new List<int>(triangles.Count * 3);
+            foreach (var x in triangles)
+            {
+                var part = model.Parts[x[0]];
+                for (var k = 0; k < 3; k++)
+                {
+                    var src = part.Indices[3 * x[1] + k];
+                    var key = ((long)x[0] << 32) | (uint)src;
+                    int dst;
+                    if (!remap.TryGetValue(key, out dst))
+                    {
+                        dst = pos.Count / 3;
+                        remap[key] = dst;
+                        pos.Add(part.Positions[3 * src]); pos.Add(part.Positions[3 * src + 1]); pos.Add(part.Positions[3 * src + 2]);
+                        if (uv != null)
+                        {
+                            if (part.UV != null) { uv.Add(part.UV[2 * src]); uv.Add(part.UV[2 * src + 1]); }
+                            else { uv.Add(0f); uv.Add(0f); }
+                        }
+                    }
+                    idx.Add(dst);
+                }
+            }
+            return new MeshPart { Positions = pos.ToArray(), UV = uv?.ToArray(), Indices = idx.ToArray() };
+        }
+
         static MeshPart Merge(ImportedModel model, List<int> parts)
         {
             if (parts.Count == 1) return model.Parts[parts[0]];
@@ -103,18 +176,65 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
                 _nodes.Add(n);
             }
 
-            /// <summary>A primitive of some triangles of a part, with its vertices numbered again from 0.</summary>
+            /// <summary>
+            /// A primitive of some triangles of a part, with its vertices numbered again from 0. Each
+            /// corner takes the normal of the faces round its vertex that turn less than 50 degrees
+            /// from its own face, so a sharp edge (the corner of a box) stays sharp and a curved
+            /// surface stays smooth; a vertex is split where its faces disagree.
+            /// </summary>
             public JObject Primitive(MeshPart part, int[] triangles, int material)
             {
-                var remap = new Dictionary<int, int>();
-                var order = new List<int>();
-                var idx = new int[triangles.Length * 3];
-                for (var t = 0; t < triangles.Length; t++)
+                var T = triangles.Length;
+                var face = new double[T * 3];
+                var unit = new double[T * 3];
+                var around = new Dictionary<int, List<int>>();
+                for (var t = 0; t < T; t++)
+                {
+                    int a = part.Indices[3 * triangles[t]] * 3, b = part.Indices[3 * triangles[t] + 1] * 3, c = part.Indices[3 * triangles[t] + 2] * 3;
+                    var p = part.Positions;
+                    double ux = p[b] - p[a], uy = p[b + 1] - p[a + 1], uz = p[b + 2] - p[a + 2];
+                    double wx = p[c] - p[a], wy = p[c + 1] - p[a + 1], wz = p[c + 2] - p[a + 2];
+                    double nx = uy * wz - uz * wy, ny = uz * wx - ux * wz, nz = ux * wy - uy * wx;
+                    var l = Math.Sqrt(nx * nx + ny * ny + nz * nz);
+                    face[3 * t] = nx; face[3 * t + 1] = ny; face[3 * t + 2] = nz;
+                    if (l > 0) { unit[3 * t] = nx / l; unit[3 * t + 1] = ny / l; unit[3 * t + 2] = nz / l; }
                     for (var k = 0; k < 3; k++)
                     {
                         var src = part.Indices[3 * triangles[t] + k];
+                        List<int> list;
+                        if (!around.TryGetValue(src, out list)) around[src] = list = new List<int>(6);
+                        list.Add(t);
+                    }
+                }
+                const double Cos50 = 0.6428;
+                var remap = new Dictionary<(int, int, int, int), int>();
+                var order = new List<int>();
+                var normals = new List<float>();
+                var idx = new int[T * 3];
+                for (var t = 0; t < T; t++)
+                    for (var k = 0; k < 3; k++)
+                    {
+                        var src = part.Indices[3 * triangles[t] + k];
+                        double sx = 0, sy = 0, sz = 0;
+                        foreach (var f in around[src])
+                        {
+                            var d = unit[3 * f] * unit[3 * t] + unit[3 * f + 1] * unit[3 * t + 1] + unit[3 * f + 2] * unit[3 * t + 2];
+                            if (f != t && d < Cos50) continue;
+                            sx += face[3 * f]; sy += face[3 * f + 1]; sz += face[3 * f + 2];
+                        }
+                        var sl = Math.Sqrt(sx * sx + sy * sy + sz * sz);
+                        if (sl > 0) { sx /= sl; sy /= sl; sz /= sl; } else { sx = 0; sy = 0; sz = 1; }
+                        // the plant's (x, y, z) is written as (x, z, -y)
+                        float gx = (float)sx, gy = (float)sz, gz = (float)-sy;
+                        var key = (src, (int)Math.Round(gx * 1000), (int)Math.Round(gy * 1000), (int)Math.Round(gz * 1000));
                         int dst;
-                        if (!remap.TryGetValue(src, out dst)) { dst = order.Count; remap[src] = dst; order.Add(src); }
+                        if (!remap.TryGetValue(key, out dst))
+                        {
+                            dst = order.Count;
+                            remap[key] = dst;
+                            order.Add(src);
+                            normals.Add(gx); normals.Add(gy); normals.Add(gz);
+                        }
                         idx[3 * t + k] = dst;
                     }
                 var n = order.Count;
@@ -126,7 +246,6 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
                     pos[3 * i + 1] = part.Positions[s + 2];
                     pos[3 * i + 2] = -part.Positions[s + 1];
                 }
-                var nor = Normals(pos, idx);
                 float[] uv = null;
                 if (part.UV != null)
                 {
@@ -137,32 +256,12 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
                 var attrs = new JObject
                 {
                     ["POSITION"] = Floats(pos, 3, true),
-                    ["NORMAL"] = Floats(nor, 3, false)
+                    ["NORMAL"] = Floats(normals.ToArray(), 3, false)
                 };
                 if (uv != null) attrs["TEXCOORD_0"] = Floats(uv, 2, false);
                 var prim = new JObject { ["attributes"] = attrs, ["indices"] = Indices(idx, n), ["mode"] = 4 };
                 prim["material"] = Material(material);
                 return prim;
-            }
-
-            static float[] Normals(float[] pos, int[] idx)
-            {
-                var nor = new float[pos.Length];
-                for (var t = 0; t + 2 < idx.Length; t += 3)
-                {
-                    int a = idx[t] * 3, b = idx[t + 1] * 3, c = idx[t + 2] * 3;
-                    float ux = pos[b] - pos[a], uy = pos[b + 1] - pos[a + 1], uz = pos[b + 2] - pos[a + 2];
-                    float wx = pos[c] - pos[a], wy = pos[c + 1] - pos[a + 1], wz = pos[c + 2] - pos[a + 2];
-                    float nx = uy * wz - uz * wy, ny = uz * wx - ux * wz, nz = ux * wy - uy * wx;
-                    foreach (var v in new[] { a, b, c }) { nor[v] += nx; nor[v + 1] += ny; nor[v + 2] += nz; }
-                }
-                for (var i = 0; i + 2 < nor.Length; i += 3)
-                {
-                    var l = (float)Math.Sqrt(nor[i] * nor[i] + nor[i + 1] * nor[i + 1] + nor[i + 2] * nor[i + 2]);
-                    if (l > 1e-20f) { nor[i] /= l; nor[i + 1] /= l; nor[i + 2] /= l; }
-                    else { nor[i] = 0; nor[i + 1] = 1; nor[i + 2] = 0; }
-                }
-                return nor;
             }
 
             int Material(int index)

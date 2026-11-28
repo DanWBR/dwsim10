@@ -307,6 +307,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             if (delta != null) Send(delta);
             if (values != null) Send(values);
             if (select != null) Send(select);
+            if (delta != null) RebuildModelCache();
         }
 
         /// <summary>
@@ -330,6 +331,119 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             m["scene"] = s;
             return m;
         }
+
+        #region Plant model
+
+        int importing;
+
+        /// <summary>{state, message}: how an import goes, for the window's status line.</summary>
+        void ModelStatus(string state, string message)
+        {
+            var m = SceneProtocol.Message(SceneProtocol.ModelStatus);
+            m["state"] = state;
+            m["message"] = message;
+            Send(m);
+        }
+
+        /// <summary>True while a plant model is read in the background.</summary>
+        public bool ImportingModel => Volatile.Read(ref importing) != 0;
+
+        /// <summary>
+        /// Imports a plant model off the interface thread; once it is read, the flowsheet takes it
+        /// (one step of the window's undo) and the window gets it with the scene.
+        /// </summary>
+        JObject StartImport(JObject m)
+        {
+            var path = (string)m["path"];
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return Error("the model file '" + path + "' was not found", SceneProtocol.ModelImport);
+            if (Interlocked.CompareExchange(ref importing, 1, 0) != 0) return Error("a plant model is being imported already", SceneProtocol.ModelImport);
+            string flowsheetPath = null;
+            try { flowsheetPath = fs.FilePath; } catch (Exception) { }
+            ModelStatus("importing", "Reading " + Path.GetFileName(path) + "...");
+            Task.Run(() =>
+            {
+                try
+                {
+                    var r = ModelImport.ModelImporter.Import(path, null, flowsheetPath);
+                    OnUi(() =>
+                    {
+                        lock (gate)
+                        {
+                            Remember();
+                            ModelImport.ModelStore.Save(fs, new ModelImport.PlantModelImport { Model = r.Reference });
+                        }
+                    });
+                    wake.Set();
+                    ModelStatus("done", Summary(r));
+                }
+                catch (Exception ex)
+                {
+                    ModelStatus("failed", "DWSIM could not import " + Path.GetFileName(path) + ": " + (ex.InnerException?.Message ?? ex.Message));
+                }
+                finally { Interlocked.Exchange(ref importing, 0); }
+            });
+            return null;
+        }
+
+        static string Summary(ModelImport.ModelImportResult r)
+        {
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            var text = Path.GetFileName(r.Reference.Path) + ": " + r.Triangles.ToString("N0", inv) + " triangles in " + r.Parts.ToString("N0", inv) + " parts.";
+            if (r.Warnings.Count > 0) text += " " + string.Join(" ", r.Warnings);
+            return text;
+        }
+
+        /// <summary>
+        /// Makes the cache of the flowsheet's plant model again when it is missing (another
+        /// computer, a cleaned folder, a newer DWSIM) and the model file is found; the window gets
+        /// the model when it is ready.
+        /// </summary>
+        void RebuildModelCache()
+        {
+            JObject info;
+            lock (gate) info = scene?["model"] as JObject;
+            if (info == null || info["glb"]?.Type == JTokenType.String || (bool?)info["found"] != true) return;
+            if (Interlocked.CompareExchange(ref importing, 1, 0) != 0) return;
+            ModelImport.PlantModelImport stored = null;
+            string flowsheetPath = null;
+            try
+            {
+                OnUi(() =>
+                {
+                    stored = ModelImport.ModelStore.Load(fs);
+                    flowsheetPath = fs.FilePath;
+                });
+            }
+            catch (Exception) { }
+            var file = stored == null ? null : ModelImport.ModelImporter.Locate(stored.Model, flowsheetPath);
+            if (file == null) { Interlocked.Exchange(ref importing, 0); return; }
+            ModelStatus("importing", "Preparing " + Path.GetFileName(file) + "...");
+            Task.Run(() =>
+            {
+                try
+                {
+                    var r = ModelImport.ModelImporter.Import(file, stored.Model, flowsheetPath);
+                    if (r.Reference.Sha256 != stored.Model.Sha256)
+                        OnUi(() =>
+                        {
+                            lock (gate)
+                            {
+                                stored.Model = r.Reference;
+                                ModelImport.ModelStore.Save(fs, stored);
+                            }
+                        });
+                    Refresh();
+                    ModelStatus("done", Summary(r));
+                }
+                catch (Exception ex)
+                {
+                    ModelStatus("failed", "DWSIM could not read the plant model " + Path.GetFileName(file) + ": " + (ex.InnerException?.Message ?? ex.Message));
+                }
+                finally { Interlocked.Exchange(ref importing, 0); }
+            });
+        }
+
+        #endregion
 
         /// <summary>Asks the window for a picture of a view ("IsoSE", "Plan" and so on); the task ends with the PNG.</summary>
         public Task<byte[]> Capture(string view, int width = 1280, int height = 800, int timeoutMs = 30000)
@@ -369,6 +483,15 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             {
                 Captured(message);
                 return null;
+            }
+            if (type == SceneProtocol.ModelImport)
+            {
+                // reading a plant model takes seconds: it runs apart, and the window hears of it
+                answer = StartImport(message) ?? SceneProtocol.Message(SceneProtocol.Ack);
+                if (message["ref"] != null) answer["ref"] = message["ref"].DeepClone();
+                if (answer["for"] == null) answer["for"] = type;
+                Send(answer);
+                return answer;
             }
             try
             {
@@ -410,6 +533,10 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                 case SceneProtocol.SiteRemove: return SiteRemove(m);
                 case SceneProtocol.SiteAdopt: return SiteAdopt(m);
                 case SceneProtocol.Terrain: return SetTerrain(m);
+                case SceneProtocol.ModelRemove:
+                    Remember();
+                    ModelImport.ModelStore.Save(fs, null);
+                    return null;
                 case SceneProtocol.SceneFull:
                     scene = null;
                     selection = null;
@@ -486,6 +613,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             public string Layout;
             public string Site;
             public string Terrain;
+            public string Model;
             public System.Xml.Linq.XDocument Flowsheet;
         }
 
@@ -500,7 +628,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
 
         Step Capture(bool flowsheet)
         {
-            var step = new Step { Layout = LayoutText(), Site = SiteLayout.Text(fs), Terrain = SiteLayout.TerrainText(fs) };
+            var step = new Step { Layout = LayoutText(), Site = SiteLayout.Text(fs), Terrain = SiteLayout.TerrainText(fs), Model = ModelImport.ModelStore.Text(fs) };
             if (flowsheet)
                 try { step.Flowsheet = fs.GetSnapshot(SnapshotType.ObjectAddedOrRemoved); }
                 catch (Exception) { step.Flowsheet = null; }
@@ -528,6 +656,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             }
             SiteLayout.SetText(fs, step.Site);
             SiteLayout.SetTerrainText(fs, step.Terrain);
+            ModelImport.ModelStore.SetText(fs, step.Model);
             return null;
         }
 

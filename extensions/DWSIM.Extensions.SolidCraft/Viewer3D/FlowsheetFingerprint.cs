@@ -104,6 +104,8 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                 var text = terrain.ToString();
                 sb.Append("terrain:").Append(text.Length).Append(':').Append(text.GetHashCode());
             }
+            var model = ModelImport.ModelStore.Text(fs);
+            if (model != null) sb.Append("model:").Append(model);
             return sb.ToString();
         }
 

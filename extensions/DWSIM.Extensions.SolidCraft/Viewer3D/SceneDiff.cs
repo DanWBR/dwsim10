@@ -84,7 +84,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
         }
 
         /// <summary>The parts of a scene besides its items, sent whole when they change.</summary>
-        static readonly string[] Keys = { "lines", "rack", "name", "warnings", "site", "terrain" };
+        static readonly string[] Keys = { "lines", "rack", "name", "warnings", "site", "terrain", "model" };
 
         /// <summary>Whether two scenes hold the same items (in any order), lines, rack and name.</summary>
         public static bool Same(JObject a, JObject b) => Delta(a, b) == null && Delta(b, a) == null;

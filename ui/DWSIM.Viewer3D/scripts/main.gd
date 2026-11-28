@@ -9,6 +9,7 @@
 extends Node3D
 
 const _ModelConvert = preload("res://scripts/model_convert.gd")
+const _PlantModel = preload("res://scripts/plant_model.gd")
 
 ## The width of the panels at the sides; the Rounds panel at the bottom is wider.
 const PANEL_W := 280.0
@@ -85,6 +86,9 @@ var _hud_before := {}
 var world_env: Environment
 
 var world: Node3D
+## The 3D model of the plant DWSIM imported, drawn under the equipment (plant_model.gd).
+var plant_model: Node3D
+var _model_fitted := ""
 var items_root: Node3D
 var lines_root: Node3D
 var insulation_root: Node3D
@@ -168,6 +172,7 @@ func _ready() -> void:
 	var env_panel := surroundings.build_panel(_panel_style())
 	_glass(env_panel)
 	env_panel.name = "environment_panel"
+	plant_model.add_rows(env_panel.get_child(0) as GridContainer, self)
 	hud.add_child(env_panel)
 	crew = PlantCrew.new(self)
 	add_child(crew)
@@ -314,6 +319,10 @@ func _build_world() -> void:
 	labels_root = world.get_node("labels")
 	values_root = world.get_node("values")
 	values_root.visible = false
+	plant_model = _PlantModel.new()
+	plant_model.name = "plant_model"
+	world.add_child(plant_model)
+	plant_model.loaded.connect(_on_model_loaded)
 
 	ground = MeshInstance3D.new()
 	ground.mesh = PlaneMesh.new()
@@ -363,7 +372,7 @@ func _fit_ground() -> void:
 ## The corners of every solid of the plant, for a tight fit of the view.
 func _corners() -> PackedVector3Array:
 	var pts := PackedVector3Array()
-	for root in [items_root, lines_root, rack_root]:
+	for root in _drawn_roots():
 		for mi in root.find_children("*", "MeshInstance3D", true, false):
 			var b: AABB = mi.global_transform * mi.get_aabb()
 			for i in 8:
@@ -375,10 +384,23 @@ func _corners() -> PackedVector3Array:
 	return pts
 
 
+## The roots whose solids make the plant's bounds: the equipment, the lines and the rack when
+## they are shown, and the imported plant model when there is one and it is shown.
+func _drawn_roots() -> Array:
+	var roots := []
+	if items_root.visible:
+		roots.append_array([items_root, lines_root, rack_root])
+	if plant_model != null and plant_model.has_model() and plant_model.visible:
+		roots.append(plant_model)
+	if roots.is_empty():
+		roots = [items_root, lines_root, rack_root]
+	return roots
+
+
 func _bounds() -> AABB:
 	var box := AABB()
 	var first := true
-	for root in [items_root, lines_root, rack_root]:
+	for root in _drawn_roots():
 		for mi in root.find_children("*", "MeshInstance3D", true, false):
 			var b: AABB = mi.global_transform * mi.get_aabb()
 			if first:
@@ -418,6 +440,8 @@ func _on_message(m: Dictionary) -> void:
 				_pending_select = str(m.get("id", ""))
 		"error":
 			_show_toast("DWSIM: " + str(m.get("message", "")))
+		"model.status":
+			plant_model.on_status(m)
 		"bye":
 			get_tree().quit()
 
@@ -443,6 +467,7 @@ func _load_scene(scene: Dictionary) -> void:
 			_add_item(it)
 	_set_lines(scene.get("lines", []))
 	_set_rack(scene.get("rack", null))
+	plant_model.set_info(scene.get("model"))
 	warnings = scene.get("warnings", [])
 	terrain.rebuild_all()
 	_after_change()
@@ -480,6 +505,8 @@ func _apply_delta(m: Dictionary) -> void:
 		_set_lines(m["lines"])
 	if m.has("rack"):
 		_set_rack(m["rack"])
+	if m.has("model"):
+		plant_model.set_info(m["model"])
 	if m.has("name"):
 		scene_name = str(m["name"])
 	if m.has("warnings"):
@@ -533,6 +560,28 @@ func _read_site(site) -> void:
 	site_adopted = site is Dictionary and bool(site.get("adopted", false))
 	if site_builder != null:
 		site_builder.set_budget(site.get("budget", {}) if site is Dictionary else {})
+
+
+## The model came (or went): the ground, the shadows and the site fit the plant again, and the
+## view takes in the whole model the first time it is shown.
+func _on_model_loaded() -> void:
+	_fit_ground()
+	if plant_model.has_model() and _model_fitted != plant_model.glb:
+		_model_fitted = plant_model.glb
+		rig.fit_points(_corners(), _aspect())
+	_update_title()
+
+
+func refit_ground() -> void:
+	_fit_ground()
+
+
+## Shows or hides what DWSIM builds from the flowsheet: the equipment, the lines, the rack and
+## their labels, so an imported plant model can be seen alone.
+func set_equipment_visible(on: bool) -> void:
+	for root in [items_root, lines_root, insulation_root, rack_root, labels_root]:
+		root.visible = on
+	_fit_ground()
 
 
 func _after_change() -> void:
@@ -1256,6 +1305,14 @@ func _update_title() -> void:
 			n_lines += 1
 	var state := link.state if link != null else "offline"
 	var text := "%d items, %d lines" % [n_items, n_lines]
+	if plant_model != null and not plant_model.info.is_empty():
+		text += ", plant model " + str(plant_model.info.get("name", ""))
+		if plant_model.loading:
+			text += " (loading)"
+		elif not bool(plant_model.info.get("found", true)) and str(plant_model.info.get("glb", "")) == "":
+			text += " (file not found)"
+	if plant_model != null and plant_model.status != "":
+		text += "\n" + plant_model.status
 	if state != "connected":
 		text += "  (" + state + ")"
 	if warnings.size() > 0:
@@ -1342,6 +1399,28 @@ func _capture_for_link(m: Dictionary) -> void:
 
 
 ## Without DWSIM: draws a saved scene and, when asked, saves pictures of it and quits.
+func _measure(seconds: float) -> void:
+	OS.low_processor_usage_mode = false
+	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
+	for i in 30:
+		await get_tree().process_frame
+	var frames := Engine.get_frames_drawn()
+	var start := Time.get_ticks_msec()
+	var worst := 0.0
+	var last := start
+	while Time.get_ticks_msec() - start < seconds * 1000.0:
+		await get_tree().process_frame
+		var now := Time.get_ticks_msec()
+		worst = maxf(worst, now - last)
+		last = now
+	var elapsed := (Time.get_ticks_msec() - start) / 1000.0
+	var fps := (Engine.get_frames_drawn() - frames) / maxf(elapsed, 0.001)
+	print("measure: %.1f fps, slowest frame %.1f ms, %d draw calls, %d primitives, video memory %.0f MB" % [
+		fps, worst, Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME),
+		Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME),
+		Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0])
+
+
 func _run_offline() -> void:
 	var scene_file := ""
 	var capture_dir := ""
@@ -1368,6 +1447,12 @@ func _run_offline() -> void:
 		return
 	var scene: Dictionary = parsed.get("scene", parsed) if parsed.get("type", "") == "scene.full" else parsed
 	_load_scene(scene)
+	if plant_model.loading:
+		await plant_model.loaded
+	for arg in OS.get_cmdline_user_args():
+		if arg == "--hide-equipment":
+			set_equipment_visible(false)
+			rig.fit_points(_corners(), _aspect())
 	# more messages, as DWSIM would send them (values, a selection), from "--dwsim-messages=file"
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--dwsim-messages="):
@@ -1379,6 +1464,13 @@ func _run_offline() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg == "--rounds":
 			crew.panel.visible = true
+	# "--measure=<s>": draws without vsync for that long, prints the frame rate, the draw calls,
+	# the triangles and the video memory, and quits (a check of how heavy a scene is)
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--measure="):
+			await _measure(float(arg.get_slice("=", 1)))
+			get_tree().quit()
+			return
 	if capture_dir == "":
 		return
 	# "--capture-after=<s>": let the plant live a while first (the rounds, the flow)

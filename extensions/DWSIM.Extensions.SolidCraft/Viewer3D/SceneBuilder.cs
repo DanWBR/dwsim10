@@ -126,6 +126,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                 scene["site"] = new JObject { ["adopted"] = site.Adopted, ["budget"] = SiteCatalog.Budget(site.Items, SiteLayout.LoadTerrain(fs)) };
                 var terrain = SiteLayout.LoadTerrain(fs);
                 scene["terrain"] = terrain == null ? null : JObject.FromObject(terrain);
+                scene["model"] = PlantModelInfo(fs);
             }
             if (model.Rack != null)
                 scene["rack"] = new JObject
@@ -141,6 +142,28 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                     Math.Round(s.Item1.X), Math.Round(s.Item1.Y), Math.Round(s.Item1.Z), Math.Round(s.Item2.X, 3), Math.Round(s.Item2.Y, 3), Math.Round(s.Item2.Z))));
             }
             return scene;
+        }
+
+        /// <summary>
+        /// The 3D model of the plant the flowsheet uses (see <see cref="ModelImport.ModelStore"/>), for
+        /// the window to draw: the file's name, its view in the cache ("glb", null until the cache is
+        /// made), whether the file is found, and its hash. Null when the flowsheet has none.
+        /// </summary>
+        public static JObject PlantModelInfo(IFlowsheet fs)
+        {
+            var m = ModelImport.ModelStore.Load(fs);
+            if (m == null) return null;
+            string view = null;
+            try { view = ModelImport.ModelImporter.ViewPathOf(m.Model); } catch (Exception) { }
+            string file = null;
+            try { file = ModelImport.ModelImporter.Locate(m.Model, fs.FilePath); } catch (Exception) { }
+            return new JObject
+            {
+                ["name"] = System.IO.Path.GetFileName(m.Model.Path ?? ""),
+                ["sha"] = m.Model.Sha256,
+                ["glb"] = view != null && System.IO.File.Exists(view) ? view.Replace(System.IO.Path.DirectorySeparatorChar, '/') : null,
+                ["found"] = file != null
+            };
         }
 
         /// <summary>

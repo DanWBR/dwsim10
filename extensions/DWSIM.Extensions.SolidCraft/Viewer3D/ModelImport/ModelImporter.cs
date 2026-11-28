@@ -33,10 +33,13 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
         public ModelReference Reference;
         public ImportedModel Model;
         public List<Island> Islands;
-        /// <summary>The folder of the cache: model.glb (one node per island) and index.json.</summary>
+        /// <summary>The folder of the cache: model.glb (one node per island), view.glb (the model in tiles, for the window) and index.json.</summary>
         public string CacheFolder;
         public string GlbPath => Path.Combine(CacheFolder, "model.glb");
+        public string ViewPath => Path.Combine(CacheFolder, "view.glb");
         public string IndexPath => Path.Combine(CacheFolder, "index.json");
+        /// <summary>The triangles and the parts of the model.</summary>
+        public int Triangles, Parts;
         /// <summary>True when the cache of an earlier import was used as it was.</summary>
         public bool FromCache;
         public List<string> Warnings = new List<string>();
@@ -50,7 +53,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
     public static class ModelImporter
     {
         /// <summary>The version of what the cache holds; a cache of another version is made again.</summary>
-        public const int CacheVersion = 1;
+        public const int CacheVersion = 2;
 
         public static readonly string[] Extensions = { ".glb", ".gltf", ".obj", ".stl", ".ply", ".fbx", ".dwf", ".dwfx" };
 
@@ -122,12 +125,16 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
         /// <summary>
         /// Imports a plant model: reads it, normalizes it with the placement of the reference (or the
         /// guessed one), splits it into islands and writes the cache. When the cache of the same file,
-        /// placement and tolerance exists, it is read back and the model file is not read again.
+        /// placement and tolerance exists, it is read back and the model file is not read again. A
+        /// first import (without a reference) also centres the model on the plant: the middle of its
+        /// plan at the origin and its lowest point at the ground.
         /// </summary>
         public static ModelImportResult Import(string path, ModelReference reference = null, string flowsheetPath = null)
         {
             var sha = Hash(path);
             ImportedModel model = null;
+            var first = reference == null;
+            var normalized = false;
             if (reference == null || reference.Sha256 != sha)
             {
                 model = Read(path);
@@ -137,25 +144,53 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
                 if (keep != null) reference.Place = keep;
                 reference.WeldTolerance = tol;
             }
+            if (first)
+            {
+                reference.Place.Offset = new double[3];
+                ModelGeometry.Normalize(model, reference.Place);
+                normalized = true;
+                double[] min, max;
+                if (model.Bounds(out min, out max))
+                {
+                    var off = new[] { -Math.Round((min[0] + max[0]) / 2, 3), -Math.Round((min[1] + max[1]) / 2, 3), -Math.Round(min[2], 3) };
+                    foreach (var part in model.Parts)
+                        for (var i = 0; i + 2 < part.Positions.Length; i += 3)
+                        {
+                            part.Positions[i] += (float)off[0];
+                            part.Positions[i + 1] += (float)off[1];
+                            part.Positions[i + 2] += (float)off[2];
+                        }
+                    reference.Place.Offset = off;
+                }
+            }
             var result = new ModelImportResult { Reference = reference, CacheFolder = CacheFolder(reference) };
-            var index = ReadIndex(result.IndexPath, reference);
-            if (index != null && File.Exists(result.GlbPath))
+            int triangles, parts;
+            var index = ReadIndex(result.IndexPath, reference, out triangles, out parts);
+            if (index != null && File.Exists(result.GlbPath) && File.Exists(result.ViewPath))
             {
                 result.Islands = index;
                 result.FromCache = true;
+                result.Triangles = triangles;
+                result.Parts = parts;
                 return result;
             }
             if (model == null) model = Read(path);
-            ModelGeometry.Normalize(model, reference.Place);
+            if (!normalized) ModelGeometry.Normalize(model, reference.Place);
             var islands = ModelGeometry.Islands(model, reference.WeldTolerance);
             Directory.CreateDirectory(result.CacheFolder);
             GlbWriter.WriteIslands(model, islands, result.GlbPath);
+            GlbWriter.WriteTiles(model, result.ViewPath);
             WriteIndex(result.IndexPath, reference, model, islands);
             result.Model = model;
             result.Islands = islands;
+            result.Triangles = model.TriangleCount;
+            result.Parts = model.Parts.Count;
             result.Warnings.AddRange(model.Warnings);
             return result;
         }
+
+        /// <summary>The view file of a reference's cache, which the window draws; it may not exist yet.</summary>
+        public static string ViewPathOf(ModelReference r) => Path.Combine(CacheFolder(r), "view.glb");
 
         /// <summary>The cache of a file and its placement: a change of unit, axis or tolerance makes another one.</summary>
         public static string CacheFolder(ModelReference r)
@@ -199,13 +234,16 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
         static double R(double d) => Math.Round(d, 5);
 
         /// <summary>The islands of a cache index (without their triangles), or null when it does not fit the reference.</summary>
-        static List<Island> ReadIndex(string path, ModelReference r)
+        static List<Island> ReadIndex(string path, ModelReference r, out int triangles, out int parts)
         {
+            triangles = parts = 0;
             if (!File.Exists(path)) return null;
             try
             {
                 var o = JObject.Parse(File.ReadAllText(path));
                 if ((int?)o["v"] != CacheVersion || (string)o["sha"] != r.Sha256) return null;
+                triangles = (int?)o["triangles"] ?? 0;
+                parts = (o["parts"] as JArray)?.Count ?? 0;
                 return ((JArray)o["islands"]).Select(t => new Island
                 {
                     Index = (int)t["i"],
@@ -341,6 +379,22 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
                 return m;
             }
             catch { return null; }
+        }
+
+        /// <summary>The key's text as it is kept, or null: what the undo of the 3D window keeps.</summary>
+        public static string Text(DWSIM.Interfaces.IFlowsheet fs)
+        {
+            var props = Props(fs);
+            object value;
+            return props != null && props.TryGetValue(Key, out value) && value != null ? value.ToString() : null;
+        }
+
+        public static void SetText(DWSIM.Interfaces.IFlowsheet fs, string text)
+        {
+            var props = Props(fs);
+            if (props == null) return;
+            if (text == null) props.Remove(Key);
+            else props[Key] = text;
         }
 
         /// <summary>Keeps the plant model, or takes it away when it is null.</summary>

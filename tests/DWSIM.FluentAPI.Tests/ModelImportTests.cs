@@ -25,6 +25,7 @@ using System.Text;
 using DWSIM.Automation.FluentAPI;
 using DWSIM.Extensions.SolidCraft.Viewer3D;
 using DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport;
+using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 
 namespace DWSIM.FluentAPI.Tests
@@ -801,6 +802,98 @@ Connections:  {
             // the import splits the objects into islands as for any model
             var import = ModelImporter.Import(path);
             Assert.That(import.Islands.Count, Is.GreaterThanOrEqualTo(4));
+        }
+            // ---- M1: the link imports a plant model for the 3D window ----
+
+        static JObject Wait(List<JObject> sent, string type, int seconds = 60)
+        {
+            var until = DateTime.UtcNow.AddSeconds(seconds);
+            while (DateTime.UtcNow < until)
+            {
+                lock (sent)
+                {
+                    var m = sent.LastOrDefault(x => (string)x["type"] == type && (string)x["state"] != "importing");
+                    if (m != null) return m;
+                }
+                System.Threading.Thread.Sleep(50);
+            }
+            return null;
+        }
+
+        [Test]
+        public void TheLinkImportsAPlantModelForTheWindowAndUndoesIt()
+        {
+            var fs = Flowsheet.Create("plant model").WithCompound("Water").WithPropertyPackage(PropertyPackages.SteamTables);
+            fs.AddMaterialStream("1").At(300.Kelvin(), 101325.0.Pascal()).WithMassFlow(1.KgPerSecond());
+            // the plant somewhere far from the origin, as site coordinates put it
+            var far = Plant();
+            foreach (var p in far.Parts)
+                for (var i = 0; i < p.Positions.Length; i += 3) { p.Positions[i] += 1000; p.Positions[i + 1] += 2000; p.Positions[i + 2] += 60; }
+            var glb = Path.Combine(_dir, "far.glb");
+            GlbWriter.WriteProp(far, "Plant", glb);
+
+            var link = new FlowsheetLink(fs.Inner);
+            var sent = new List<JObject>();
+            link.MessageSent += m => { lock (sent) sent.Add(m); };
+            var answer = link.Handle(new JObject { ["type"] = SceneProtocol.ModelImport, ["path"] = glb });
+            Assert.That((string)answer["type"], Is.EqualTo(SceneProtocol.Ack), "the import starts at once and runs apart");
+            var status = Wait(sent, SceneProtocol.ModelStatus);
+            Assert.That(status, Is.Not.Null, "DWSIM tells how the import went");
+            Assert.That((string)status["state"], Is.EqualTo("done"), (string)status["message"]);
+            Assert.That((string)status["message"], Does.Contain("triangles"));
+
+            var stored = ModelStore.Load(fs.Inner);
+            Assert.That(stored, Is.Not.Null);
+            Assert.That(stored.Model.Place.Offset[0], Is.EqualTo(-1000 - 9.25).Within(0.01), "the middle of the plan goes to the origin");
+            Assert.That(stored.Model.Place.Offset[2], Is.EqualTo(-60).Within(0.01), "the lowest point goes to the ground");
+
+            link.Sync();
+            var info = link.Scene["model"] as JObject;
+            Assert.That(info, Is.Not.Null);
+            Assert.That((string)info["name"], Is.EqualTo("far.glb"));
+            Assert.That(File.Exists((string)info["glb"]), Is.True, "the window gets the view of the cache");
+            var view = GltfReader.Read((string)info["glb"]);
+            double[] min, max;
+            view.Bounds(out min, out max);
+            Assert.That(min[1], Is.EqualTo(0).Within(1e-3), "in the view file (Y up) the plant stands on the ground");
+            Assert.That(view.Parts.All(p => p.Name.StartsWith("tile_")), Is.True);
+
+            Assert.That((string)link.Handle(new JObject { ["type"] = SceneProtocol.Undo })["type"], Is.EqualTo(SceneProtocol.Ack));
+            Assert.That(ModelStore.Load(fs.Inner), Is.Null, "the window's undo takes the import back");
+            link.Handle(new JObject { ["type"] = SceneProtocol.Redo });
+            Assert.That(ModelStore.Load(fs.Inner), Is.Not.Null);
+
+            link.Handle(new JObject { ["type"] = SceneProtocol.ModelRemove });
+            Assert.That(ModelStore.Load(fs.Inner), Is.Null);
+            link.Sync();
+            Assert.That(link.Scene["model"]?.Type ?? JTokenType.Null, Is.EqualTo(JTokenType.Null));
+
+            var missing = link.Handle(new JObject { ["type"] = SceneProtocol.ModelImport, ["path"] = Path.Combine(_dir, "none.dwf") });
+            Assert.That((string)missing["type"], Is.EqualTo(SceneProtocol.Error));
+        }
+
+        [Test]
+        public void TheViewFileCutsTheModelInTilesWithSharpEdges()
+        {
+            var plant = Plant();
+            var path = Path.Combine(_dir, "view.glb");
+            GlbWriter.WriteTiles(plant, path, tile: 5);
+            var view = GltfReader.Read(path);
+            Assert.That(view.Parts.Count, Is.GreaterThan(2), "the plant is about 20 m long: several tiles");
+            Assert.That(view.TriangleCount, Is.EqualTo(plant.TriangleCount));
+            // a box with its eight corners shared, as a decoded shell has them, keeps flat faces:
+            // each corner splits into one vertex per face
+            var box = new ImportedModel();
+            box.Parts.Add(new MeshPart
+            {
+                Name = "b",
+                Positions = new float[] { 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1 },
+                Indices = new[] { 0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5, 2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7 }
+            });
+            var bp = Path.Combine(_dir, "box.glb");
+            GlbWriter.WriteProp(box, "box", bp);
+            var read = GltfReader.Read(bp);
+            Assert.That(read.Parts[0].VertexCount, Is.EqualTo(24), "eight corners, three faces each");
         }
     }
 }

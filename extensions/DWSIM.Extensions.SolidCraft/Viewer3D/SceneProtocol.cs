@@ -104,6 +104,16 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
         /// <summary>{terrain: {x0, y0, cell, nx, ny, h, w}} or {terrain: null}: the relief of the ground (see <see cref="SiteLayout.Terrain"/>).</summary>
         public const string Terrain = "terrain";
 
+        /// <summary>
+        /// {path}: imports a 3D model of the plant (glTF, FBX, OBJ, STL, PLY, 3D DWF) as the scenery of
+        /// the flowsheet; DWSIM reads it in the background, answers at once and tells how it went with
+        /// <see cref="ModelStatus"/>.
+        /// </summary>
+        public const string ModelImport = "model.import";
+
+        /// <summary>The flowsheet stops using its 3D model of the plant (the file and the cache stay).</summary>
+        public const string ModelRemove = "model.remove";
+
         /// <summary>{ids}: removes objects from the simulation.</summary>
         public const string Delete = "delete";
 
@@ -138,6 +148,9 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
 
         /// <summary>{id}: the object a <see cref="Add"/> or <see cref="Connect"/> made.</summary>
         public const string Added = "added";
+
+        /// <summary>{state: importing, done or failed, message}: how an import of a 3D model of the plant goes.</summary>
+        public const string ModelStatus = "model.status";
 
         /// <summary>The command went through.</summary>
         public const string Ack = "ack";
