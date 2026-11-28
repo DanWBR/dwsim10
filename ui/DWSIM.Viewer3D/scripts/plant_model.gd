@@ -128,7 +128,7 @@ func add_rows(g: GridContainer, owner_main: Node) -> void:
 	var imp := Button.new()
 	imp.text = "Import..."
 	imp.focus_mode = Control.FOCUS_NONE
-	imp.tooltip_text = "Imports a 3D model of the plant (3D DWF, glTF, FBX, OBJ, STL, PLY) and shows it round the equipment. The model stays in its own file; the flowsheet keeps a reference to it."
+	imp.tooltip_text = "Imports a 3D model of the plant (3D DWF, IFC, glTF, FBX, OBJ, STL, PLY, and STEP, IGES, Rhino and FreeCAD through SolidCraft) and shows it round the equipment. The model stays in its own file; the flowsheet keeps a reference to it."
 	imp.pressed.connect(_ask_file)
 	row.add_child(imp)
 	_remove_button = Button.new()

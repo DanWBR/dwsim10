@@ -1562,6 +1562,9 @@ func _run_offline() -> void:
 		if arg == "--hide-equipment":
 			set_equipment_visible(false)
 			rig.fit_points(_corners(), _aspect())
+		elif arg == "--hide-keys":
+			# the card of the keys (F1) off, for a picture of the whole plant
+			card.visible = false
 	# more messages, as DWSIM would send them (values, a selection), from "--dwsim-messages=file"
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--dwsim-messages="):

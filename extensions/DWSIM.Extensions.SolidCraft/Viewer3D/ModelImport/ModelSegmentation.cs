@@ -372,7 +372,8 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
         /// <summary>What kind of equipment a group is, from its tag's letters and from its body.</summary>
         public static string CategoryOf(SegmentGroup g)
         {
-            var letters = g.Tag == null ? "" : g.Tag.Substring(0, g.Tag.IndexOf('-'));
+            // the letters before the number (a tag without one, as DEBUTANIZER, has none that count)
+            var letters = g.Tag == null || g.Tag.IndexOf('-') < 0 ? "" : g.Tag.Substring(0, g.Tag.IndexOf('-'));
             var tall = g.Body == ShapeClass.Column || g.Vertical && g.Length > 4 * Math.Max(g.Diameter, 0.1) && g.Diameter > 0.5;
             switch (letters)
             {

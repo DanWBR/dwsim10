@@ -821,25 +821,37 @@ END-ISO-10303-21;
             m.Parts.Add(Cylinder("shell", new[] { 0.0, 0, 0 }, new[] { 0.0, 0, 6 }, 1.0, 0));
             m.Parts.Add(Box("casing", new[] { 5.0, 0, 0 }, new[] { 6.0, 1, 1 }, 0));
             m.Parts.Add(Box("beam", new[] { -5.0, -5, 5 }, new[] { 5.0, -4.8, 5.2 }, 0));
+            WriteTree(glb, m, add =>
+            {
+                var vessel = add("V-101:1", new[] { 0 });
+                var area = add("Area 100:1", new[] { vessel });
+                var pump = add("P-201:1", new[] { 1 });
+                var rack = add("Pipe rack:1", new[] { 2 });
+                var file = add("plant:1", new[] { area, pump, rack });
+                return add("plant", new[] { file });
+            });
+        }
+
+        /// <summary>
+        /// Writes the parts of a model as a GLB whose tree is that of a SolidCraft design: the
+        /// parts are the first nodes (one each, in order), and the builder adds the products and
+        /// the occurrences over them (name, children) and returns the root.
+        /// </summary>
+        static void WriteTree(string glb, ImportedModel m, Func<Func<string, int[], int>, int> build)
+        {
             GlbWriter.WriteParts(m, glb);
-            // the parts again, under the products and the occurrences of a SolidCraft design
             var bytes = File.ReadAllBytes(glb);
             var jsonLength = BitConverter.ToInt32(bytes, 12);
             var doc = JObject.Parse(Encoding.UTF8.GetString(bytes, 20, jsonLength));
             var nodes = (JArray)doc["nodes"];
-            var meshNodes = nodes.Count;
+            Assert.That(nodes.Count, Is.EqualTo(m.Parts.Count));
             Func<string, int[], int> add = (name, children) =>
             {
                 nodes.Add(new JObject { ["name"] = name, ["children"] = new JArray(children) });
                 return nodes.Count - 1;
             };
-            var vessel = add("V-101:1", new[] { 0 });
-            var area = add("Area 100:1", new[] { vessel });
-            var pump = add("P-201:1", new[] { 1 });
-            var rack = add("Pipe rack:1", new[] { 2 });
-            var file = add("plant:1", new[] { area, pump, rack });
-            var design = add("plant", new[] { file });
-            doc["scenes"] = new JArray(new JObject { ["nodes"] = new JArray(design) });
+            var root = build(add);
+            doc["scenes"] = new JArray(new JObject { ["nodes"] = new JArray(root) });
             doc["scene"] = 0;
             var json = Encoding.UTF8.GetBytes(doc.ToString(Newtonsoft.Json.Formatting.None));
             var pad = (4 - json.Length % 4) % 4;
@@ -852,7 +864,56 @@ END-ISO-10303-21;
                 w.Write(json.Length + pad); w.Write(0x4E4F534A); w.Write(json); for (var k = 0; k < pad; k++) w.Write((byte)0x20);
                 w.Write(bin);
             }
-            Assert.That(meshNodes, Is.EqualTo(3));
+        }
+
+        [Test]
+        public void GroupsNamedAfterFlowsheetTagsStandForThoseObjects()
+        {
+            // DWSIM's own 3D plant model names each item by its tag, which need not look like a
+            // tag (DEBUTANIZER), and its platforms after the item
+            var converter = ModelImporter.CadConverter;
+            try
+            {
+                ModelImporter.CadConverter = (cad, glb) =>
+                {
+                    var m = new ImportedModel { Format = "test", Up = UpAxis.Z, Units = ModelUnits.Meters };
+                    m.Materials.Add(new ModelMaterial());
+                    // SolidCraft names the bodies as their products
+                    m.Parts.Add(Cylinder("DEBUTANIZER", new[] { 0.0, 0, 0 }, new[] { 0.0, 0, 12 }, 1.0, 0));
+                    m.Parts.Add(Box("DEBUTANIZER platform 1", new[] { -1.8, -1.8, 8 }, new[] { 1.8, 1.8, 8.05 }, 0));
+                    m.Parts.Add(Box("COMP-000", new[] { 5.0, 0, 0 }, new[] { 7.0, 1.5, 1.5 }, 0));
+                    WriteTree(glb, m, add =>
+                    {
+                        var column = add("DEBUTANIZER:1", new[] { 0 });
+                        var platform = add("DEBUTANIZER platform 1:1", new[] { 1 });
+                        var compressor = add("COMP-000:1", new[] { 2 });
+                        return add("plant", new[] { add("plant:1", new[] { column, platform, compressor }) });
+                    });
+                    return true;
+                };
+                var step = Path.Combine(_dir, "exported.step");
+                File.WriteAllText(step, "ISO-10303-21;");
+                var result = ModelImporter.Import(step);
+                var units = new List<FlowsheetUnit>
+                {
+                    new FlowsheetUnit { Name = "obj-column", Tag = "DEBUTANIZER", Category = "column" },
+                    new FlowsheetUnit { Name = "obj-compressor", Tag = "COMP-000", Category = "compressor" }
+                };
+                List<SegmentGroup> segments;
+                var groups = ModelAnalysis.Analyze(null, result, units, out segments);
+                var column = groups.Single(g => g.Name == "DEBUTANIZER");
+                Assert.That(column.Role, Is.EqualTo("equipment"));
+                Assert.That(column.Tag, Is.EqualTo("DEBUTANIZER"));
+                Assert.That(column.Class, Is.EqualTo("column"));
+                Assert.That(column.Suggested, Is.EqualTo("obj-column"));
+                Assert.That(column.Islands, Has.Count.EqualTo(2), "the platform goes with its column");
+                Assert.That(segments.Any(g => g.Name == "DEBUTANIZER platform 1"), Is.False);
+                var compressor = groups.Single(g => g.Name == "COMP-000");
+                Assert.That(compressor.Role, Is.EqualTo("equipment"), "a box is a structure by its shape, but its name is the compressor's tag");
+                Assert.That(compressor.Class, Is.EqualTo("compressor"), "the kind is the flowsheet object's");
+                Assert.That(compressor.Suggested, Is.EqualTo("obj-compressor"));
+            }
+            finally { ModelImporter.CadConverter = converter; }
         }
 
         [Test]

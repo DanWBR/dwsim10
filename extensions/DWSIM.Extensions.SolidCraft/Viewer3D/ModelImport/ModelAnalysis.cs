@@ -62,6 +62,8 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
                 ModelSegmentation.Remeasure(segments, index.Islands);
             }
 
+            NamedAfterUnits(segments, units, index.Islands);
+
             var names = new HashSet<string>(units.Select(u => u.Name));
             var accepted = new Dictionary<string, string>();
             var also = new Dictionary<string, List<string>>();
@@ -101,6 +103,58 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
             }
             return result;
         }
+
+        /// <summary>
+        /// A group whose name is the tag of a flowsheet object is that object's equipment, whatever
+        /// its words and shapes say: a model exported from a simulation (DWSIM's 3D plant model
+        /// names each item by its tag, COMP-000 or DEBUTANIZER) or a model whose author used the
+        /// same tags. The structure groups named after it (its platforms and ladders) go with it.
+        /// The groups the user made stay as they are.
+        /// </summary>
+        static void NamedAfterUnits(List<SegmentGroup> segments, List<FlowsheetUnit> units, List<Island> islands)
+        {
+            var tags = new Dictionary<string, string>();
+            var kinds = new Dictionary<string, string>();
+            foreach (var u in units)
+            {
+                var key = Key(u.Tag);
+                if (key.Length == 0 || tags.ContainsKey(key)) continue;
+                tags[key] = u.Tag.Trim();
+                kinds[key] = u.Category;
+            }
+            if (tags.Count == 0) return;
+            var changed = false;
+            var owners = new Dictionary<string, SegmentGroup>();
+            foreach (var g in segments.Where(x => !x.User))
+            {
+                var key = Key(g.Name);
+                string tag;
+                if (!tags.TryGetValue(key, out tag)) continue;
+                if (g.Role != "equipment" || g.Tag != tag) changed = true;
+                g.Role = "equipment";
+                g.Tag = tag;
+                if (!owners.ContainsKey(key)) owners[key] = g;
+            }
+            if (owners.Count == 0) return;
+            foreach (var g in segments.Where(x => !x.User && x.Role == "structure").ToList())
+            {
+                var name = Key(g.Name);
+                var owner = owners.Where(o => name.StartsWith(o.Key + " ")).Select(o => o.Value).FirstOrDefault();
+                if (owner == null) continue;
+                owner.Islands.AddRange(g.Islands);
+                segments.Remove(g);
+                changed = true;
+            }
+            if (changed) ModelSegmentation.Remeasure(segments, islands);
+            // the kind is the object's: its tag may not say it (COMP-000, DEBUTANIZER)
+            foreach (var o in owners)
+            {
+                string kind;
+                if (kinds.TryGetValue(o.Key, out kind) && !string.IsNullOrEmpty(kind)) o.Value.Category = kind;
+            }
+        }
+
+        static string Key(string name) => (name ?? "").Trim().ToUpperInvariant();
 
         /// <summary>A line for the status: how many equipment groups, how many proposed or chosen.</summary>
         public static string Summary(List<ModelGroup> groups, List<SegmentGroup> segments)
