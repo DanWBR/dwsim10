@@ -1,0 +1,353 @@
+//    Copyright 2026 Daniel Wagner O. de Medeiros
+//
+//    This file is part of DWSIM.
+//
+//    DWSIM is free software: you can redistribute it and/or modify
+//    it under the terms of the GNU General Public License as published by
+//    the Free Software Foundation, either version 3 of the License, or
+//    (at your option) any later version.
+//
+//    DWSIM is distributed in the hope that it will be useful,
+//    but WITHOUT ANY WARRANTY; without even the implied warranty of
+//    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//    GNU General Public License for more details.
+//
+//    You should have received a copy of the GNU General Public License
+//    along with DWSIM.  If not, see <http://www.gnu.org/licenses/>.
+
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Security.Cryptography;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+
+namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
+{
+    /// <summary>What an import of a plant model found and where it left its cache.</summary>
+    public class ModelImportResult
+    {
+        public ModelReference Reference;
+        public ImportedModel Model;
+        public List<Island> Islands;
+        /// <summary>The folder of the cache: model.glb (one node per island) and index.json.</summary>
+        public string CacheFolder;
+        public string GlbPath => Path.Combine(CacheFolder, "model.glb");
+        public string IndexPath => Path.Combine(CacheFolder, "index.json");
+        /// <summary>True when the cache of an earlier import was used as it was.</summary>
+        public bool FromCache;
+        public List<string> Warnings = new List<string>();
+    }
+
+    /// <summary>
+    /// Reads a 3D model of the plant (glTF, GLB, OBJ, STL, PLY, or FBX through the 3D window), puts
+    /// it in the frame of the plant, splits it into islands and keeps a cache of the result in the
+    /// user's data folder: the model file itself is never copied into the flowsheet.
+    /// </summary>
+    public static class ModelImporter
+    {
+        /// <summary>The version of what the cache holds; a cache of another version is made again.</summary>
+        public const int CacheVersion = 1;
+
+        public static readonly string[] Extensions = { ".glb", ".gltf", ".obj", ".stl", ".ply", ".fbx" };
+
+        /// <summary>Where the caches go; tests point it somewhere else.</summary>
+        public static string CacheRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DWSIM", "Plant3DModels");
+
+        /// <summary>Turns an FBX file into a GLB file (in, out); the 3D window does it when this is not set.</summary>
+        public static Func<string, string, bool> FbxConverter = ConvertWithWindow;
+
+        /// <summary>Reads a model file in the frame of the file, by its extension.</summary>
+        public static ImportedModel Read(string path)
+        {
+            if (!File.Exists(path)) throw new FileNotFoundException("The model file was not found.", path);
+            var ext = Path.GetExtension(path).ToLowerInvariant();
+            switch (ext)
+            {
+                case ".glb":
+                case ".gltf": return GltfReader.Read(path);
+                case ".obj": return ObjReader.Read(path);
+                case ".stl": return StlReader.Read(path);
+                case ".ply": return PlyReader.Read(path);
+                case ".fbx":
+                    {
+                        var glb = Path.Combine(Path.GetTempPath(), "dwsim-fbx-" + Guid.NewGuid().ToString("N") + ".glb");
+                        try
+                        {
+                            if (FbxConverter == null || !FbxConverter(path, glb) || !File.Exists(glb))
+                                throw new InvalidOperationException("DWSIM could not convert the FBX file. Open it in the program it came from and export it as glTF (GLB) or OBJ.");
+                            var model = GltfReader.Read(glb);
+                            model.SourcePath = path;
+                            model.Format = "fbx";
+                            return model;
+                        }
+                        finally { try { if (File.Exists(glb)) File.Delete(glb); } catch { } }
+                    }
+                default:
+                    throw new NotSupportedException("DWSIM does not read " + ext + " files. Export the model as glTF (GLB), FBX, OBJ, STL or PLY.");
+            }
+        }
+
+        public static string Hash(string path)
+        {
+            using (var sha = SHA256.Create())
+            using (var f = File.OpenRead(path))
+                return string.Concat(sha.ComputeHash(f).Select(b => b.ToString("x2")));
+        }
+
+        /// <summary>
+        /// The reference to a model file that a first import starts from: its hash, and the unit and
+        /// up axis guessed from the file.
+        /// </summary>
+        public static ModelReference Reference(string path, ImportedModel model, string flowsheetPath = null)
+        {
+            var info = new FileInfo(path);
+            return new ModelReference
+            {
+                Path = info.FullName,
+                RelativePath = Relative(flowsheetPath, info.FullName),
+                Sha256 = Hash(path),
+                Size = info.Length,
+                Modified = info.LastWriteTimeUtc,
+                Format = model.Format,
+                Place = new Placement3D { Scale = ModelGeometry.GuessScale(model), Up = ModelGeometry.GuessUp(model) }
+            };
+        }
+
+        /// <summary>
+        /// Imports a plant model: reads it, normalizes it with the placement of the reference (or the
+        /// guessed one), splits it into islands and writes the cache. When the cache of the same file,
+        /// placement and tolerance exists, it is read back and the model file is not read again.
+        /// </summary>
+        public static ModelImportResult Import(string path, ModelReference reference = null, string flowsheetPath = null)
+        {
+            var sha = Hash(path);
+            ImportedModel model = null;
+            if (reference == null || reference.Sha256 != sha)
+            {
+                model = Read(path);
+                var keep = reference?.Place;
+                var tol = reference?.WeldTolerance ?? 1e-4;
+                reference = Reference(path, model, flowsheetPath);
+                if (keep != null) reference.Place = keep;
+                reference.WeldTolerance = tol;
+            }
+            var result = new ModelImportResult { Reference = reference, CacheFolder = CacheFolder(reference) };
+            var index = ReadIndex(result.IndexPath, reference);
+            if (index != null && File.Exists(result.GlbPath))
+            {
+                result.Islands = index;
+                result.FromCache = true;
+                return result;
+            }
+            if (model == null) model = Read(path);
+            ModelGeometry.Normalize(model, reference.Place);
+            var islands = ModelGeometry.Islands(model, reference.WeldTolerance);
+            Directory.CreateDirectory(result.CacheFolder);
+            GlbWriter.WriteIslands(model, islands, result.GlbPath);
+            WriteIndex(result.IndexPath, reference, model, islands);
+            result.Model = model;
+            result.Islands = islands;
+            result.Warnings.AddRange(model.Warnings);
+            return result;
+        }
+
+        /// <summary>The cache of a file and its placement: a change of unit, axis or tolerance makes another one.</summary>
+        public static string CacheFolder(ModelReference r)
+        {
+            var p = r.Place ?? new Placement3D();
+            var key = string.Format(CultureInfo.InvariantCulture, "{0}|{1:R}|{2}|{3:R}|{4:R},{5:R},{6:R}|{7:R}|{8}",
+                r.Sha256, p.Scale, p.Up, p.Rotation, p.Offset[0], p.Offset[1], p.Offset[2], r.WeldTolerance, CacheVersion);
+            string h;
+            using (var sha = SHA256.Create())
+                h = string.Concat(sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(key)).Take(8).Select(b => b.ToString("x2")));
+            return Path.Combine(CacheRoot, r.Sha256.Substring(0, Math.Min(16, r.Sha256.Length)) + "-" + h);
+        }
+
+        static void WriteIndex(string path, ModelReference r, ImportedModel model, List<Island> islands)
+        {
+            double[] min, max;
+            model.Bounds(out min, out max);
+            var o = new JObject
+            {
+                ["v"] = CacheVersion,
+                ["sha"] = r.Sha256,
+                ["format"] = model.Format,
+                ["triangles"] = model.TriangleCount,
+                ["min"] = new JArray(min.Select(R)),
+                ["max"] = new JArray(max.Select(R)),
+                ["parts"] = new JArray(model.Parts.Select(p => p.Name)),
+                ["islands"] = new JArray(islands.Select(i => new JObject
+                {
+                    ["i"] = i.Index,
+                    ["part"] = i.Part,
+                    ["tris"] = i.Triangles.Length,
+                    ["area"] = R(i.Area),
+                    ["min"] = new JArray(i.Min.Select(R)),
+                    ["max"] = new JArray(i.Max.Select(R)),
+                    ["c"] = new JArray(i.Centroid.Select(R))
+                }))
+            };
+            File.WriteAllText(path, o.ToString(Formatting.None));
+        }
+
+        static double R(double d) => Math.Round(d, 5);
+
+        /// <summary>The islands of a cache index (without their triangles), or null when it does not fit the reference.</summary>
+        static List<Island> ReadIndex(string path, ModelReference r)
+        {
+            if (!File.Exists(path)) return null;
+            try
+            {
+                var o = JObject.Parse(File.ReadAllText(path));
+                if ((int?)o["v"] != CacheVersion || (string)o["sha"] != r.Sha256) return null;
+                return ((JArray)o["islands"]).Select(t => new Island
+                {
+                    Index = (int)t["i"],
+                    Part = (int)t["part"],
+                    Triangles = new int[0],
+                    Area = (double)t["area"],
+                    Min = t["min"].Select(x => (double)x).ToArray(),
+                    Max = t["max"].Select(x => (double)x).ToArray(),
+                    Centroid = t["c"].Select(x => (double)x).ToArray()
+                }).ToList();
+            }
+            catch { return null; }
+        }
+
+        static string Relative(string flowsheetPath, string target)
+        {
+            if (string.IsNullOrWhiteSpace(flowsheetPath)) return null;
+            try
+            {
+                var from = new Uri(Path.GetDirectoryName(Path.GetFullPath(flowsheetPath)) + Path.DirectorySeparatorChar);
+                var to = new Uri(target);
+                if (from.Scheme != to.Scheme) return null;
+                return Uri.UnescapeDataString(from.MakeRelativeUri(to).ToString()).Replace('/', Path.DirectorySeparatorChar);
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
+        /// The model file of a reference: the absolute path, else the relative one next to the
+        /// flowsheet (a project folder that was moved), else null.
+        /// </summary>
+        public static string Locate(ModelReference r, string flowsheetPath)
+        {
+            if (r == null) return null;
+            if (!string.IsNullOrEmpty(r.Path) && File.Exists(r.Path)) return r.Path;
+            if (!string.IsNullOrEmpty(r.RelativePath) && !string.IsNullOrWhiteSpace(flowsheetPath))
+            {
+                var p = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(Path.GetFullPath(flowsheetPath)) ?? "", r.RelativePath));
+                if (File.Exists(p)) return p;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Converts an FBX file with the 3D window in headless mode (Godot reads FBX at run time and
+        /// writes glTF). False when this installation has no window or the conversion fails.
+        /// </summary>
+        public static bool ConvertWithWindow(string fbx, string glb)
+        {
+            string exe, prefix;
+            if (!ViewerLauncher.Resolve(out exe, out prefix)) return false;
+            var args = prefix + "--headless --audio-driver Dummy -- \"--convert-model=" + Path.GetFullPath(fbx) + "\" \"--convert-out=" + Path.GetFullPath(glb) + "\"";
+            var info = new ProcessStartInfo(exe, args)
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                WorkingDirectory = Path.GetDirectoryName(Path.GetFullPath(exe)) ?? ""
+            };
+            using (var p = Process.Start(info))
+            {
+                if (p == null) return false;
+                p.OutputDataReceived += (s, e) => { };
+                p.ErrorDataReceived += (s, e) => { };
+                p.BeginOutputReadLine();
+                p.BeginErrorReadLine();
+                if (!p.WaitForExit(180000)) { try { p.Kill(); } catch { } return false; }
+                return p.ExitCode == 0 && File.Exists(glb);
+            }
+        }
+    }
+
+    /// <summary>
+    /// The model file a flowsheet uses and how it is put in the plant. The flowsheet keeps it (key
+    /// Plant3DModel, see <see cref="ModelStore"/>) and never the model itself.
+    /// </summary>
+    public class ModelReference
+    {
+        [JsonProperty("path")] public string Path;
+        /// <summary>The path from the flowsheet's folder, for a project folder that is moved.</summary>
+        [JsonProperty("rel", NullValueHandling = NullValueHandling.Ignore)] public string RelativePath;
+        [JsonProperty("sha")] public string Sha256;
+        [JsonProperty("size")] public long Size;
+        [JsonProperty("modified")] public DateTime Modified;
+        [JsonProperty("format")] public string Format;
+        [JsonProperty("place")] public Placement3D Place = new Placement3D();
+        /// <summary>The distance below which two vertices are one, metres.</summary>
+        [JsonProperty("tol")] public double WeldTolerance = 1e-4;
+    }
+
+    /// <summary>A group of islands that stands for one thing: an equipment, a pipe, a structure or scenery.</summary>
+    public class ModelGroup
+    {
+        [JsonProperty("id")] public string Id;
+        [JsonProperty("islands")] public List<int> Islands = new List<int>();
+        /// <summary>The shape class the importer found (column, vessel, pipe, structure...).</summary>
+        [JsonProperty("class", NullValueHandling = NullValueHandling.Ignore)] public string Class;
+        /// <summary>The flowsheet object (GraphicObject.Name) the group stands for, or null.</summary>
+        [JsonProperty("object", NullValueHandling = NullValueHandling.Ignore)] public string Object;
+        /// <summary>equipment, piping, structure, scenery or hidden.</summary>
+        [JsonProperty("role")] public string Role = "scenery";
+    }
+
+    /// <summary>The plant model of a flowsheet: the file and the groups found in it.</summary>
+    public class PlantModelImport
+    {
+        [JsonProperty("v")] public int Version = 1;
+        [JsonProperty("model")] public ModelReference Model;
+        [JsonProperty("groups")] public List<ModelGroup> Groups = new List<ModelGroup>();
+    }
+
+    /// <summary>Keeps the plant model of a flowsheet in its extra properties (key Plant3DModel).</summary>
+    public static class ModelStore
+    {
+        public const string Key = "Plant3DModel";
+
+        static IDictionary<string, object> Props(DWSIM.Interfaces.IFlowsheet fs) => fs?.ExtraProperties as IDictionary<string, object>;
+
+        /// <summary>The plant model of the flowsheet, or null when it has none or its text does not read.</summary>
+        public static PlantModelImport Load(DWSIM.Interfaces.IFlowsheet fs)
+        {
+            var props = Props(fs);
+            object value;
+            if (props == null || !props.TryGetValue(Key, out value) || value == null) return null;
+            try
+            {
+                var m = JsonConvert.DeserializeObject<PlantModelImport>(value.ToString());
+                if (m?.Model == null) return null;
+                if (m.Groups == null) m.Groups = new List<ModelGroup>();
+                if (m.Model.Place == null) m.Model.Place = new Placement3D();
+                if (m.Model.Place.Offset == null || m.Model.Place.Offset.Length != 3) m.Model.Place.Offset = new double[3];
+                return m;
+            }
+            catch { return null; }
+        }
+
+        /// <summary>Keeps the plant model, or takes it away when it is null.</summary>
+        public static void Save(DWSIM.Interfaces.IFlowsheet fs, PlantModelImport model)
+        {
+            var props = Props(fs);
+            if (props == null) return;
+            if (model?.Model == null) props.Remove(Key);
+            else props[Key] = JsonConvert.SerializeObject(model, new Newtonsoft.Json.Converters.StringEnumConverter());
+        }
+    }
+}

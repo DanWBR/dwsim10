@@ -8,6 +8,8 @@
 ## middle drag (or Shift + right drag) moves it, the wheel zooms. Keys: see SHORTCUTS.
 extends Node3D
 
+const _ModelConvert = preload("res://scripts/model_convert.gd")
+
 ## The width of the panels at the sides; the Rounds panel at the bottom is wider.
 const PANEL_W := 280.0
 const FONT_SIZE := 12
@@ -123,6 +125,15 @@ var _fitted := false
 
 
 func _ready() -> void:
+	var convert: PackedStringArray = _ModelConvert.requested()
+	if convert.size() == 2:
+		# started by the model import of DWSIM only to convert a file: nothing else is built
+		set_process(false)
+		set_physics_process(false)
+		set_process_input(false)
+		set_process_unhandled_input(false)
+		get_tree().quit(_ModelConvert.run(convert[0], convert[1]))
+		return
 	get_window().title = "DWSIM 3D"
 	_build_world()
 	terrain = SiteTerrain.new(self)
