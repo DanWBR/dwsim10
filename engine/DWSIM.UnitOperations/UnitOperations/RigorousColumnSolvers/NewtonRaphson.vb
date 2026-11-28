@@ -67,10 +67,32 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
         ''' <summary>The composition of the vapour entering the bottom stage from below, for Murphree's form there: the feed
         ''' of an absorber's bottom stage (its gas). A reboiler, or a bottom stage with no feed, has no vapour from below and
         ''' is an equilibrium stage (Nothing).</summary>
+        Private _bottomInletVapour As Double() = Nothing
+
         Private Function BottomInletVapour() As Double()
-            If _coltype = Column.ColType.DistillationColumn OrElse _coltype = Column.ColType.ReboiledAbsorber Then Return Nothing
-            If _F(_ns) <= 0.0 Then Return Nothing
-            Return _fc(_ns).NormalizeY()
+            Return _bottomInletVapour
+        End Function
+
+        'The solver's feed contract aggregates all feeds to a stage before solving: z is the
+        'molar-flow-weighted composition and HF the molar enthalpy. Flash that adiabatic mixture
+        'at the receiving pressure, not at a feed's upstream pressure. Only the vapour composition
+        'is used here; total feed component and enthalpy balances remain unchanged.
+        Private Shared Function FlashBottomFeedVapour(pp As PropertyPackages.PropertyPackage,
+                                                      composition As Double(), molarEnthalpy As Double,
+                                                      pressure As Double, temperatureEstimate As Double) As Double()
+            Dim z = composition.NormalizeY()
+            Dim massEnthalpy = molarEnthalpy / pp.AUX_MMM(z)
+            Dim result = DirectCast(pp.FlashBase.Flash_PH(z, pressure, massEnthalpy, temperatureEstimate, pp), Object())
+            Dim fraction = CDbl(result(1))
+            If Double.IsNaN(fraction) OrElse Double.IsInfinity(fraction) OrElse fraction < 0.0 OrElse fraction > 1.0 Then
+                Throw New InvalidOperationException("Invalid bottom-feed vapour fraction from PH flash.")
+            End If
+            If fraction = 0.0 Then Return Nothing
+            Dim y = DirectCast(result(3), Double())
+            If y.Length <> z.Length OrElse y.Any(Function(v) Double.IsNaN(v) OrElse Double.IsInfinity(v) OrElse v < 0.0) OrElse y.Sum() <= 0.0 Then
+                Throw New InvalidOperationException("Invalid bottom-feed vapour composition from PH flash.")
+            End If
+            Return y.NormalizeY()
         End Function
 
         Dim llextr As Boolean = False
@@ -1455,6 +1477,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                               Optional ByVal LLEX As Boolean = False,
                               Optional ByVal effc()() As Double = Nothing) As Object
 
+            _bottomInletVapour = Nothing
             _names = pp.RET_VNAMES()
 
             Dim reporter As Text.StringBuilder = Nothing
@@ -1742,6 +1765,15 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
             _coltype = coltype
             _specs = specs
             _condtype = condt
+
+            If coltype <> ColType.DistillationColumn AndAlso coltype <> ColType.ReboiledAbsorber AndAlso F(ns) > 0.0 Then
+                If LLEX Then
+                    'Keep the existing liquid-liquid boundary convention outside the VLE fix.
+                    _bottomInletVapour = fc(ns).NormalizeY()
+                ElseIf Enumerable.Range(0, nc).Any(Function(component) Ef(effc, eff, ns, component) <> 1.0) Then
+                    _bottomInletVapour = FlashBottomFeedVapour(pp, fc(ns), HF(ns) * 1000.0, P(ns), T(ns))
+                End If
+            End If
 
             For i = 0 To ns
                 xvar(i * (2 * nc + 1)) = Tj(i) / _maxT
