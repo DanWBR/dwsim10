@@ -23,6 +23,8 @@ func _ready() -> void:
 		_run_build()
 	elif item_id == "site":
 		_run_site()
+	elif item_id == "props":
+		_run_props()
 	elif item_id.begins_with("edit:"):
 		_run_edit(item_id.substr(5))
 	elif item_id.begins_with("review:"):
@@ -454,6 +456,131 @@ func _run_site() -> void:
 	await _wait(1.0)
 	await _shot("site_11_overview", false)
 	main.hud.visible = true
+
+
+## The props self-test ("--selftest-item=props"): in the Mine tab of the build bar, builds the first
+## prop of the library twice (the second turned with R), opens its panel with a right click on its
+## tile, renames it, sets its height and saves, and writes what it found to selftest_props.json.
+func _run_props() -> void:
+	OS.low_processor_usage_mode = false
+	for i in 600:
+		if not main.entries.is_empty():
+			break
+		await _wait(0.1)
+	await _wait(1.0)
+	_key(KEY_ESCAPE)
+	_key(KEY_F1)
+	var sb: SiteBuilder = main.site_builder
+	_key(KEY_U)
+	for i in 100:
+		if main.site_adopted:
+			break
+		await _wait(0.1)
+	await _wait(1.0)
+	await _click((sb._cat_buttons["My objects"] as Button).get_global_rect().get_center())
+	await _wait(3.0)
+	var kind := ""
+	for e in sb._catalog:
+		if bool(e.get("user", false)) and not bool(e.get("missing", false)):
+			kind = str(e["kind"])
+			break
+	var tile_name := "site_" + kind.replace(":", "_")
+	var tile := sb._grid.get_node_or_null(tile_name) as Button
+	var had_picture := tile != null and tile.icon != null
+	await _shot("props_1_bar", false)
+	await _click(tile.get_global_rect().get_center())
+	await _wait(0.3)
+	# the grid of the bar out of the way (the tool stays in hand), as a user would close it
+	await _click((sb._cat_buttons["My objects"] as Button).get_global_rect().get_center())
+	await _wait(0.3)
+	var tool_kept: bool = sb.kind == kind
+	# two places on the screen where the ground is free for it, away from the panels
+	var spots := _free_spots(sb, kind, 2)
+	var built_at := []
+	for k in spots.size():
+		if k == 1:
+			_key(KEY_R)
+		_mouse_move(spots[k], 0)
+		await _wait(0.5)
+		built_at.append(sb._ok)
+		await _click(spots[k])
+		await _wait(1.5)
+	_key(KEY_ESCAPE)
+	await _wait(0.5)
+	await _shot("props_2_built", false)
+
+	# the panel of the prop: a right click on its tile, with the grid open again
+	await _click((sb._cat_buttons["My objects"] as Button).get_global_rect().get_center())
+	await _wait(1.0)
+	tile = sb._grid.get_node_or_null(tile_name) as Button
+	var at := tile.get_global_rect().get_center()
+	for pressed in [true, false]:
+		var r := InputEventMouseButton.new()
+		r.button_index = MOUSE_BUTTON_RIGHT
+		r.pressed = pressed
+		r.position = at
+		r.global_position = at
+		Input.parse_input_event(r)
+		await get_tree().process_frame
+	await _wait(0.5)
+	var panel_open: bool = sb._prop_panel != null and sb._prop_panel.visible
+	await _shot("props_3_panel", false)
+	var saved_by_click := false
+	if panel_open:
+		sb._prop_name.text = "Renamed tree"
+		sb._prop_height.value = 5.0
+		var save: Button = null
+		for b in sb._prop_panel.find_children("*", "Button", true, false):
+			if (b as Button).text == "Save":
+				save = b
+		await _click(save.get_global_rect().get_center() + Vector2(sb._prop_panel.position))
+		for i in 60:
+			if str(SiteObjects.entry(kind).get("name", "")) == "Renamed tree":
+				saved_by_click = true
+				break
+			await _wait(0.1)
+		if not saved_by_click:
+			save.pressed.emit()
+	for i in 100:
+		if str(SiteObjects.entry(kind).get("name", "")) == "Renamed tree":
+			break
+		await _wait(0.1)
+	await _wait(1.5)
+	var count := 0
+	var rots := []
+	for id in main.entries.keys():
+		if str(main.entries[id]["data"].get("site", "")) == kind:
+			count += 1
+			rots.append(int(main.entries[id]["data"].get("rot", 0)))
+	var e2 := SiteObjects.entry(kind)
+	var f := FileAccess.open(out_dir.path_join("selftest_props.json"), FileAccess.WRITE)
+	f.store_string(JSON.stringify({"kind": kind, "picture": had_picture, "tool_kept": tool_kept, "green": built_at, "panel": panel_open, "saved_by_click": saved_by_click,
+		"count": count, "rots": rots, "name": e2.get("name", ""), "h": e2.get("h", 0.0), "cash": sb._cash.text}))
+	f.close()
+	await _shot("props_4_after", false)
+
+
+## Points of the screen where an object of a kind fits on the ground, clear of the panels and two
+## footprints apart: a grid over the middle of the window, the first ones that fit.
+func _free_spots(sb: SiteBuilder, kind: String, count: int) -> Array:
+	var found := []
+	var where := []
+	var e := SiteObjects.entry(kind)
+	var apart := 2.0 * maxf(float(e.get("w", 2.0)), float(e.get("d", 2.0))) + 1.0
+	var size := main.get_viewport().get_visible_rect().size
+	for yy in range(int(size.y * 0.12), int(size.y * 0.62), 30):
+		for xx in range(int(size.x * 0.3), int(size.x * 0.75), 30):
+			var pt := Vector2(xx, yy)
+			var g = sb._ground(pt)
+			if g == null or not sb.fits(kind, sb._snap(g), 0):
+				continue
+			if where.any(func(q): return (q as Vector3).distance_to(g) < apart):
+				continue
+			found.append(pt)
+			where.append(g)
+			if found.size() >= count:
+				return found
+	return found
 
 
 func _port(id: String, kind: String) -> Node3D:

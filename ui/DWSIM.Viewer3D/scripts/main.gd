@@ -483,6 +483,76 @@ func _on_state(state: String) -> void:
 		get_tree().quit()
 
 
+var _declutter_clock := 0.0
+## How many times a label may step aside (its own height each step) before it fades out.
+const LABEL_STEPS := 3
+
+
+## Labels that would cover each other on the screen step aside: the tags upward and the values
+## downward, by their own height, up to a few times; one that still finds no room fades out (its
+## transparency, so the choice of which labels show stays as the user set it). The selection's
+## labels claim their place first, then the equipment's, then the rest, so a crowd of objects
+## keeps the tags that matter readable. Looked at a few times a second.
+func _declutter_labels(delta: float) -> void:
+	_declutter_clock -= delta
+	if _declutter_clock > 0.0:
+		return
+	_declutter_clock = 0.2
+	var cam: Camera3D = rig.camera if rig != null else null
+	if cam == null:
+		return
+	# a label of fixed size: one of its units is half the height of the view in pixels (orthographic)
+	var per_unit := float(get_viewport().get_visible_rect().size.y) / 2.0
+	var owner_of := {}
+	for id in entries.keys():
+		var lab = entries[id].get("label")
+		if lab != null and is_instance_valid(lab):
+			owner_of[lab] = id
+	var all := []
+	for root in [labels_root, values_root]:
+		if root == null or not root.is_visible_in_tree():
+			continue
+		for l in root.get_children():
+			if l is Label3D and (l as Label3D).visible and (l as Label3D).fixed_size:
+				all.append(l)
+	var rank := func(l: Label3D) -> int:
+		if l.get_parent() == values_root:
+			return 3
+		var id: String = owner_of.get(l, "")
+		if selected.has(id):
+			return 0
+		if id != "" and not entries[id]["data"].has("site"):
+			return 1
+		return 2
+	all.sort_custom(func(a, b): return rank.call(a) < rank.call(b))
+	var taken: Array[Rect2] = []
+	for l in all:
+		var lab := l as Label3D
+		if cam.is_position_behind(lab.global_position):
+			continue
+		var font: Font = lab.font if lab.font != null else ThemeDB.fallback_font
+		var px := lab.pixel_size * per_unit
+		var size := font.get_multiline_string_size(lab.text, HORIZONTAL_ALIGNMENT_CENTER, -1, lab.font_size) * px
+		size += Vector2(lab.outline_size, lab.outline_size) * px
+		var at := cam.unproject_position(lab.global_position)
+		var top := at.y - size.y / 2.0 if lab.vertical_alignment == VERTICAL_ALIGNMENT_CENTER else at.y
+		var down := lab.vertical_alignment == VERTICAL_ALIGNMENT_TOP
+		var placed := false
+		for k in LABEL_STEPS + 1:
+			var shift := size.y * k * (1.0 if down else -1.0)
+			var r := Rect2(at.x - size.x / 2.0, top + shift, size.x, size.y).grow(3.0)
+			if taken.any(func(t): return (t as Rect2).intersects(r)):
+				continue
+			taken.append(r)
+			lab.offset = Vector2(0.0, -shift / maxf(px, 1e-6))
+			lab.transparency = 0.0
+			placed = true
+			break
+		if not placed:
+			lab.offset = Vector2.ZERO
+			lab.transparency = 1.0
+
+
 const IMPOSTOR_PIXELS := 48.0
 var _impostor_clock := 0.0
 
@@ -1409,6 +1479,7 @@ func _build_hud() -> void:
 
 func _process(delta: float) -> void:
 	_prop_impostors(delta)
+	_declutter_labels(delta)
 	var size := _viewport_size()
 	if model_review != null and model_review.panel != null and model_review.panel.visible:
 		model_review.panel.position = Vector2(size.x - model_review.panel.size.x - 12, 12)
