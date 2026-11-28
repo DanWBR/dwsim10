@@ -122,17 +122,25 @@ static func _ghost_mat(c: Color) -> StandardMaterial3D:
 func set_catalog(entries: Array) -> void:
 	_catalog = entries
 	SiteObjects.set_catalog(entries)
+	# a prop may have changed: its model and its picture are made again
+	SiteObjects.clear_user_models()
+	for k in _thumbs.keys():
+		if str(k).begins_with("user:"):
+			_thumbs.erase(k)
 	for c in _cat_buttons.keys():
-		(_cat_buttons[c] as Button).visible = c == "Terrain" or _catalog.any(func(x): return str(x.get("cat", "")) == c)
+		(_cat_buttons[c] as Button).visible = c == "Terrain" or c == MINE or _catalog.any(func(x): return str(x.get("cat", "")) == c)
 	if _category != "":
 		_fill(_category)
 
 
 # --- the bar ---------------------------------------------------------------------------------
 
-const CATEGORIES := ["Buildings", "Roads and paving", "Fences and barriers", "Nature", "Vehicles", "Safety", "Utilities", "Terrain"]
+const CATEGORIES := ["Buildings", "Roads and paving", "Fences and barriers", "Nature", "Vehicles", "Safety", "Utilities", "My objects", "Terrain"]
+const MINE := "My objects"
+## The categories a prop of the user can be counted in (those of DWSIM's catalog).
+const PROP_CATEGORIES := ["Buildings", "Roads and paving", "Fences and barriers", "Nature", "Vehicles", "Safety", "Utilities"]
 const SHORT := {"Buildings": "Buildings", "Roads and paving": "Roads", "Fences and barriers": "Fences",
-	"Nature": "Nature", "Vehicles": "Vehicles", "Safety": "Safety", "Utilities": "Utilities", "Terrain": "Terrain",
+	"Nature": "Nature", "Vehicles": "Vehicles", "Safety": "Safety", "Utilities": "Utilities", "My objects": "Mine", "Terrain": "Terrain",
 	"Earthworks": "Earthworks (m3)"}
 
 ## The brushes of the terrain: name and what it does.
@@ -336,16 +344,37 @@ func _fill(c: String) -> void:
 	if c == "Terrain":
 		_fill_terrain()
 		return
+	if c == MINE:
+		var imp := Button.new()
+		imp.name = "site_import"
+		imp.focus_mode = Control.FOCUS_NONE
+		imp.custom_minimum_size = Vector2(118, 124)
+		imp.text = "Import...\n3D model"
+		imp.add_theme_font_size_override("font_size", 12)
+		imp.tooltip_text = "Brings a 3D model (glTF, FBX, OBJ, STL, PLY, IFC, DWF, or STEP, IGES, Rhino and FreeCAD through SolidCraft) into your library of objects. The model stays on this computer; a simulation keeps only its name and size."
+		imp.pressed.connect(_ask_prop_file)
+		imp.pressed.connect(_tick)
+		_grid.add_child(imp)
 	for e in _catalog:
-		if str(e.get("cat", "")) != c:
+		var user := bool(e.get("user", false))
+		if c == MINE and not user or c != MINE and str(e.get("cat", "")) != c:
 			continue
 		var k := str(e.get("kind", ""))
 		var unit := str(e.get("unit", "each"))
 		var b := Button.new()
-		b.name = "site_" + k
+		b.name = "site_" + k.replace(":", "_")
 		b.focus_mode = Control.FOCUS_NONE
 		b.custom_minimum_size = Vector2(118, 124)
 		b.text = "%s\n%s%s" % [str(e.get("name", k)), money(float(e.get("cost", 0.0))), "" if unit == "each" else "/" + unit]
+		if user:
+			b.tooltip_text = "%s, %.1f m high. Right-click to change it or take it out of the library." % [str(e.get("name", k)), float(e.get("h", 0.0))]
+			if bool(e.get("missing", false)):
+				b.text += "\n(not here)"
+				b.tooltip_text = "This simulation uses %s, which is not in the library of this computer: it shows as a box of its size." % str(e.get("name", k))
+			else:
+				b.gui_input.connect(func(ev):
+					if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_RIGHT:
+						_edit_prop(k))
 		b.add_theme_font_size_override("font_size", 11)
 		b.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
 		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -486,7 +515,7 @@ func _shoot(k: String) -> void:
 		var tex := ImageTexture.create_from_image(img)
 		_thumbs[k] = tex
 		if _grid != null:
-			var btn := _grid.get_node_or_null("site_" + k) as Button
+			var btn := _grid.get_node_or_null("site_" + k.replace(":", "_")) as Button
 			if btn != null:
 				btn.icon = tex
 	_busy = false
@@ -1041,3 +1070,109 @@ func _demolish(event: InputEvent) -> bool:
 			main._show_toast("The bulldozer leaves the equipment alone; Del takes it out of the flowsheet.")
 		return true
 	return false
+
+
+# --- the user's own props --------------------------------------------------------------------------
+
+var _prop_dialog: FileDialog
+var _prop_panel: PopupPanel
+var _prop_kind := ""
+var _prop_name: LineEdit
+var _prop_cat: OptionButton
+var _prop_cost: SpinBox
+var _prop_height: SpinBox
+
+
+func _send(m: Dictionary) -> bool:
+	if main.link == null or main.link.state != "connected":
+		main._show_toast("Open the 3D window from DWSIM to change your objects.")
+		return false
+	main.link.send(m)
+	return true
+
+
+func _ask_prop_file() -> void:
+	if main.link == null or main.link.state != "connected":
+		main._show_toast("Open the 3D window from DWSIM to import an object.")
+		return
+	if _prop_dialog == null:
+		_prop_dialog = FileDialog.new()
+		_prop_dialog.use_native_dialog = true
+		_prop_dialog.access = FileDialog.ACCESS_FILESYSTEM
+		_prop_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+		_prop_dialog.title = "Import a 3D model as an object of the site"
+		_prop_dialog.filters = PackedStringArray(main.plant_model.FILTERS)
+		_prop_dialog.file_selected.connect(func(path: String): _send({"type": "prop.import", "path": path}))
+		add_child(_prop_dialog)
+	_prop_dialog.popup_centered(Vector2i(900, 600))
+
+
+## The panel that changes a prop of the library: name, category, cost and height.
+func _edit_prop(k: String) -> void:
+	var e := SiteObjects.entry(k)
+	if e.is_empty():
+		return
+	_prop_kind = k
+	if _prop_panel == null:
+		_prop_panel = PopupPanel.new()
+		_prop_panel.name = "prop_panel"
+		var v := VBoxContainer.new()
+		v.custom_minimum_size = Vector2(300, 0)
+		_prop_panel.add_child(v)
+		var g := GridContainer.new()
+		g.columns = 2
+		v.add_child(g)
+		var lab := func(t: String):
+			var l := Label.new()
+			l.text = t
+			g.add_child(l)
+		lab.call("Name")
+		_prop_name = LineEdit.new()
+		_prop_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		g.add_child(_prop_name)
+		lab.call("Category")
+		_prop_cat = OptionButton.new()
+		for c in PROP_CATEGORIES:
+			_prop_cat.add_item(c)
+		_prop_cat.tooltip_text = "The line of the budget (and of the TEA) the object counts in."
+		g.add_child(_prop_cat)
+		lab.call("Cost (USD)")
+		_prop_cost = SpinBox.new()
+		_prop_cost.max_value = 1.0e8
+		_prop_cost.step = 1.0
+		g.add_child(_prop_cost)
+		lab.call("Height (m)")
+		_prop_height = SpinBox.new()
+		_prop_height.min_value = 0.1
+		_prop_height.max_value = 500.0
+		_prop_height.step = 0.1
+		_prop_height.tooltip_text = "The model is scaled to this height, the same in every direction."
+		g.add_child(_prop_height)
+		var row := HBoxContainer.new()
+		v.add_child(row)
+		var save := Button.new()
+		save.text = "Save"
+		save.pressed.connect(_save_prop)
+		row.add_child(save)
+		var remove := Button.new()
+		remove.text = "Take out of the library"
+		remove.tooltip_text = "The simulations that use it keep a box of its size in its place."
+		remove.pressed.connect(func():
+			if _send({"type": "prop.remove", "kind": _prop_kind}):
+				_prop_panel.hide())
+		row.add_child(remove)
+		add_child(_prop_panel)
+	_prop_name.text = str(e.get("name", ""))
+	_prop_cat.select(maxi(PROP_CATEGORIES.find(str(e.get("cat", "Utilities"))), 0))
+	_prop_cost.value = float(e.get("cost", 0.0))
+	_prop_height.value = float(e.get("h", 1.0))
+	_prop_panel.popup_centered()
+
+
+func _save_prop() -> void:
+	var e := SiteObjects.entry(_prop_kind)
+	var m := {"type": "prop.edit", "kind": _prop_kind, "name": _prop_name.text, "cat": PROP_CATEGORIES[_prop_cat.selected], "cost": _prop_cost.value}
+	if absf(_prop_height.value - float(e.get("h", 0.0))) > 0.005:
+		m["height"] = _prop_height.value
+	if _send(m):
+		_prop_panel.hide()

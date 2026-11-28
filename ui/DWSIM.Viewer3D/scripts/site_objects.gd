@@ -173,6 +173,8 @@ static var _scenes := {}
 static var terrain = null
 static var _mats := {}
 static var _catalog := {}
+## The models of the user's props, loaded once per file and copied for each object.
+static var _user_models := {}
 
 
 ## The catalog the window got from DWSIM: kind -> entry (name, cat, shape, w, d, h, cost, unit).
@@ -442,6 +444,8 @@ static func build(node: Node3D, it: Dictionary) -> void:
 	if kind == "controlroom":
 		ControlRoomModel.build(body)
 		node.set_meta("door", ControlRoomModel.DOOR * scale)
+	elif kind.begins_with("user:"):
+		_user(body, kind)
 	elif MODELS.has(look):
 		_model(body, MODELS[look])
 	elif MODELS.has(kind):
@@ -1144,3 +1148,56 @@ static func _signed_area(flat: PackedVector2Array) -> float:
 		var b := flat[(i + 1) % flat.size()]
 		s += a.x * b.y - b.x * a.y
 	return s / 2.0
+
+
+# --- the user's own props --------------------------------------------------------------------------
+
+## Forgets the loaded models of the user's props (the library changed).
+static func clear_user_models() -> void:
+	for n in _user_models.values():
+		if n != null:
+			(n as Node).free()
+	_user_models.clear()
+
+
+static func _load_glb(path: String) -> Node3D:
+	if not FileAccess.file_exists(path):
+		return null
+	var doc := GLTFDocument.new()
+	var state := GLTFState.new()
+	if doc.append_from_file(path, state) != OK:
+		return null
+	return doc.generate_scene(state) as Node3D
+
+
+## A prop of the user's library: its model (metres, the origin at the middle of its base), or a
+## see-through box of its size with a question mark when this computer's library does not have it.
+## Far away a prop is not drawn, so that a forest of detailed trees does not weigh on the plant.
+static func _user(parent: Node3D, kind: String) -> void:
+	var e := entry(kind)
+	var size := Vector3(maxf(float(e.get("w", 1.0)), 0.1), maxf(float(e.get("h", 1.0)), 0.1), maxf(float(e.get("d", 1.0)), 0.1))
+	var path := str(e.get("glb", ""))
+	var model: Node3D = null
+	if path != "" and not bool(e.get("missing", false)):
+		if not _user_models.has(path):
+			_user_models[path] = _load_glb(path)
+		model = _user_models[path]
+	if model == null:
+		var m := StandardMaterial3D.new()
+		m.albedo_color = Color(0.62, 0.68, 0.75, 0.55)
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_box(parent, size, Vector3(0, size.y / 2.0, 0), m)
+		var q := Label3D.new()
+		q.text = "?"
+		q.font_size = 96
+		q.pixel_size = maxf(size.y, 0.5) / 160.0
+		q.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		q.position = Vector3(0, size.y / 2.0, 0)
+		q.modulate = Color(0.15, 0.2, 0.28)
+		parent.add_child(q)
+		return
+	var n := model.duplicate() as Node3D
+	parent.add_child(n)
+	var reach := clampf(40.0 * maxf(size.y, maxf(size.x, size.z)), 80.0, 1500.0)
+	for g in n.find_children("*", "GeometryInstance3D", true, false):
+		(g as GeometryInstance3D).visibility_range_end = reach

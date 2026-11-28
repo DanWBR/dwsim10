@@ -86,6 +86,9 @@ namespace DWSIM.FluentAPI.Tests
             Assert.That(e.H, Is.EqualTo(7.0).Within(1e-3));
             Assert.That(PropLibrary.GuessCategory("Forklift truck"), Is.EqualTo(SiteCatalog.Vehicles));
             Assert.That(PropLibrary.GuessCategory("Pump skid"), Is.EqualTo(SiteCatalog.Utilities));
+            Assert.That(PropLibrary.GuessCategory("Jacaranda"), Is.EqualTo(SiteCatalog.Utilities), "a word that holds CAR is not a car");
+            Assert.That(PropLibrary.GuessCategory("Pine_Trees_02"), Is.EqualTo(SiteCatalog.Nature));
+            Assert.That(PropLibrary.GuessCategory("red car 3"), Is.EqualTo(SiteCatalog.Vehicles));
         }
 
         [Test]

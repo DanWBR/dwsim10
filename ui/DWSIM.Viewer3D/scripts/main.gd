@@ -456,8 +456,17 @@ func _on_message(m: Dictionary) -> void:
 			_show_toast("DWSIM: " + str(m.get("message", "")))
 		"model.status":
 			plant_model.on_status(m)
+		"site.catalog":
+			site_builder.set_catalog(m.get("site", []))
+			_rebuild_user_props()
+		"prop.status":
+			_show_toast(str(m.get("message", "")))
 		"model.groups":
 			model_review.on_groups(m)
+		"site.bar":
+			# window-only, from a messages file of the offline mode: the build bar open on a category
+			site_builder.open()
+			site_builder._open_category(str(m.get("category", "Buildings")))
 		"review.open":
 			# window-only, from a messages file of the offline mode: open the review on some groups
 			model_review.enter()
@@ -472,6 +481,18 @@ func _on_state(state: String) -> void:
 	if state == "closed":
 		# DWSIM went away: nothing left to show
 		get_tree().quit()
+
+
+## The user's props of the site drawn again, after the catalog changed (a prop brought in, resized
+## or taken out of the library).
+func _rebuild_user_props() -> void:
+	for id in entries.keys():
+		var e: Dictionary = entries[id]
+		var data: Dictionary = e.get("data", {})
+		if e.get("kind", "") == "item" and str(data.get("site", "")).begins_with("user:"):
+			_remove_entry(id)
+			entries.erase(id)
+			_add_item(data)
 
 
 func _load_scene(scene: Dictionary) -> void:

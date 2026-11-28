@@ -237,9 +237,11 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             var sb = new StringBuilder();
             foreach (var ch in u)
                 if (CharUnicodeInfo.GetUnicodeCategory(ch) != UnicodeCategory.NonSpacingMark) sb.Append(char.ToUpperInvariant(ch));
-            var text = sb.ToString();
+            // whole words: a short keyword is the word itself (CAR, not JACARANDA), a longer one may
+            // start it (TREES, BUILDINGS)
+            var words = sb.ToString().Split(new[] { ' ', '_', '-', '.', ',', '(', ')', '/', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' }, StringSplitOptions.RemoveEmptyEntries);
             foreach (var w in Words)
-                if (w.Value.Any(x => text.Contains(x))) return w.Key;
+                if (words.Any(word => w.Value.Any(x => word == x || x.Length >= 4 && word.StartsWith(x, StringComparison.Ordinal)))) return w.Key;
             return SiteCatalog.Utilities;
         }
 
