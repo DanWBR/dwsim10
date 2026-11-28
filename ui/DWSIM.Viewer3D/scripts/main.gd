@@ -1311,6 +1311,9 @@ func _update_title() -> void:
 			text += " (loading)"
 		elif not bool(plant_model.info.get("found", true)) and str(plant_model.info.get("glb", "")) == "":
 			text += " (file not found)"
+		var c: String = plant_model.counts()
+		if c != "":
+			text += " (" + c + ")"
 	if plant_model != null and plant_model.status != "":
 		text += "\n" + plant_model.status
 	if state != "connected":

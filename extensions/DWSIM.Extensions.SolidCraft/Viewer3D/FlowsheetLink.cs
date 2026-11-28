@@ -365,20 +365,83 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                 try
                 {
                     var r = ModelImport.ModelImporter.Import(path, null, flowsheetPath);
+                    var stored = new ModelImport.PlantModelImport { Model = r.Reference };
+                    List<ModelImport.SegmentGroup> segments;
+                    stored.Groups = ModelImport.ModelAnalysis.Analyze(null, r, FlowsheetUnits(), out segments);
                     OnUi(() =>
                     {
                         lock (gate)
                         {
                             Remember();
-                            ModelImport.ModelStore.Save(fs, new ModelImport.PlantModelImport { Model = r.Reference });
+                            ModelImport.ModelStore.Save(fs, stored);
                         }
                     });
                     wake.Set();
-                    ModelStatus("done", Summary(r));
+                    ModelStatus("done", Summary(r) + " " + ModelImport.ModelAnalysis.Summary(stored.Groups, segments));
                 }
                 catch (Exception ex)
                 {
                     ModelStatus("failed", "DWSIM could not import " + Path.GetFileName(path) + ": " + (ex.InnerException?.Message ?? ex.Message));
+                }
+                finally { Interlocked.Exchange(ref importing, 0); }
+            });
+            return null;
+        }
+
+        /// <summary>The flowsheet's unit operations as the matching sees them, read on the interface thread.</summary>
+        List<ModelImport.FlowsheetUnit> FlowsheetUnits()
+        {
+            List<ModelImport.FlowsheetUnit> units = null;
+            OnUi(() =>
+            {
+                lock (gate) units = ModelImport.ModelMatching.Units(fs, SceneBuilder.Model(fs));
+            });
+            return units ?? new List<ModelImport.FlowsheetUnit>();
+        }
+
+        /// <summary>
+        /// Proposes again, for the equipment groups of the flowsheet's plant model, the objects
+        /// they stand for (after the flowsheet changed); the objects the user chose stay.
+        /// </summary>
+        JObject StartSuggest()
+        {
+            if (Interlocked.CompareExchange(ref importing, 1, 0) != 0) return Error("the plant model is busy", SceneProtocol.ModelSuggest);
+            ModelImport.PlantModelImport stored = null;
+            try { OnUi(() => stored = ModelImport.ModelStore.Load(fs)); }
+            catch (Exception) { }
+            if (stored == null)
+            {
+                Interlocked.Exchange(ref importing, 0);
+                return Error("the flowsheet does not have a plant model", SceneProtocol.ModelSuggest);
+            }
+            var index = ModelImport.ModelImporter.Cached(stored.Model);
+            if (index == null)
+            {
+                Interlocked.Exchange(ref importing, 0);
+                return Error("the plant model is not ready yet", SceneProtocol.ModelSuggest);
+            }
+            ModelStatus("importing", "Matching the plant model with the flowsheet...");
+            Task.Run(() =>
+            {
+                try
+                {
+                    List<ModelImport.SegmentGroup> segments;
+                    var groups = ModelImport.ModelAnalysis.Analyze(stored, index, FlowsheetUnits(), out segments);
+                    OnUi(() =>
+                    {
+                        lock (gate)
+                        {
+                            Remember();
+                            stored.Groups = groups;
+                            ModelImport.ModelStore.Save(fs, stored);
+                        }
+                    });
+                    wake.Set();
+                    ModelStatus("done", ModelImport.ModelAnalysis.Summary(groups, segments));
+                }
+                catch (Exception ex)
+                {
+                    ModelStatus("failed", "DWSIM could not match the plant model: " + (ex.InnerException?.Message ?? ex.Message));
                 }
                 finally { Interlocked.Exchange(ref importing, 0); }
             });
@@ -484,10 +547,10 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                 Captured(message);
                 return null;
             }
-            if (type == SceneProtocol.ModelImport)
+            if (type == SceneProtocol.ModelImport || type == SceneProtocol.ModelSuggest)
             {
                 // reading a plant model takes seconds: it runs apart, and the window hears of it
-                answer = StartImport(message) ?? SceneProtocol.Message(SceneProtocol.Ack);
+                answer = (type == SceneProtocol.ModelImport ? StartImport(message) : StartSuggest()) ?? SceneProtocol.Message(SceneProtocol.Ack);
                 if (message["ref"] != null) answer["ref"] = message["ref"].DeepClone();
                 if (answer["for"] == null) answer["for"] = type;
                 Send(answer);

@@ -20,6 +20,7 @@ var main: Node
 var _thread: Thread
 var _root: Node3D
 var _remove_button: Button
+var _match_button: Button
 var _model_box: CheckBox
 var _equipment_box: CheckBox
 var _dialog: FileDialog
@@ -132,6 +133,14 @@ func add_rows(g: GridContainer, owner_main: Node) -> void:
 		if main.link != null:
 			main.link.send({"type": "model.remove"}))
 	row.add_child(_remove_button)
+	_match_button = Button.new()
+	_match_button.text = "Match"
+	_match_button.focus_mode = Control.FOCUS_NONE
+	_match_button.tooltip_text = "Proposes again which flowsheet object each equipment of the model stands for (after the flowsheet changed). The choices already made stay."
+	_match_button.pressed.connect(func():
+		if main.link != null:
+			main.link.send({"type": "model.suggest"}))
+	row.add_child(_match_button)
 	_label(g, "Show")
 	var srow := HBoxContainer.new()
 	srow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -153,6 +162,7 @@ func _refresh_rows() -> void:
 		return
 	var any := not info.is_empty()
 	_remove_button.disabled = not any
+	_match_button.disabled = not any
 	_model_box.disabled = not any
 
 
@@ -189,6 +199,16 @@ func _ask_file() -> void:
 			main.link.send({"type": "model.import", "path": path}))
 		add_child(_dialog)
 	_dialog.popup_centered(Vector2i(900, 600))
+
+
+## What the matching found, for the status line: "61 equipment, 57 proposed".
+func counts() -> String:
+	if info.is_empty() or int(info.get("equipment", 0)) == 0:
+		return ""
+	var t := "%d equipment, %d proposed" % [int(info.get("equipment", 0)), int(info.get("proposed", 0))]
+	if int(info.get("chosen", 0)) > 0:
+		t += ", %d chosen" % int(info.get("chosen", 0))
+	return t
 
 
 ## A message of DWSIM about an import: the status line says how it goes.

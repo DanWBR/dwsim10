@@ -37,6 +37,8 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
         public double[] Min, Max, Centroid;
         /// <summary>The surface area, m².</summary>
         public double Area;
+        /// <summary>What the island looks like (see <see cref="IslandShapes"/>), once it is classified.</summary>
+        public IslandShape Shape;
 
         public double[] Size => new[] { Max[0] - Min[0], Max[1] - Min[1], Max[2] - Min[2] };
     }

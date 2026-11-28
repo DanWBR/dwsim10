@@ -111,6 +111,12 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
         /// </summary>
         public const string ModelImport = "model.import";
 
+        /// <summary>
+        /// Proposes again the flowsheet objects for the equipment groups of the plant model (after the
+        /// flowsheet changed); runs apart, like <see cref="ModelImport"/>.
+        /// </summary>
+        public const string ModelSuggest = "model.suggest";
+
         /// <summary>The flowsheet stops using its 3D model of the plant (the file and the cache stay).</summary>
         public const string ModelRemove = "model.remove";
 

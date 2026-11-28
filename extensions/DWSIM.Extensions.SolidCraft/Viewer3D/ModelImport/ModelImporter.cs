@@ -40,6 +40,9 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
         public string IndexPath => Path.Combine(CacheFolder, "index.json");
         /// <summary>The triangles and the parts of the model.</summary>
         public int Triangles, Parts;
+        /// <summary>The name of each part, and its path in the file's tree when the file has one (else null).</summary>
+        public List<string> PartNames = new List<string>();
+        public List<string[]> PartPaths = new List<string[]>();
         /// <summary>True when the cache of an earlier import was used as it was.</summary>
         public bool FromCache;
         public List<string> Warnings = new List<string>();
@@ -53,7 +56,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
     public static class ModelImporter
     {
         /// <summary>The version of what the cache holds; a cache of another version is made again.</summary>
-        public const int CacheVersion = 2;
+        public const int CacheVersion = 3;
 
         public static readonly string[] Extensions = { ".glb", ".gltf", ".obj", ".stl", ".ply", ".fbx", ".dwf", ".dwfx" };
 
@@ -164,19 +167,16 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
                 }
             }
             var result = new ModelImportResult { Reference = reference, CacheFolder = CacheFolder(reference) };
-            int triangles, parts;
-            var index = ReadIndex(result.IndexPath, reference, out triangles, out parts);
-            if (index != null && File.Exists(result.GlbPath) && File.Exists(result.ViewPath))
+            if (ReadIndex(result) && File.Exists(result.GlbPath) && File.Exists(result.ViewPath))
             {
-                result.Islands = index;
                 result.FromCache = true;
-                result.Triangles = triangles;
-                result.Parts = parts;
                 return result;
             }
             if (model == null) model = Read(path);
             if (!normalized) ModelGeometry.Normalize(model, reference.Place);
             var islands = ModelGeometry.Islands(model, reference.WeldTolerance);
+            var shapes = IslandShapes.Classify(model, islands);
+            for (var i = 0; i < islands.Count; i++) islands[i].Shape = shapes[i];
             Directory.CreateDirectory(result.CacheFolder);
             GlbWriter.WriteIslands(model, islands, result.GlbPath);
             GlbWriter.WriteTiles(model, result.ViewPath);
@@ -185,6 +185,8 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
             result.Islands = islands;
             result.Triangles = model.TriangleCount;
             result.Parts = model.Parts.Count;
+            result.PartNames = model.Parts.Select(x => x.Name).ToList();
+            result.PartPaths = model.Parts.Select(x => x.Path).ToList();
             result.Warnings.AddRange(model.Warnings);
             return result;
         }
@@ -217,15 +219,28 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
                 ["min"] = new JArray(min.Select(R)),
                 ["max"] = new JArray(max.Select(R)),
                 ["parts"] = new JArray(model.Parts.Select(p => p.Name)),
-                ["islands"] = new JArray(islands.Select(i => new JObject
+                ["paths"] = new JArray(model.Parts.Select(p => p.Path == null ? (JToken)JValue.CreateNull() : new JArray(p.Path))),
+                ["islands"] = new JArray(islands.Select(i =>
                 {
-                    ["i"] = i.Index,
-                    ["part"] = i.Part,
-                    ["tris"] = i.Triangles.Length,
-                    ["area"] = R(i.Area),
-                    ["min"] = new JArray(i.Min.Select(R)),
-                    ["max"] = new JArray(i.Max.Select(R)),
-                    ["c"] = new JArray(i.Centroid.Select(R))
+                    var j = new JObject
+                    {
+                        ["i"] = i.Index,
+                        ["part"] = i.Part,
+                        ["tris"] = i.Triangles.Length,
+                        ["area"] = R(i.Area),
+                        ["min"] = new JArray(i.Min.Select(R)),
+                        ["max"] = new JArray(i.Max.Select(R)),
+                        ["c"] = new JArray(i.Centroid.Select(R))
+                    };
+                    if (i.Shape != null)
+                    {
+                        j["k"] = (int)i.Shape.Class;
+                        j["ax"] = new JArray(i.Shape.Axis.Select(x => Math.Round(x, 4)));
+                        j["len"] = R(i.Shape.Length);
+                        j["r"] = R(i.Shape.Radius);
+                        j["ext"] = new JArray(i.Shape.Extents.Select(R));
+                    }
+                    return j;
                 }))
             };
             File.WriteAllText(path, o.ToString(Formatting.None));
@@ -233,18 +248,21 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
 
         static double R(double d) => Math.Round(d, 5);
 
-        /// <summary>The islands of a cache index (without their triangles), or null when it does not fit the reference.</summary>
-        static List<Island> ReadIndex(string path, ModelReference r, out int triangles, out int parts)
+        /// <summary>Fills a result from its cache index (islands without their triangles, with their shapes; the parts); false when it does not fit the reference.</summary>
+        static bool ReadIndex(ModelImportResult result)
         {
-            triangles = parts = 0;
-            if (!File.Exists(path)) return null;
+            var path = result.IndexPath;
+            var r = result.Reference;
+            if (!File.Exists(path)) return false;
             try
             {
                 var o = JObject.Parse(File.ReadAllText(path));
-                if ((int?)o["v"] != CacheVersion || (string)o["sha"] != r.Sha256) return null;
-                triangles = (int?)o["triangles"] ?? 0;
-                parts = (o["parts"] as JArray)?.Count ?? 0;
-                return ((JArray)o["islands"]).Select(t => new Island
+                if ((int?)o["v"] != CacheVersion || (string)o["sha"] != r.Sha256) return false;
+                result.Triangles = (int?)o["triangles"] ?? 0;
+                result.PartNames = (o["parts"] as JArray ?? new JArray()).Select(t => (string)t).ToList();
+                result.Parts = result.PartNames.Count;
+                result.PartPaths = (o["paths"] as JArray ?? new JArray()).Select(t => t.Type == JTokenType.Array ? t.Select(x => (string)x).ToArray() : null).ToList();
+                result.Islands = ((JArray)o["islands"]).Select(t => new Island
                 {
                     Index = (int)t["i"],
                     Part = (int)t["part"],
@@ -252,10 +270,26 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
                     Area = (double)t["area"],
                     Min = t["min"].Select(x => (double)x).ToArray(),
                     Max = t["max"].Select(x => (double)x).ToArray(),
-                    Centroid = t["c"].Select(x => (double)x).ToArray()
+                    Centroid = t["c"].Select(x => (double)x).ToArray(),
+                    Shape = t["k"] == null ? null : new IslandShape
+                    {
+                        Class = (ShapeClass)(int)t["k"],
+                        Axis = t["ax"].Select(x => (double)x).ToArray(),
+                        Length = (double)t["len"],
+                        Radius = (double)t["r"],
+                        Extents = t["ext"].Select(x => (double)x).ToArray()
+                    }
                 }).ToList();
+                return true;
             }
-            catch { return null; }
+            catch { return false; }
+        }
+
+        /// <summary>The cached index of a reference (islands with shapes, parts and paths), or null when the cache is not there.</summary>
+        public static ModelImportResult Cached(ModelReference r)
+        {
+            var result = new ModelImportResult { Reference = r, CacheFolder = CacheFolder(r) };
+            return ReadIndex(result) ? result : null;
         }
 
         static string Relative(string flowsheetPath, string target)
@@ -340,10 +374,17 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
     {
         [JsonProperty("id")] public string Id;
         [JsonProperty("islands")] public List<int> Islands = new List<int>();
-        /// <summary>The shape class the importer found (column, vessel, pipe, structure...).</summary>
+        /// <summary>The name the model gives the group (a node of its tree), and the tag read from it.</summary>
+        [JsonProperty("name", NullValueHandling = NullValueHandling.Ignore)] public string Name;
+        [JsonProperty("tag", NullValueHandling = NullValueHandling.Ignore)] public string Tag;
+        /// <summary>The kind of equipment the segmentation found (column, vessel, pump...).</summary>
         [JsonProperty("class", NullValueHandling = NullValueHandling.Ignore)] public string Class;
-        /// <summary>The flowsheet object (GraphicObject.Name) the group stands for, or null.</summary>
+        /// <summary>The flowsheet object (GraphicObject.Name) the user said the group stands for, or null.</summary>
         [JsonProperty("object", NullValueHandling = NullValueHandling.Ignore)] public string Object;
+        /// <summary>The object the matching proposes, how sure it is (0 to 1) and why.</summary>
+        [JsonProperty("suggested", NullValueHandling = NullValueHandling.Ignore)] public string Suggested;
+        [JsonProperty("score", NullValueHandling = NullValueHandling.Ignore)] public double? Score;
+        [JsonProperty("why", NullValueHandling = NullValueHandling.Ignore)] public string Why;
         /// <summary>equipment, piping, structure, scenery or hidden.</summary>
         [JsonProperty("role")] public string Role = "scenery";
     }

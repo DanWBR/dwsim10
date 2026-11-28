@@ -162,7 +162,10 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                 ["name"] = System.IO.Path.GetFileName(m.Model.Path ?? ""),
                 ["sha"] = m.Model.Sha256,
                 ["glb"] = view != null && System.IO.File.Exists(view) ? view.Replace(System.IO.Path.DirectorySeparatorChar, '/') : null,
-                ["found"] = file != null
+                ["found"] = file != null,
+                ["equipment"] = m.Groups.Count(g => g.Role == "equipment"),
+                ["proposed"] = m.Groups.Count(g => g.Suggested != null),
+                ["chosen"] = m.Groups.Count(g => g.Object != null)
             };
         }
 

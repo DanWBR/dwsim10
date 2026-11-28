@@ -844,6 +844,8 @@ Connections:  {
 
             var stored = ModelStore.Load(fs.Inner);
             Assert.That(stored, Is.Not.Null);
+            Assert.That(stored.Groups.Count(g => g.Role == "equipment"), Is.EqualTo(3), "the column, the drum and the pump are found at import");
+            Assert.That((string)status["message"], Does.Contain("equipment"));
             Assert.That(stored.Model.Place.Offset[0], Is.EqualTo(-1000 - 9.25).Within(0.01), "the middle of the plan goes to the origin");
             Assert.That(stored.Model.Place.Offset[2], Is.EqualTo(-60).Within(0.01), "the lowest point goes to the ground");
 
@@ -894,6 +896,153 @@ Connections:  {
             GlbWriter.WriteProp(box, "box", bp);
             var read = GltfReader.Read(bp);
             Assert.That(read.Parts[0].VertexCount, Is.EqualTo(24), "eight corners, three faces each");
+        }
+            // ---- M2: shapes, groups and the matching with the flowsheet ----
+
+        /// <summary>The plant as one mesh, through an import (islands and their shapes in the cache).</summary>
+        ModelImportResult MergedPlant()
+        {
+            var glb = Path.Combine(_dir, "merged-plant.glb");
+            GlbWriter.WriteProp(Plant(), "Plant", glb);
+            return ModelImporter.Import(glb);
+        }
+
+        [Test]
+        public void IslandsAreClassifiedByShape()
+        {
+            var plant = Plant();
+            var islands = ModelGeometry.Islands(plant);
+            var shapes = IslandShapes.Classify(plant, islands);
+            Assert.That(shapes[0].Class, Is.EqualTo(ShapeClass.Column), "C-1, 2 m by 20 m, standing");
+            Assert.That(shapes[0].Radius, Is.EqualTo(1).Within(0.05));
+            Assert.That(shapes[0].Length, Is.EqualTo(20).Within(0.1));
+            Assert.That(shapes[1].Class, Is.EqualTo(ShapeClass.HorizontalVessel), "D-1, lying");
+            Assert.That(shapes[2].Class, Is.EqualTo(ShapeClass.Box), "P-1");
+            Assert.That(shapes[3].Class, Is.EqualTo(ShapeClass.Pipe), "L-1");
+            Assert.That(shapes[4].Class, Is.EqualTo(ShapeClass.Pipe), "L-2");
+
+            // the cache keeps them
+            var r = MergedPlant();
+            var again = ModelImporter.Cached(r.Reference);
+            Assert.That(again.Islands.Select(i => i.Shape.Class).OrderBy(c => c), Is.EqualTo(shapes.Select(s => s.Class).OrderBy(c => c)));
+        }
+
+        [Test]
+        public void AMeshWithoutATreeIsGroupedByItsShapes()
+        {
+            var groups = ModelSegmentation.Groups(MergedPlant());
+            var eq = groups.Where(g => g.Role == "equipment").ToList();
+            Assert.That(eq.Count, Is.EqualTo(3), "the column, the drum and the pump");
+            var column = eq.Single(g => g.Category == "column");
+            var drum = eq.Single(g => g.Category == "vessel");
+            var pump = eq.Single(g => g.Body == ShapeClass.Box);
+            Assert.That(column.Vertical, Is.True);
+            Assert.That(column.Length, Is.EqualTo(20).Within(0.2));
+            Assert.That(drum.Vertical, Is.False);
+            Assert.That(groups.Count(g => g.Role == "piping"), Is.EqualTo(2), "the two lines");
+            Assert.That(column.Neighbours, Is.EquivalentTo(new[] { drum.Id }), "L-1 joins the column and the drum");
+            Assert.That(drum.Neighbours, Is.EquivalentTo(new[] { column.Id, pump.Id }));
+        }
+
+        [Test]
+        public void AModelWithATreeIsGroupedByItsTagsAndWords()
+        {
+            var m = new ImportedModel { Format = "test", Up = UpAxis.Z, Units = ModelUnits.Meters };
+            m.Materials.Add(new ModelMaterial());
+            Action<MeshPart, string[]> add = (p, path) => { p.Path = path; p.Name = path.Last(); m.Parts.Add(p); };
+            add(Cylinder("shell", new[] { 0.0, 0, 0 }, new[] { 0.0, 0, 6 }, 1.0, 0), new[] { "Plant", "/AREA/EQUIPAMENTOS", "/AREA/VASOS", "/V-101", "/V-101/CORPO" });
+            add(Cylinder("nozzle", new[] { 1.0, 0, 3 }, new[] { 1.4, 0, 3 }, 0.1, 0), new[] { "Plant", "/AREA/EQUIPAMENTOS", "/AREA/VASOS", "/V-101", "/V-101/BOCAIS" });
+            add(Box("pump", new[] { 5.0, 0, 0 }, new[] { 6.0, 1, 1 }, 0), new[] { "Plant", "/AREA/EQUIPAMENTOS", "/AREA/BOMBAS", "/P-102A", "/P-102A/CORPO" });
+            add(Cylinder("pipe", new[] { 1.4, 0, 3 }, new[] { 5.0, 0, 0.5 }, 0.1, 0), new[] { "Plant", "/AREA/TUBULACAO", "/AREA/LINHAS-P", "/4\"-P-001", "/4\"-P-001/B1", "TUBE 1 of BRANCH" });
+            add(Box("beam", new[] { -5.0, -5, 5 }, new[] { 5.0, -4.8, 5.2 }, 0), new[] { "Plant", "/AREA/ESTRUTURAS", "/AREA/PIPE-RACK", "/PR-1" });
+            add(Box("slab", new[] { -10.0, -10, -0.2 }, new[] { 10.0, 10, 0 }, 0), new[] { "Plant", "/AREA/CIVIL", "/AREA/PISOS", "/PISO-1" });
+            var path = Path.Combine(_dir, "tree.glb");
+            // the tree goes through the importer as a DWF would bring it: built here on the result
+            var islands = ModelGeometry.Islands(m);
+            var shapes = IslandShapes.Classify(m, islands);
+            for (var i = 0; i < islands.Count; i++) islands[i].Shape = shapes[i];
+            var index = new ModelImportResult { Islands = islands, Parts = m.Parts.Count, PartNames = m.Parts.Select(p => p.Name).ToList(), PartPaths = m.Parts.Select(p => p.Path).ToList() };
+            var groups = ModelSegmentation.Groups(index);
+
+            var v = groups.Single(g => g.Tag == "V-101");
+            Assert.That(v.Role, Is.EqualTo("equipment"));
+            Assert.That(v.Islands.Count, Is.EqualTo(2), "the shell and its nozzle are one vessel");
+            Assert.That(v.Category, Is.EqualTo("vessel"));
+            var p = groups.Single(g => g.Tag == "P-102A");
+            Assert.That(p.Category, Is.EqualTo("pump"));
+            Assert.That(groups.Single(g => g.Role == "piping").Name, Is.EqualTo("/4\"-P-001"));
+            Assert.That(groups.Single(g => g.Role == "structure").Name, Is.EqualTo("/PR-1"));
+            Assert.That(groups.Single(g => g.Role == "scenery").Name, Is.EqualTo("/PISO-1"));
+            Assert.That(v.Neighbours, Is.EquivalentTo(new[] { p.Id }), "the line joins the vessel and the pump");
+        }
+
+        [Test]
+        public void TheMatchingUsesKindsPlacesAndLinesWithoutTags()
+        {
+            var groups = ModelSegmentation.Groups(MergedPlant());
+            var eq = groups.Where(g => g.Role == "equipment").ToList();
+            var column = eq.Single(g => g.Category == "column");
+            var drum = eq.Single(g => g.Category == "vessel");
+            var pump = eq.Single(g => g.Body == ShapeClass.Box);
+            // the canvas turned a quarter turn from the plan, with a second pump that nothing joins, far off
+            var units = new List<FlowsheetUnit>
+            {
+                new FlowsheetUnit { Name = "a", Tag = "T-10", Category = "column", X = 0, Y = 0, Length = 18, Diameter = 2.2, Vertical = true },
+                new FlowsheetUnit { Name = "b", Tag = "V-20", Category = "vessel", X = 0, Y = -110, Length = 5, Diameter = 2, Vertical = false },
+                new FlowsheetUnit { Name = "c", Tag = "B-30", Category = "pump", X = 0, Y = -190, Length = 1.5, Diameter = 1 },
+                new FlowsheetUnit { Name = "d", Tag = "B-99", Category = "pump", X = 400, Y = 300, Length = 1.5, Diameter = 1 }
+            };
+            units[0].Neighbours.Add("b");
+            units[1].Neighbours.Add("a");
+            units[1].Neighbours.Add("c");
+            units[2].Neighbours.Add("b");
+            var s = ModelMatching.Suggest(groups, units).ToDictionary(x => x.Group);
+            Assert.That(s[column.Id].Object, Is.EqualTo("a"));
+            Assert.That(s[drum.Id].Object, Is.EqualTo("b"));
+            Assert.That(s[pump.Id].Object, Is.EqualTo("c"), "the pump joined to the drum, not the one far off");
+            Assert.That(s[pump.Id].Why, Does.Contain("joined like the streams"));
+
+            // a tag in the model decides, and an object the user chose is not proposed again
+            column.Tag = "B-99";
+            var t = ModelMatching.Suggest(groups, units, new Dictionary<string, string> { [drum.Id] = "b" }).ToDictionary(x => x.Group);
+            Assert.That(t[column.Id].Object, Is.EqualTo("d"));
+            Assert.That(t[column.Id].Why, Does.Contain("same tag"));
+            Assert.That(t.ContainsKey(drum.Id), Is.False);
+            Assert.That(t.Values.Any(x => x.Object == "b"), Is.False);
+        }
+
+        [Test]
+        public void HungarianFindsTheBestAssignment()
+        {
+            var a = ModelMatching.Hungarian(new double[,] { { 1, 9, 2 }, { 8, 7, 1 }, { 2, 8, 9 } });
+            Assert.That(a, Is.EqualTo(new[] { 1, 0, 2 }), "9 + 8 + 9");
+            var wide = ModelMatching.Hungarian(new double[,] { { 1, 5, 3, 4 } });
+            Assert.That(wide, Is.EqualTo(new[] { 1 }));
+            var tall = ModelMatching.Hungarian(new double[,] { { 1 }, { 6 }, { 3 } });
+            Assert.That(tall, Is.EqualTo(new[] { -1, 0, -1 }));
+        }
+
+        [Test]
+        public void FlowsheetUnitsHaveKindsAndNeighboursThroughValves()
+        {
+            var fs = Flowsheet.Create("units").WithCompound("Water").WithPropertyPackage(PropertyPackages.SteamTables);
+            var feed = fs.AddMaterialStream("1").At(300.Kelvin(), 101325.0.Pascal()).WithMassFlow(1.KgPerSecond());
+            var s2 = fs.AddMaterialStream("2");
+            var s3 = fs.AddMaterialStream("3");
+            var s4 = fs.AddMaterialStream("4");
+            var s5 = fs.AddMaterialStream("5");
+            fs.AddPump("P-1").ConnectFeed(feed, 0).ConnectProduct(s2, 0);
+            fs.AddValve("FV-1").ConnectFeed(s2, 0).ConnectProduct(s3, 0);
+            fs.AddSeparator("V-1").ConnectFeed(s3, 0).ConnectProduct(s4, 0).ConnectProduct(s5, 1);
+            fs.AutoLayout();
+            var units = ModelMatching.Units(fs.Inner, SceneBuilder.Model(fs.Inner));
+            Assert.That(units.Select(u => u.Tag), Is.EquivalentTo(new[] { "P-1", "V-1" }), "the valve is not equipment one matches");
+            var pump = units.Single(u => u.Tag == "P-1");
+            var vessel = units.Single(u => u.Tag == "V-1");
+            Assert.That(pump.Category, Is.EqualTo("pump"));
+            Assert.That(vessel.Category, Is.EqualTo("vessel"));
+            Assert.That(vessel.Length, Is.GreaterThan(0));
+            Assert.That(pump.Neighbours, Is.EquivalentTo(new[] { vessel.Name }), "the stream reaches the vessel through the valve");
         }
     }
 }
