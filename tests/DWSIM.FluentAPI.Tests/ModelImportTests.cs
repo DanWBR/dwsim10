@@ -127,9 +127,9 @@ namespace DWSIM.FluentAPI.Tests
             var m = new ImportedModel { Format = "test", Up = UpAxis.Z, Units = ModelUnits.Meters };
             m.Materials.Add(new ModelMaterial { Name = "steel", Color = new[] { 0.6f, 0.6f, 0.62f, 1f }, Metallic = 0.8f, Roughness = 0.4f });
             m.Materials.Add(new ModelMaterial { Name = "painted", Color = new[] { 0.2f, 0.4f, 0.8f, 1f } });
-            m.Parts.Add(Cylinder("C-1", new[] { 0.0, 0, 0 }, new[] { 0.0, 0, 20 }, 1.0, 0));
-            m.Parts.Add(Cylinder("D-1", new[] { 8.0, 0, 2 }, new[] { 14.0, 0, 2 }, 1.0, 0));
-            m.Parts.Add(Box("P-1", new[] { 18.0, -0.5, 0 }, new[] { 19.5, 0.5, 1 }, 1));
+            m.Parts.Add(Cylinder("C-101", new[] { 0.0, 0, 0 }, new[] { 0.0, 0, 20 }, 1.0, 0));
+            m.Parts.Add(Cylinder("D-102", new[] { 8.0, 0, 2 }, new[] { 14.0, 0, 2 }, 1.0, 0));
+            m.Parts.Add(Box("P-103", new[] { 18.0, -0.5, 0 }, new[] { 19.5, 0.5, 1 }, 1));
             m.Parts.Add(Cylinder("L-1", new[] { 1.0, 0, 15 }, new[] { 8.0, 0, 2.5 }, 0.1, 0));
             m.Parts.Add(Cylinder("L-2", new[] { 14.0, 0, 1.5 }, new[] { 18.0, 0, 0.5 }, 0.08, 0));
             return m;
@@ -365,7 +365,7 @@ namespace DWSIM.FluentAPI.Tests
             var obj = Path.Combine(_dir, "plant.obj");
             WriteObj(ToFileFrame(Plant(), 1000, true), obj, false);
             var m = ObjReader.Read(obj);
-            Assert.That(m.Parts.Select(p => p.Name), Is.EqualTo(new[] { "C-1", "D-1", "P-1", "L-1", "L-2" }));
+            Assert.That(m.Parts.Select(p => p.Name), Is.EqualTo(new[] { "C-101", "D-102", "P-103", "L-1", "L-2" }));
             Assert.That(m.Materials.Select(x => x.Name), Is.EqualTo(new[] { "steel", "painted" }));
             Assert.That(m.Materials[m.Parts[2].Material].Color[2], Is.EqualTo(0.8f).Within(1e-4));
             Assert.That(m.Units, Is.EqualTo(ModelUnits.Unknown));
@@ -978,7 +978,7 @@ Connections:  {
         }
 
         [Test]
-        public void TheMatchingUsesKindsPlacesAndLinesWithoutTags()
+        public void TheMatchingTrustsTagsAndProposesOnlyClearCasesWithoutThem()
         {
             var groups = ModelSegmentation.Groups(MergedPlant());
             var eq = groups.Where(g => g.Role == "equipment").ToList();
@@ -989,7 +989,7 @@ Connections:  {
             var units = new List<FlowsheetUnit>
             {
                 new FlowsheetUnit { Name = "a", Tag = "T-10", Category = "column", X = 0, Y = 0, Length = 18, Diameter = 2.2, Vertical = true },
-                new FlowsheetUnit { Name = "b", Tag = "V-20", Category = "vessel", X = 0, Y = -110, Length = 5, Diameter = 2, Vertical = false },
+                new FlowsheetUnit { Name = "b", Tag = "V-20 (separador)", Category = "vessel", X = 0, Y = -110, Length = 5, Diameter = 2, Vertical = false },
                 new FlowsheetUnit { Name = "c", Tag = "B-30", Category = "pump", X = 0, Y = -190, Length = 1.5, Diameter = 1 },
                 new FlowsheetUnit { Name = "d", Tag = "B-99", Category = "pump", X = 400, Y = 300, Length = 1.5, Diameter = 1 }
             };
@@ -997,19 +997,41 @@ Connections:  {
             units[1].Neighbours.Add("a");
             units[1].Neighbours.Add("c");
             units[2].Neighbours.Add("b");
+            var right = new Dictionary<string, string> { [column.Id] = "a", [drum.Id] = "b", [pump.Id] = "c" };
+
+            // without tags, what is proposed is right, and the far pump is never proposed
+            foreach (var p in ModelMatching.Suggest(groups, units))
+                Assert.That(p.Object, Is.EqualTo(right[p.Group]), p.Group + ": " + p.Why);
+
+            // with tags: the same tag, a tag read from a name with words, a tag of the same family
+            column.Tag = "T-10";
+            drum.Tag = "V-20";
+            pump.Tag = "B-30A";
             var s = ModelMatching.Suggest(groups, units).ToDictionary(x => x.Group);
             Assert.That(s[column.Id].Object, Is.EqualTo("a"));
-            Assert.That(s[drum.Id].Object, Is.EqualTo("b"));
-            Assert.That(s[pump.Id].Object, Is.EqualTo("c"), "the pump joined to the drum, not the one far off");
-            Assert.That(s[pump.Id].Why, Does.Contain("joined like the streams"));
+            Assert.That(s[column.Id].Why, Does.Contain("same tag"));
+            Assert.That(s[drum.Id].Object, Is.EqualTo("b"), "V-20 is read from the name V-20 (separador)");
+            Assert.That(s[pump.Id].Object, Is.EqualTo("c"));
+            Assert.That(s[pump.Id].Why, Does.Contain("similar tag"));
+            Assert.That(s.Values.Any(x => x.Object == "d"), Is.False);
 
-            // a tag in the model decides, and an object the user chose is not proposed again
-            column.Tag = "B-99";
+            // an object the user chose is not proposed again, and the lines from it still count
             var t = ModelMatching.Suggest(groups, units, new Dictionary<string, string> { [drum.Id] = "b" }).ToDictionary(x => x.Group);
-            Assert.That(t[column.Id].Object, Is.EqualTo("d"));
-            Assert.That(t[column.Id].Why, Does.Contain("same tag"));
             Assert.That(t.ContainsKey(drum.Id), Is.False);
             Assert.That(t.Values.Any(x => x.Object == "b"), Is.False);
+            Assert.That(t[pump.Id].Why, Does.Contain("joined like the streams"), "the drum the user chose joins the pump to B-30");
+        }
+
+        [Test]
+        public void AModelNamedByPartsGivesTheGroupsTheirTags()
+        {
+            var glb = Path.Combine(_dir, "parts.glb");
+            GlbWriter.WriteParts(Plant(), glb);
+            var groups = ModelSegmentation.Groups(ModelImporter.Import(glb));
+            var tags = groups.Where(g => g.Role == "equipment").Select(g => g.Tag).ToList();
+            Assert.That(tags, Is.EquivalentTo(new[] { "C-101", "D-102", "P-103" }));
+            Assert.That(groups.Single(g => g.Tag == "D-102").Category, Is.EqualTo("vessel"));
+            Assert.That(groups.Single(g => g.Tag == "P-103").Category, Is.EqualTo("pump"));
         }
 
         [Test]
@@ -1062,11 +1084,11 @@ Connections:  {
             var s2 = fs.AddMaterialStream("2");
             var s3 = fs.AddMaterialStream("3");
             var s4 = fs.AddMaterialStream("4");
-            fs.AddSeparator("V-20").ConnectFeed(feed, 0).ConnectProduct(s2, 0).ConnectProduct(s3, 1);
-            fs.AddPump("B-30").ConnectFeed(s3, 0).ConnectProduct(s4, 0);
+            fs.AddSeparator("D-102").ConnectFeed(feed, 0).ConnectProduct(s2, 0).ConnectProduct(s3, 1);
+            fs.AddPump("P-103").ConnectFeed(s3, 0).ConnectProduct(s4, 0);
             fs.AutoLayout();
             var glb = Path.Combine(_dir, "review.glb");
-            GlbWriter.WriteProp(Plant(), "Plant", glb);
+            GlbWriter.WriteParts(Plant(), glb);
 
             var link = new FlowsheetLink(fs.Inner);
             var sent = new List<JObject>();
@@ -1088,17 +1110,17 @@ Connections:  {
 
             var payload = edit(SceneProtocol.ModelGroups, new JObject());
             Assert.That(payload["groups"].Count(), Is.EqualTo(5), "the three equipment groups and the two lines");
-            Assert.That(payload["units"].Select(u => (string)u["tag"]), Is.EquivalentTo(new[] { "B-30", "V-20" }));
+            Assert.That(payload["units"].Select(u => (string)u["tag"]), Is.EquivalentTo(new[] { "D-102", "P-103" }));
             var column = GroupOf(payload, g => (string)g["kind"] == "column");
             var drum = GroupOf(payload, g => (string)g["kind"] == "vessel");
             var pump = GroupOf(payload, g => (string)g["role"] == "equipment" && (string)g["kind"] != "column" && (string)g["kind"] != "vessel");
             var line = GroupOf(payload, g => (string)g["role"] == "piping");
-            Assert.That((string)drum["suggested"], Is.EqualTo(id("V-20")), "the drum is proposed for the separator");
+            Assert.That((string)drum["suggested"], Is.EqualTo(id("D-102")), "the drum is proposed for the separator of the same tag");
 
             // the user takes the proposal; the undo of the window takes it back
             payload = edit(SceneProtocol.ModelAssign, new JObject { ["group"] = drum["id"], ["accept"] = true });
-            Assert.That((string)GroupOf(payload, g => (string)g["id"] == (string)drum["id"])["object"], Is.EqualTo(id("V-20")));
-            Assert.That(ModelStore.Load(fs.Inner).Groups.Single(g => g.Id == (string)drum["id"]).Object, Is.EqualTo(id("V-20")));
+            Assert.That((string)GroupOf(payload, g => (string)g["id"] == (string)drum["id"])["object"], Is.EqualTo(id("D-102")));
+            Assert.That(ModelStore.Load(fs.Inner).Groups.Single(g => g.Id == (string)drum["id"]).Object, Is.EqualTo(id("D-102")));
             link.Handle(new JObject { ["type"] = SceneProtocol.Undo });
             Assert.That(ModelStore.Load(fs.Inner).Groups.Single(g => g.Id == (string)drum["id"]).Object, Is.Null);
             link.Handle(new JObject { ["type"] = SceneProtocol.Redo });
@@ -1114,7 +1136,7 @@ Connections:  {
             payload = edit(SceneProtocol.ModelMerge, new JObject { ["groups"] = new JArray(drum["id"], pump["id"]) });
             var joined = GroupOf(payload, g => g["islands"].Count() == drum["islands"].Count() + pump["islands"].Count());
             Assert.That(joined, Is.Not.Null, "one group holds the drum and the pump");
-            Assert.That((string)joined["object"], Is.EqualTo(id("V-20")), "the join keeps the object the drum stood for");
+            Assert.That((string)joined["object"], Is.EqualTo(id("D-102")), "the join keeps the object the drum stood for");
             payload = edit(SceneProtocol.ModelSplit, new JObject { ["group"] = joined["id"], ["islands"] = pump["islands"].DeepClone() });
             Assert.That(GroupOf(payload, g => g["islands"].Select(t => (int)t).OrderBy(x => x).SequenceEqual(pump["islands"].Select(t => (int)t).OrderBy(x => x))), Is.Not.Null);
 

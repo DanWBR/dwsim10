@@ -239,6 +239,10 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
                 Islands = Enumerable.Range(0, n).Where(i => owner[i] == s).ToList()
             }).ToList();
 
+            // a model without a tree may still name its pieces by tag (a glTF or FBX with one node per
+            // equipment): the body's part gives the group its tag and name
+            for (var s = 0; s < groups.Count; s++) NameFromPart(groups[s], seeds[s][0], index);
+
             // machines: compact boxes of machine size that nothing took
             foreach (var i in Enumerable.Range(0, n).Where(i => owner[i] < 0 && islands[i].Shape?.Class == ShapeClass.Box)
                 .Where(i => Size(islands[i]) >= 0.8 && Size(islands[i]) <= 8).OrderByDescending(i => islands[i].Area).ToList())
@@ -249,6 +253,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
                 g.Islands.Add(i);
                 foreach (var y in grid.Touching(i, 0.05))
                     if (owner[y] < 0 && !IsPipe(islands[y].Shape) && Size(islands[y]) <= Size(islands[i])) { owner[y] = groups.Count; g.Islands.Add(y); }
+                NameFromPart(g, i, index);
                 groups.Add(g);
             }
 
@@ -257,6 +262,16 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
             Components(islands, grid, owner, groups, i => islands[i].Shape?.Class != ShapeClass.Ground, "structure", "Structure ");
             Components(islands, grid, owner, groups, i => true, "scenery", "Ground ");
             return groups;
+        }
+
+        static void NameFromPart(SegmentGroup g, int island, ModelImportResult index)
+        {
+            var part = index.Islands[island].Part;
+            var name = index.PartNames != null && part >= 0 && part < index.PartNames.Count ? index.PartNames[part] : null;
+            var tag = name == null ? null : TagOf(name);
+            if (tag == null) return;
+            g.Tag = tag;
+            g.Name = name;
         }
 
         static void Components(List<Island> islands, BoxGrid grid, int[] owner, List<SegmentGroup> groups, Func<int, bool> take, string role, string name)

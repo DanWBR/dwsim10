@@ -64,8 +64,12 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
     /// </summary>
     public static class ModelMatching
     {
-        const double WName = 4, WType = 1.5, WSize = 0.8, WPlace = 1.2, WLines = 1.2;
-        const double Best = WName + WType + WSize + WPlace + WLines;
+        /// <summary>
+        /// The weights of the five things a pair's score adds up. The place on the canvas weighs
+        /// little: a flowsheet is drawn in the order of the process, not as the plot plan.
+        /// </summary>
+        public static double WName = 4, WType = 1.5, WSize = 0.8, WPlace = 0.4, WLines = 1.6;
+        static double Best => WName + WType + WSize + WPlace + WLines;
 
         /// <summary>The flowsheet's unit operations, with their estimated sizes (from the plant model DWSIM builds) and neighbours. Reads the flowsheet: run it on the interface thread.</summary>
         public static List<FlowsheetUnit> Units(IFlowsheet fs, PlantModel model)
@@ -176,17 +180,24 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
 
         static string Norm(string tag) => new string((tag ?? "").ToUpperInvariant().Where(char.IsLetterOrDigit).ToArray());
 
+        /// <summary>
+        /// How much the tags say the pair is one thing: the same tag (1); the same tag but a letter
+        /// for the train or the spare, E-120 and E-120A (0.8); the same number and first letter
+        /// (0.6). The tag of a flowsheet object is read from its name, which may carry words
+        /// ("E-120 (gas de carga)").
+        /// </summary>
         static double NameScore(SegmentGroup g, FlowsheetUnit u)
         {
             var a = Norm(g.Tag ?? ModelSegmentation.TagOf(g.Name ?? ""));
-            var b = Norm(u.Tag);
+            var b = Norm(ModelSegmentation.TagOf(u.Tag ?? "") ?? u.Tag);
             if (a.Length == 0 || b.Length == 0) return 0;
             if (a == b) return 1;
-            // the same number with the same first letter: V-100 and V-100A, or a spare
             var da = new string(a.Where(char.IsDigit).ToArray());
             var db = new string(b.Where(char.IsDigit).ToArray());
-            if (da.Length > 0 && da == db && a[0] == b[0]) return 0.6;
-            return 0;
+            if (da.Length == 0 || da != db || a[0] != b[0]) return 0;
+            var la = a.Substring(0, a.IndexOfAny("0123456789".ToCharArray()));
+            var lb = b.Substring(0, b.IndexOfAny("0123456789".ToCharArray()));
+            return la == lb ? 0.8 : 0.6;
         }
 
         static readonly Dictionary<string, double> Near = new Dictionary<string, double>
@@ -264,23 +275,31 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
                 if (total > bestTotal) { bestTotal = total; place = pl; }
             }
 
-            // the lines: two rounds, each with the pairs of the round before
-            var score = Combine(name, type, size, place, null, gs.Count, us.Count);
-            var assign = Hungarian(score);
-            var unitIndex = us.Select((u, j) => new KeyValuePair<string, int>(u.Name, j)).ToDictionary(kv => kv.Key, kv => kv.Value);
+            // the lines: rounds, each with the pairs of the round before and the pairs the user chose,
+            // so that a few objects chosen by hand pull their neighbours in
             var groupIndex = gs.Select((g, i) => new KeyValuePair<string, int>(g.Id, i)).ToDictionary(kv => kv.Key, kv => kv.Value);
+            var assign = Enumerable.Repeat(-1, gs.Count).ToArray();
             double[,] lines = null;
-            for (var round = 0; round < 2; round++)
+            double[,] score = null;
+            for (var round = 0; round < 3; round++)
             {
                 lines = new double[gs.Count, us.Count];
                 for (var i = 0; i < gs.Count; i++)
                 {
-                    var nb = gs[i].Neighbours.Where(groupIndex.ContainsKey).Select(x => groupIndex[x]).ToList();
-                    if (nb.Count == 0) continue;
+                    // the objects the group's neighbours stand for, now
+                    var near = new List<string>();
+                    foreach (var x in gs[i].Neighbours)
+                    {
+                        int k;
+                        string chosen;
+                        if (groupIndex.TryGetValue(x, out k)) { if (assign[k] >= 0) near.Add(us[assign[k]].Name); }
+                        else if (accepted.TryGetValue(x, out chosen)) near.Add(chosen);
+                    }
+                    if (near.Count == 0) continue;
                     for (var j = 0; j < us.Count; j++)
                     {
-                        var hits = nb.Count(x => assign[x] >= 0 && assign[x] != j && us[j].Neighbours.Contains(us[assign[x]].Name));
-                        lines[i, j] = (double)hits / nb.Count;
+                        var hits = near.Count(n => n != us[j].Name && us[j].Neighbours.Contains(n));
+                        lines[i, j] = (double)hits / gs[i].Neighbours.Count;
                     }
                 }
                 score = Combine(name, type, size, place, lines, gs.Count, us.Count);
@@ -295,8 +314,10 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
                 var s = (score[i, j] - WName * name[i, j]) / (Best - WName);
                 if (name[i, j] >= 1) s = Math.Max(s, 0.9);
                 else if (name[i, j] > 0) s = Math.Max(s, 0.6);
-                // too weak to propose
-                if (s < 0.35) continue;
+                // too weak to propose; without a tag that helps, only a clear case is proposed (in a real
+                // plant the flowsheet leaves out spares and splits exchangers, so kind and lines alone
+                // mislead more often than they help)
+                if (s < (name[i, j] > 0 ? 0.35 : 0.7)) continue;
                 var why = new List<string>();
                 if (name[i, j] >= 1) why.Add("same tag");
                 else if (name[i, j] > 0) why.Add("similar tag");

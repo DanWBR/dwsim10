@@ -62,6 +62,21 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
             w.Save(path);
         }
 
+        /// <summary>One node per part, named as the part: a model that keeps its pieces apart by name.</summary>
+        public static void WriteParts(ImportedModel model, string path)
+        {
+            var w = new Writer(model);
+            var used = new HashSet<string>();
+            for (var i = 0; i < model.Parts.Count; i++)
+            {
+                var part = model.Parts[i];
+                var name = string.IsNullOrEmpty(part.Name) ? "part" + i : part.Name;
+                while (!used.Add(name)) name += "_";
+                w.Node(name, w.Mesh(name, new[] { w.Primitive(part, Enumerable.Range(0, part.TriangleCount).ToArray(), part.Material) }), null);
+            }
+            w.Save(path);
+        }
+
         /// <summary>
         /// The model for the 3D window to draw: the plan cut into square tiles (about 16 across the
         /// largest side, 10 m at least), one mesh per tile and material, named "tile_i_j_m". A plant
