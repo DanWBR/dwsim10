@@ -124,7 +124,8 @@ W steps through the weather and M turns the sound off and on.
   and storm.
 - Quality: Low (no ambient occlusion or glow, small shadows, fewer drops; the start setting with
   the OpenGL renderer), Medium, High (4x MSAA, indirect light, large shadows).
-- The window draws the scene in high dynamic range and tone maps it with AgX. Lamps, lit windows,
+- The window draws the scene in high dynamic range and tone maps it with ACES (exposure 0.9 by day,
+  1.3 at night), which keeps the sunlit concrete near white. Lamps, lit windows,
   the warning lights, flames, the welding arc and its sparks, and alarms are brighter than the lit
   ground, so they bloom (Medium and High); the sunlit concrete stays below the bloom threshold.
 - HDR display: if the system can show the window in HDR (Windows with HDR turned on, for example),

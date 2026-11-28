@@ -410,7 +410,8 @@ func _apply() -> void:
 	env.ambient_light_color = Color(0.32, 0.38, 0.55)
 	env.ambient_light_sky_contribution = lerpf(0.55, 1.0, day)
 	env.ambient_light_energy = lerpf(0.25, 0.9, day) * lerpf(1.0, 0.8, cloud)
-	env.tonemap_exposure = lerpf(1.45, 1.0, day)
+	# ACES keeps the sunlit concrete near white at 0.9; the night takes more exposure
+	env.tonemap_exposure = lerpf(1.3, 0.9, day)
 
 	env.fog_light_color = Color(0.62, 0.66, 0.7).lerp(Color(0.05, 0.06, 0.09), 1.0 - day)
 	env.fog_sky_affect = 0.5

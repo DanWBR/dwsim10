@@ -260,7 +260,7 @@ func _build_world() -> void:
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 	env.ambient_light_energy = 0.8
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
-	env.tonemap_mode = Environment.TONE_MAPPER_AGX
+	env.tonemap_mode = Environment.TONE_MAPPER_ACES
 	env.ssao_enabled = true
 	env.ssao_radius = 1.5
 	env.ssao_intensity = 1.6
