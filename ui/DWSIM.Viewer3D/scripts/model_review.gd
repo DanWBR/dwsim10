@@ -29,6 +29,8 @@ var groups := {}
 ## The equipment group ids in the order of the list.
 var order: Array = []
 var units: Array = []
+## The pipes of the model that join two groups whose objects no stream joins: {a, b, from, to, fromTag, toTag}.
+var links: Array = []
 var island_group := {}
 var nodes := {}
 var selected_groups: Array = []
@@ -49,6 +51,7 @@ var _detail: RichTextLabel
 var _assign: OptionButton
 var _role: OptionButton
 var _hint: Label
+var _links: ItemList
 var _press := Vector2.ZERO
 var _updating := false
 
@@ -175,6 +178,7 @@ func on_groups(m: Dictionary) -> void:
 			for i in g.get("islands", []):
 				island_group[int(i)] = str(g["id"])
 	units = m.get("units", [])
+	links = m.get("links", [])
 	selected_groups = selected_groups.filter(func(id): return groups.has(id))
 	selected_islands = selected_islands.filter(func(i): return island_group.has(i))
 	order = groups.keys().filter(func(id): return str(groups[id].get("role", "")) == "equipment")
@@ -186,6 +190,7 @@ func on_groups(m: Dictionary) -> void:
 		return _label_of(groups[a]) < _label_of(groups[b]))
 	_fill_units()
 	_refresh_list()
+	_refresh_links()
 	_recolor()
 	_show_detail()
 
@@ -432,10 +437,14 @@ func build_panel(style: StyleBox) -> PanelContainer:
 	_assign.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_assign.focus_mode = Control.FOCUS_NONE
 	r2.add_child(_assign)
-	r2.add_child(_button("Assign", "The selected group stands for the object chosen here.", func():
+	r2.add_child(_button("Assign", "The selected group stands for the object chosen here (instead of the one it had).", func():
 		if _assign.selected < 0 or _assign.selected >= units.size():
 			return
 		_one("model.assign", {"object": str(units[_assign.selected].get("name", ""))})))
+	r2.add_child(_button("Add", "The selected group stands for the object chosen here too, as when the flowsheet draws one exchanger as two objects.", func():
+		if _assign.selected < 0 or _assign.selected >= units.size():
+			return
+		_one("model.assign", {"object": str(units[_assign.selected].get("name", "")), "add": true})))
 	var r3 := HBoxContainer.new()
 	v.add_child(r3)
 	_role = OptionButton.new()
@@ -456,6 +465,20 @@ func build_panel(style: StyleBox) -> PanelContainer:
 			_send({"type": "model.split", "group": selected_groups[0], "islands": selected_islands.duplicate()})
 			selected_islands = []))
 	r4.add_child(_button("Close", "Back to the plant.", func(): leave()))
+	var lt := Label.new()
+	lt.text = "Missing connections (a pipe of the model, no stream)"
+	lt.add_theme_font_size_override("font_size", 12)
+	lt.add_theme_color_override("font_color", Color(0.11, 0.15, 0.2))
+	v.add_child(lt)
+	_links = ItemList.new()
+	_links.custom_minimum_size = Vector2(320, 70)
+	_links.focus_mode = Control.FOCUS_NONE
+	_links.add_theme_font_size_override("font_size", 12)
+	v.add_child(_links)
+	var r5 := HBoxContainer.new()
+	v.add_child(r5)
+	r5.add_child(_button("Connect ->", "Adds a stream from the first object to the second.", func(): _connect(true)))
+	r5.add_child(_button("Connect <-", "Adds a stream from the second object to the first.", func(): _connect(false)))
 	_hint = Label.new()
 	_hint.text = "Click: a group. Ctrl+click: more groups. Alt+click: single islands. Double click: frame."
 	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -525,11 +548,42 @@ func _refresh_list() -> void:
 		if g.get("kind") != null:
 			text += "  " + str(g["kind"])
 		if g.get("object") != null:
-			text += "  =  " + _unit_tag(g["object"])
-		elif g.get("suggested") != null:
-			text += "  ->  %s (%d %%)" % [_unit_tag(g["suggested"]), int(round(float(g.get("score", 0)) * 100.0))]
+			text += "  =  " + _objects_text(g, "object", "also")
+		if g.get("suggested") != null or g.get("suggestedAlso") != null:
+			text += "  ->  %s (%d %%)" % [_objects_text(g, "suggested", "suggestedAlso"), int(round(float(g.get("score", 0)) * 100.0))]
 		var k := _list.add_item(text)
 		_list.set_item_custom_fg_color(k, COLORS[_state(g)].lightened(0.2))
+
+
+## The tags of a group's object and the others of the same tag ("E-121, E-121 (gas)").
+func _objects_text(g: Dictionary, first: String, more: String) -> String:
+	var tags := []
+	if g.get(first) != null:
+		tags.append(_unit_tag(g[first]))
+	for o in g.get(more, []):
+		tags.append(_unit_tag(o))
+	return ", ".join(tags)
+
+
+func _refresh_links() -> void:
+	if _links == null:
+		return
+	_links.clear()
+	for l in links:
+		_links.add_item("%s  -  %s" % [str(l.get("fromTag", "")), str(l.get("toTag", ""))])
+
+
+## A stream between the two objects of a missing connection, the way the user says it flows.
+func _connect(forward: bool) -> void:
+	var sel := _links.get_selected_items()
+	if sel.is_empty():
+		main._show_toast("Pick a connection in the list.")
+		return
+	var l: Dictionary = links[sel[0]]
+	var a := str(l.get("from", ""))
+	var b := str(l.get("to", ""))
+	_send({"type": "connect", "from": a if forward else b, "to": b if forward else a})
+	_send({"type": "model.groups"})
 
 
 func _show_detail() -> void:
@@ -546,9 +600,9 @@ func _show_detail() -> void:
 	var n_isl: int = g.get("islands", []).size()
 	t += "\n%.1f m long, %.2f m across, %d %s" % [float(g.get("length", 0)), float(g.get("diameter", 0)), n_isl, "island" if n_isl == 1 else "islands"]
 	if g.get("object") != null:
-		t += "\nStands for [b]%s[/b]" % _unit_tag(g["object"])
-	if g.get("suggested") != null:
-		t += "\nProposed: %s, %d %% sure (%s)" % [_unit_tag(g["suggested"]), int(round(float(g.get("score", 0)) * 100.0)), str(g.get("why", ""))]
+		t += "\nStands for [b]%s[/b]" % _objects_text(g, "object", "also")
+	if g.get("suggested") != null or g.get("suggestedAlso") != null:
+		t += "\nProposed: %s, %d %% sure (%s)" % [_objects_text(g, "suggested", "suggestedAlso"), int(round(float(g.get("score", 0)) * 100.0)), str(g.get("why", ""))]
 	if selected_groups.size() > 1:
 		t += "\n%d groups selected" % selected_groups.size()
 	if not selected_islands.is_empty():

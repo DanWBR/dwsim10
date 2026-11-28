@@ -152,9 +152,12 @@ func add_rows(g: GridContainer, owner_main: Node) -> void:
 	var srow := HBoxContainer.new()
 	srow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	g.add_child(srow)
-	_model_box = _check("model", show_model, "Shows the imported plant model.", func(on):
+	_model_box = _check("model", show_model, "Shows the imported plant model. The equipment it stands for shows as the model; without it, as DWSIM draws it.", func(on):
 		show_model = on
 		visible = on
+		main.apply_model_replacement()
+		if main.props != null:
+			main.props.refresh()
 		main.refit_ground())
 	srow.add_child(_model_box)
 	_equipment_box = _check("equipment", show_equipment, "Shows the equipment and the lines DWSIM builds from the flowsheet.", func(on):

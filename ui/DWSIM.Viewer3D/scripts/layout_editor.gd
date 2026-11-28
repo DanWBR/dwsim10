@@ -37,7 +37,8 @@ func movable() -> Array:
 	var ids := []
 	for id in main.selected:
 		var e: Dictionary = main.entries.get(id, {})
-		if e.get("kind", "") == "item" and not bool(e["data"].get("inst", false)):
+		# an item the plant model stands for stays where the model puts it
+		if e.get("kind", "") == "item" and not bool(e["data"].get("inst", false)) and not (e["data"].get("model") is Dictionary and main.model_replaces()):
 			ids.append(id)
 	return ids
 

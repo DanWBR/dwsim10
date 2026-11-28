@@ -491,10 +491,10 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                             break;
                         case SceneProtocol.ModelAssign:
                             {
-                                var obj = (bool?)m["accept"] == true ? groups.FirstOrDefault(g => g.Id == id)?.Suggested : (string)m["object"];
-                                if ((bool?)m["accept"] == true && obj == null) problem = "the group does not have a proposal";
+                                var obj = (string)m["object"];
+                                if ((bool?)m["accept"] == true) problem = ModelImport.ModelAnalysis.Accept(groups, segments, id);
                                 else if (obj != null && !units.Any(u => u.Name == obj)) problem = "there is no flowsheet object '" + obj + "' to choose";
-                                else problem = ModelImport.ModelAnalysis.Assign(groups, segments, id, obj);
+                                else problem = ModelImport.ModelAnalysis.Assign(groups, segments, id, obj, (bool?)m["add"] == true);
                                 break;
                             }
                         case SceneProtocol.ModelRole:
@@ -534,6 +534,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                                             stored.Groups = groups;
                                             stored.Groups = ModelImport.ModelAnalysis.Analyze(stored, index, units, out segments);
                                             ModelImport.ModelStore.Save(fs, stored);
+                                            PlaceFromModel(stored);
                                         }
                                     }
                                 });
@@ -561,6 +562,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                                 Remember();
                                 stored.Groups = again;
                                 ModelImport.ModelStore.Save(fs, stored);
+                                PlaceFromModel(stored);
                             }
                         });
                         groups = again;
@@ -579,6 +581,25 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             if (ModelEditsInline) work();
             else Task.Run(work);
             return null;
+        }
+
+        /// <summary>
+        /// Puts the objects the plant model's groups stand for where their groups are (the 3D layout):
+        /// the middle of the group's plan and its bottom. Their turn stays.
+        /// </summary>
+        void PlaceFromModel(ModelImport.PlantModelImport stored)
+        {
+            var places = ModelImport.ModelAnalysis.Placements(stored?.Groups);
+            if (places.Count == 0) return;
+            var layout = PlantLayout.Load(fs);
+            foreach (var kv in places)
+            {
+                if (!fs.SimulationObjects.ContainsKey(kv.Key)) continue;
+                Placement before;
+                layout.TryGetValue(kv.Key, out before);
+                layout[kv.Key] = new Placement { X = kv.Value[0], Y = kv.Value[1], Z = kv.Value[2], Rot = before?.Rot ?? 0 };
+            }
+            PlantLayout.Save(fs, layout);
         }
 
         static string Summary(ModelImport.ModelImportResult r)
@@ -751,6 +772,17 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             var list = m["items"] as JArray ?? new JArray(m.DeepClone());
             var places = new List<KeyValuePair<string, Placement>>();
             var site = SiteLayout.Load(fs);
+            var held = ModelImport.ModelAnalysis.Placements(ModelImport.ModelStore.Load(fs)?.Groups);
+            foreach (var t in list.OfType<JObject>())
+            {
+                var hid = (string)t["id"];
+                if (hid != null && held.ContainsKey(hid))
+                {
+                    ISimulationObject o;
+                    fs.SimulationObjects.TryGetValue(hid, out o);
+                    return Error((o?.GraphicObject?.Tag ?? hid) + " stands where the plant model puts it; clear its group in the review to move it", SceneProtocol.Place);
+                }
+            }
             var siteRot = new Dictionary<string, int>();
             foreach (var t in list.OfType<JObject>())
             {

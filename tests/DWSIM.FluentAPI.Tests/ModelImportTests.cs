@@ -1003,17 +1003,20 @@ Connections:  {
             foreach (var p in ModelMatching.Suggest(groups, units))
                 Assert.That(p.Object, Is.EqualTo(right[p.Group]), p.Group + ": " + p.Why);
 
-            // with tags: the same tag, a tag read from a name with words, a tag of the same family
+            // with tags: the same tag, a tag read from a name with words, a tag of the same family; and
+            // a flowsheet that draws the drum as two objects of the same tag
             column.Tag = "T-10";
             drum.Tag = "V-20";
             pump.Tag = "B-30A";
+            units.Add(new FlowsheetUnit { Name = "e", Tag = "V-20 (lado b)", Category = "vessel", X = 10, Y = -120, Length = 5, Diameter = 2 });
             var s = ModelMatching.Suggest(groups, units).ToDictionary(x => x.Group);
             Assert.That(s[column.Id].Object, Is.EqualTo("a"));
             Assert.That(s[column.Id].Why, Does.Contain("same tag"));
-            Assert.That(s[drum.Id].Object, Is.EqualTo("b"), "V-20 is read from the name V-20 (separador)");
+            Assert.That(new[] { s[drum.Id].Object }.Concat(s[drum.Id].Also), Is.EquivalentTo(new[] { "b", "e" }), "V-20 is read from the names, and both objects go with the drum");
             Assert.That(s[pump.Id].Object, Is.EqualTo("c"));
             Assert.That(s[pump.Id].Why, Does.Contain("similar tag"));
             Assert.That(s.Values.Any(x => x.Object == "d"), Is.False);
+            units.RemoveAt(units.Count - 1);
 
             // an object the user chose is not proposed again, and the lines from it still count
             var t = ModelMatching.Suggest(groups, units, new Dictionary<string, string> { [drum.Id] = "b" }).ToDictionary(x => x.Group);
@@ -1114,7 +1117,7 @@ Connections:  {
             var column = GroupOf(payload, g => (string)g["kind"] == "column");
             var drum = GroupOf(payload, g => (string)g["kind"] == "vessel");
             var pump = GroupOf(payload, g => (string)g["role"] == "equipment" && (string)g["kind"] != "column" && (string)g["kind"] != "vessel");
-            var line = GroupOf(payload, g => (string)g["role"] == "piping");
+            var line = payload["groups"].OfType<JObject>().Where(g => (string)g["role"] == "piping").OrderByDescending(g => (double)g["c"][0]).First();
             Assert.That((string)drum["suggested"], Is.EqualTo(id("D-102")), "the drum is proposed for the separator of the same tag");
 
             // the user takes the proposal; the undo of the window takes it back
@@ -1124,6 +1127,24 @@ Connections:  {
             link.Handle(new JObject { ["type"] = SceneProtocol.Undo });
             Assert.That(ModelStore.Load(fs.Inner).Groups.Single(g => g.Id == (string)drum["id"]).Object, Is.Null);
             link.Handle(new JObject { ["type"] = SceneProtocol.Redo });
+
+            // the separator goes where the drum is, and stays there
+            link.Sync();
+            var drumGroup = ModelStore.Load(fs.Inner).Groups.Single(g => g.Id == (string)drum["id"]);
+            var placed = PlantLayout.Load(fs.Inner)[id("D-102")];
+            Assert.That(placed.X, Is.EqualTo(Math.Round((drumGroup.Min[0] + drumGroup.Max[0]) / 2 * 1000)).Within(1));
+            Assert.That(placed.Z, Is.EqualTo(Math.Round(drumGroup.Min[2] * 1000)).Within(1), "on the bottom of the drum");
+            var item = link.Scene["items"].OfType<JObject>().Single(i => (string)i["id"] == id("D-102"));
+            Assert.That(item["model"], Is.Not.Null, "the window shows the model's drum for the separator");
+            var refused = link.Handle(new JObject { ["type"] = SceneProtocol.Place, ["id"] = id("D-102"), ["x"] = 0, ["y"] = 0 });
+            Assert.That((string)refused["type"], Is.EqualTo(SceneProtocol.Error));
+            Assert.That((string)refused["message"], Does.Contain("plant model"));
+
+            // the pump too: the stream between them runs in the model's pipes
+            edit(SceneProtocol.ModelAssign, new JObject { ["group"] = pump["id"], ["accept"] = true });
+            link.Sync();
+            var stream = link.Scene["lines"].OfType<JObject>().Single(l => (string)l["id"] == id("3"));
+            Assert.That((bool?)stream["replaced"], Is.True);
 
             // a line is hidden: it becomes a group of the user's, with its islands
             payload = edit(SceneProtocol.ModelRole, new JObject { ["group"] = line["id"], ["role"] = "hidden" });
@@ -1148,6 +1169,8 @@ Connections:  {
             Assert.That(made, Is.Not.Null);
             Assert.That(fs.Inner.SimulationObjects[made].GraphicObject.ObjectType.ToString(), Is.EqualTo("ShortcutColumn"));
             Assert.That(PlantLayout.Load(fs.Inner).ContainsKey(made), Is.True, "the new object stands where the model's column is");
+            var missing = payload["links"].OfType<JObject>().FirstOrDefault(l => (string)l["from"] == made || (string)l["to"] == made);
+            Assert.That(missing, Is.Not.Null, "a pipe joins the column and the drum, no stream does: the review offers it");
             link.Handle(new JObject { ["type"] = SceneProtocol.Undo });
             Assert.That(fs.Inner.SimulationObjects.ContainsKey(made), Is.False, "one undo takes back the object and the choice");
             Assert.That(ModelStore.Load(fs.Inner).Groups.Any(g => g.Object == made), Is.False);

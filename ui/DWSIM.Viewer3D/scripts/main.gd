@@ -586,6 +586,9 @@ func _read_site(site) -> void:
 ## The model came (or went): the ground, the shadows and the site fit the plant again, and the
 ## view takes in the whole model the first time it is shown.
 func _on_model_loaded() -> void:
+	apply_model_replacement()
+	if props != null:
+		props.refresh()
 	_fit_ground()
 	if plant_model.has_model() and _model_fitted != plant_model.glb:
 		_model_fitted = plant_model.glb
@@ -606,6 +609,7 @@ func set_equipment_visible(on: bool) -> void:
 
 
 func _after_change() -> void:
+	apply_model_replacement()
 	# the items were built again: the hover marks a node that may be gone
 	_hover_id = ""
 	_hover_box.visible = false
@@ -661,6 +665,79 @@ func _add_item(it: Dictionary) -> void:
 	labels_root.add_child(label)
 	entries[id] = {"node": node, "data": it, "kind": "item", "label": label}
 	label.visible = _label_shown(id)
+	_apply_model_item(id)
+
+
+## Whether the imported plant model stands in for the equipment it shows.
+func model_replaces() -> bool:
+	return plant_model != null and plant_model.has_model() and plant_model.show_model
+
+
+var _proxy_mat: StandardMaterial3D
+
+
+## An item whose object a group of the plant model stands for: the model shows it, so the item's
+## own solids hide and an invisible box of the group's size takes their place, for picking, the
+## label, the values and the selection. Without the model, the item draws itself again.
+func _apply_model_item(id: String) -> void:
+	var e: Dictionary = entries.get(id, {})
+	if e.is_empty() or e["kind"] != "item":
+		return
+	var info = e["data"].get("model")
+	var node: Node3D = e["node"]
+	var proxy: MeshInstance3D = node.get_node_or_null("model_proxy")
+	if not (info is Dictionary):
+		if proxy != null:
+			proxy.queue_free()
+		return
+	var replace := model_replaces()
+	for mi in node.find_children("*", "MeshInstance3D", true, false):
+		if mi != proxy:
+			mi.visible = not replace
+	if proxy == null:
+		if _proxy_mat == null:
+			_proxy_mat = StandardMaterial3D.new()
+			_proxy_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			_proxy_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			_proxy_mat.albedo_color = Color(1, 1, 1, 0)
+		proxy = MeshInstance3D.new()
+		proxy.name = "model_proxy"
+		proxy.mesh = BoxMesh.new()
+		proxy.material_override = _proxy_mat
+		proxy.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		node.add_child(proxy)
+	var lo: Vector3 = SceneBuilder.vec(info.get("min", [0, 0, 0]))
+	var hi: Vector3 = SceneBuilder.vec(info.get("max", [0, 0, 0]))
+	var box := AABB(lo, Vector3.ZERO).expand(hi)
+	(proxy.mesh as BoxMesh).size = box.size.max(Vector3(0.05, 0.05, 0.05))
+	proxy.global_transform = Transform3D(Basis(), box.get_center())
+	proxy.visible = replace
+	var label: Label3D = e.get("label")
+	if label != null:
+		if replace:
+			# the objects of one group (the two sides of an exchanger) stack their labels
+			var same := []
+			for other in entries.keys():
+				var od = entries[other]["data"].get("model")
+				if entries[other]["kind"] == "item" and od is Dictionary and str(od.get("group", "")) == str(info.get("group", "")):
+					same.append(str(other))
+			same.sort()
+			var k := same.find(id)
+			label.position = Vector3(box.get_center().x, box.end.y + 0.6 + 0.9 * maxi(k, 0), box.get_center().z)
+		else:
+			var b := _node_bounds(node)
+			label.position = Vector3(b.get_center().x, b.end.y + 0.6, b.get_center().z)
+
+
+## Every item and line again, after the model came, went, or was shown or hidden.
+func apply_model_replacement() -> void:
+	var replace := model_replaces()
+	for id in entries.keys():
+		var e: Dictionary = entries[id]
+		if e["kind"] == "item":
+			_apply_model_item(id)
+		elif e["kind"] == "line" and bool(e["data"].get("replaced", false)):
+			(e["node"] as Node3D).visible = not replace
 
 
 func _remove_entry(id: String) -> void:
@@ -843,7 +920,11 @@ func _pick(screen: Vector2) -> String:
 		var node = entries[id]["node"]
 		if node == null or not is_instance_valid(node):
 			continue
+		if not node.is_visible_in_tree():
+			continue
 		for mi in node.find_children("*", "MeshInstance3D", true, false):
+			if not mi.is_visible_in_tree():
+				continue
 			var box: AABB = mi.global_transform * mi.get_aabb()
 			var hit = box.intersects_ray(from, dirv)
 			if hit != null:

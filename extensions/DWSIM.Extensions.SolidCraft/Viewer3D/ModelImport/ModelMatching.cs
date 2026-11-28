@@ -43,10 +43,13 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
     public class Suggestion
     {
         public string Group;
+        /// <summary>The object proposed, or null when the user already chose the group's object and only <see cref="Also"/> is proposed.</summary>
         public string Object;
         public string Tag;
         public double Score;
         public string Why;
+        /// <summary>More objects of the same tag that go with the group (the other side of an exchanger).</summary>
+        public List<string> Also = new List<string>();
     }
 
     /// <summary>
@@ -232,10 +235,11 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
         /// (<paramref name="accepted"/>, group id to object name) keeps it, and that object is not
         /// proposed for another group.
         /// </summary>
-        public static List<Suggestion> Suggest(List<SegmentGroup> groups, List<FlowsheetUnit> units, IDictionary<string, string> accepted = null)
+        public static List<Suggestion> Suggest(List<SegmentGroup> groups, List<FlowsheetUnit> units, IDictionary<string, string> accepted = null, IEnumerable<string> chosenElsewhere = null)
         {
             accepted = accepted ?? new Dictionary<string, string>();
             var taken = new HashSet<string>(accepted.Values);
+            if (chosenElsewhere != null) taken.UnionWith(chosenElsewhere);
             var gs = groups.Where(g => g.Role == "equipment" && !accepted.ContainsKey(g.Id)).ToList();
             var us = units.Where(u => !taken.Contains(u.Name)).ToList();
             var result = new List<Suggestion>();
@@ -326,6 +330,31 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
                 if (place[i, j] > 0.5) why.Add("same place in the plan");
                 if (lines != null && lines[i, j] > 0) why.Add("joined like the streams");
                 result.Add(new Suggestion { Group = gs[i].Id, Object = us[j].Name, Tag = us[j].Tag, Score = Math.Round(s, 3), Why = string.Join(", ", why) });
+            }
+
+            // a flowsheet may draw one piece of equipment as several objects (the two sides of an
+            // exchanger): an object left over whose tag is a group's own, or of its family, goes with it
+            var used = new HashSet<string>(taken.Concat(result.Select(r => r.Object)));
+            var equipment = groups.Where(g => g.Role == "equipment").ToList();
+            foreach (var u in units.Where(x => !used.Contains(x.Name)))
+            {
+                SegmentGroup best = null;
+                var bestScore = 0.0;
+                foreach (var g in equipment)
+                {
+                    var n = NameScore(g, u);
+                    if (n >= 0.8 && n > bestScore) { bestScore = n; best = g; }
+                }
+                if (best == null) continue;
+                var sug = result.FirstOrDefault(r => r.Group == best.Id);
+                if (sug == null)
+                {
+                    sug = new Suggestion { Group = best.Id, Object = accepted.ContainsKey(best.Id) ? null : u.Name, Tag = u.Tag, Score = 0.9, Why = "same tag" };
+                    result.Add(sug);
+                    if (sug.Object != null) { used.Add(u.Name); continue; }
+                }
+                sug.Also.Add(u.Name);
+                used.Add(u.Name);
             }
             return result;
         }

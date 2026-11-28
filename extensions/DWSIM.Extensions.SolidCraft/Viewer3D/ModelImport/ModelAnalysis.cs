@@ -64,24 +64,38 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
 
             var names = new HashSet<string>(units.Select(u => u.Name));
             var accepted = new Dictionary<string, string>();
+            var also = new Dictionary<string, List<string>>();
+            var objectsTaken = new HashSet<string>();
             foreach (var g in segments.Where(x => x.Role == "equipment"))
             {
                 var old = before.FirstOrDefault(b => b.Id == g.Id && (b.User || b.Name == g.Name)) ?? (g.User ? null : before.FirstOrDefault(b => !b.User && b.Name != null && b.Name == g.Name));
-                if (old?.Object != null && names.Contains(old.Object) && !accepted.ContainsValue(old.Object)) accepted[g.Id] = old.Object;
+                if (old?.Object != null && names.Contains(old.Object) && objectsTaken.Add(old.Object)) accepted[g.Id] = old.Object;
+                if (old?.Also != null && accepted.ContainsKey(g.Id))
+                {
+                    var more = old.Also.Where(o => names.Contains(o) && objectsTaken.Add(o)).ToList();
+                    if (more.Count > 0) also[g.Id] = more;
+                }
             }
-            var proposals = ModelMatching.Suggest(segments, units, accepted).ToDictionary(s => s.Group);
+            var proposals = ModelMatching.Suggest(segments, units, accepted, also.Values.SelectMany(x => x)).ToDictionary(s => s.Group);
             var result = new List<ModelGroup>();
             foreach (var g in segments.Where(x => x.Role == "equipment" || x.User))
             {
-                var m = new ModelGroup { Id = g.Id, Name = g.Name, Tag = g.Tag, Class = g.Category, Role = g.Role, Islands = g.Islands.ToList(), User = g.User };
+                var m = new ModelGroup
+                {
+                    Id = g.Id, Name = g.Name, Tag = g.Tag, Class = g.Category, Role = g.Role, Islands = g.Islands.ToList(), User = g.User,
+                    Min = g.Min?.Select(x => Math.Round(x, 3)).ToArray(), Max = g.Max?.Select(x => Math.Round(x, 3)).ToArray()
+                };
                 string chosen;
                 if (accepted.TryGetValue(g.Id, out chosen)) m.Object = chosen;
+                List<string> more;
+                if (also.TryGetValue(g.Id, out more)) m.Also = more;
                 Suggestion s;
                 if (proposals.TryGetValue(g.Id, out s))
                 {
                     m.Suggested = s.Object;
                     m.Score = s.Score;
                     m.Why = s.Why;
+                    if (s.Also.Count > 0) m.SuggestedAlso = s.Also.ToList();
                 }
                 result.Add(m);
             }
@@ -127,19 +141,38 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
                 if (s.Category != null) o["kind"] = s.Category;
                 if (s.User) o["user"] = true;
                 if (g?.Object != null) o["object"] = g.Object;
-                if (g?.Suggested != null)
+                if (g?.Also != null && g.Also.Count > 0) o["also"] = new JArray(g.Also);
+                if (g?.Suggested != null || g?.SuggestedAlso != null)
                 {
-                    o["suggested"] = g.Suggested;
+                    if (g.Suggested != null) o["suggested"] = g.Suggested;
+                    if (g.SuggestedAlso != null) o["suggestedAlso"] = new JArray(g.SuggestedAlso);
                     o["score"] = g.Score;
                     o["why"] = g.Why;
                 }
                 list.Add(o);
             }
+            // the pipes of the model that join two groups whose objects no stream joins: a stream the
+            // flowsheet may be missing
+            var links = new JArray();
+            var unitOf = units.ToDictionary(u => u.Name);
+            foreach (var a in segments.Where(x => x.Role == "equipment"))
+                foreach (var bid in a.Neighbours)
+                {
+                    if (string.CompareOrdinal(a.Id, bid) >= 0) continue;
+                    ModelGroup ga, gb;
+                    if (!byId.TryGetValue(a.Id, out ga) || !byId.TryGetValue(bid, out gb)) continue;
+                    var oa = ga.Objects().Where(unitOf.ContainsKey).ToList();
+                    var ob = gb.Objects().Where(unitOf.ContainsKey).ToList();
+                    if (oa.Count == 0 || ob.Count == 0) continue;
+                    if (oa.Any(x => ob.Any(y => unitOf[x].Neighbours.Contains(y)))) continue;
+                    links.Add(new JObject { ["a"] = a.Id, ["b"] = bid, ["from"] = oa[0], ["to"] = ob[0], ["fromTag"] = unitOf[oa[0]].Tag, ["toTag"] = unitOf[ob[0]].Tag });
+                }
             return new JObject
             {
                 ["type"] = SceneProtocol.ModelGroups,
                 ["groups"] = list,
-                ["units"] = new JArray(units.OrderBy(u => u.Tag, StringComparer.OrdinalIgnoreCase).Select(u => new JObject { ["name"] = u.Name, ["tag"] = u.Tag, ["kind"] = u.Category }))
+                ["units"] = new JArray(units.OrderBy(u => u.Tag, StringComparer.OrdinalIgnoreCase).Select(u => new JObject { ["name"] = u.Name, ["tag"] = u.Tag, ["kind"] = u.Category })),
+                ["links"] = links
             };
         }
 
@@ -154,7 +187,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
         {
             var existing = groups.FirstOrDefault(g => g.Id == s.Id);
             if (existing != null && existing.User) { existing.Role = role; return existing; }
-            var copy = new ModelGroup { Id = NewId(groups), Name = s.Name, Tag = s.Tag, Class = s.Category, Role = role, Islands = s.Islands.ToList(), User = true };
+            var copy = new ModelGroup { Id = NewId(groups), Name = s.Name, Tag = s.Tag, Class = s.Category, Role = role, Islands = s.Islands.ToList(), User = true, Min = s.Min, Max = s.Max };
             if (existing != null)
             {
                 copy.Object = role == "equipment" ? existing.Object : null;
@@ -168,15 +201,41 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
         /// The group stands for the object (GraphicObject.Name), or for none when it is null; another
         /// group that stood for the object lets it go. A group that was not equipment becomes equipment.
         /// </summary>
-        public static string Assign(List<ModelGroup> groups, List<SegmentGroup> segments, string id, string obj)
+        public static string Assign(List<ModelGroup> groups, List<SegmentGroup> segments, string id, string obj, bool add = false)
         {
             var s = segments.FirstOrDefault(x => x.Id == id);
             if (s == null) return "there is no group '" + id + "'";
             var g = groups.FirstOrDefault(x => x.Id == id) ?? UserCopy(groups, s, "equipment");
             if (g.Role != "equipment") g.Role = "equipment";
-            if (obj != null) foreach (var other in groups.Where(x => x.Object == obj)) other.Object = null;
-            g.Object = obj;
+            if (obj != null)
+                foreach (var other in groups)
+                {
+                    if (other.Object == obj) other.Object = null;
+                    other.Also?.Remove(obj);
+                }
+            if (add && obj != null && g.Object != null)
+            {
+                if (g.Also == null) g.Also = new List<string>();
+                if (!g.Also.Contains(obj)) g.Also.Add(obj);
+            }
+            else
+            {
+                g.Object = obj;
+                if (obj == null) g.Also = null;
+            }
             return null;
+        }
+
+        /// <summary>The group takes what the matching proposes for it: the object and the others of the same tag.</summary>
+        public static string Accept(List<ModelGroup> groups, List<SegmentGroup> segments, string id)
+        {
+            var g = groups.FirstOrDefault(x => x.Id == id);
+            if (g == null || g.Suggested == null && (g.SuggestedAlso == null || g.SuggestedAlso.Count == 0)) return "the group does not have a proposal";
+            var more = g.SuggestedAlso?.ToList() ?? new List<string>();
+            string problem = null;
+            if (g.Suggested != null) problem = Assign(groups, segments, id, g.Suggested);
+            foreach (var o in more) if (problem == null) problem = Assign(groups, segments, id, o, true);
+            return problem;
         }
 
         public static string SetRole(List<ModelGroup> groups, List<SegmentGroup> segments, string id, string role)
@@ -221,6 +280,23 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
             if (g != null && g.User) g.Islands.RemoveAll(take.Contains);
             groups.Add(new ModelGroup { Id = NewId(groups), Name = s.Name + " (part)", Role = s.Role, Islands = take, User = true });
             return null;
+        }
+
+        /// <summary>
+        /// The objects the groups stand for, each with the place of its group in the plant: the middle
+        /// of the plan and the bottom of the box (mm, Z up), where the 3D view and the SolidCraft model
+        /// put the object.
+        /// </summary>
+        public static Dictionary<string, double[]> Placements(IEnumerable<ModelGroup> groups)
+        {
+            var result = new Dictionary<string, double[]>();
+            foreach (var g in groups ?? Enumerable.Empty<ModelGroup>())
+            {
+                if (g.Min == null || g.Max == null || g.Min.Length < 3 || g.Max.Length < 3) continue;
+                var place = new[] { Math.Round((g.Min[0] + g.Max[0]) / 2 * 1000), Math.Round((g.Min[1] + g.Max[1]) / 2 * 1000), Math.Round(g.Min[2] * 1000) };
+                foreach (var o in g.Objects()) result[o] = place;
+            }
+            return result;
         }
 
         /// <summary>The flowsheet object type DWSIM adds for a kind of equipment of the model.</summary>

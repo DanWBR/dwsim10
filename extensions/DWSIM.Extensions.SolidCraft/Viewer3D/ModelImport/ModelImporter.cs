@@ -390,6 +390,23 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
         [JsonProperty("why", NullValueHandling = NullValueHandling.Ignore)] public string Why;
         /// <summary>A group the user made (joined, split or given a role): its islands leave the groups the segmentation finds.</summary>
         [JsonProperty("user", DefaultValueHandling = DefaultValueHandling.Ignore)] public bool User;
+        /// <summary>
+        /// More flowsheet objects the group stands for, besides <see cref="Object"/>: a flowsheet may
+        /// draw one piece of equipment as several objects (the two sides of an exchanger).
+        /// </summary>
+        [JsonProperty("also", NullValueHandling = NullValueHandling.Ignore)] public List<string> Also;
+        /// <summary>More objects the matching proposes with <see cref="Suggested"/>.</summary>
+        [JsonProperty("suggestedAlso", NullValueHandling = NullValueHandling.Ignore)] public List<string> SuggestedAlso;
+        /// <summary>The box round the group in the plant (metres, Z up), where its objects are placed.</summary>
+        [JsonProperty("min", NullValueHandling = NullValueHandling.Ignore)] public double[] Min;
+        [JsonProperty("max", NullValueHandling = NullValueHandling.Ignore)] public double[] Max;
+
+        /// <summary>Every flowsheet object the group stands for.</summary>
+        public IEnumerable<string> Objects()
+        {
+            if (Object != null) yield return Object;
+            if (Also != null) foreach (var o in Also) if (o != null && o != Object) yield return o;
+        }
         /// <summary>equipment, piping, structure, scenery or hidden.</summary>
         [JsonProperty("role")] public string Role = "scenery";
     }

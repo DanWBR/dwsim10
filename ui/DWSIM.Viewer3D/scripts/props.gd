@@ -93,6 +93,9 @@ func _foundations_and_ladders() -> void:
 		var d: Dictionary = e["data"]
 		if e["kind"] != "item" or bool(d.get("badge", false)) or bool(d.get("inst", false)) or d.has("site"):
 			continue
+		# the imported plant model has the item's own base and ladders
+		if d.get("model") is Dictionary and main.model_replaces():
+			continue
 		var b: AABB = main._node_bounds(e["node"])
 		if b.size.x < 0.3 or b.size.z < 0.3:
 			continue
