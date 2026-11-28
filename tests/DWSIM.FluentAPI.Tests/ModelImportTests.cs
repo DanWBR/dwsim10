@@ -1493,6 +1493,97 @@ END-ISO-10303-21;
         static JObject GroupOf(JObject payload, Func<JObject, bool> where) => payload["groups"].OfType<JObject>().FirstOrDefault(where);
 
         [Test]
+        public void ANewRevisionOfTheModelFileKeepsTheGroupsTheChoicesAndTheCuts()
+        {
+            var fs = Flowsheet.Create("revision").WithCompound("Water").WithPropertyPackage(PropertyPackages.SteamTables);
+            var feed = fs.AddMaterialStream("1").At(300.Kelvin(), 101325.0.Pascal()).WithMassFlow(1.KgPerSecond());
+            var s2 = fs.AddMaterialStream("2");
+            var s3 = fs.AddMaterialStream("3");
+            var s4 = fs.AddMaterialStream("4");
+            fs.AddSeparator("D-102").ConnectFeed(feed, 0).ConnectProduct(s2, 0).ConnectProduct(s3, 1);
+            fs.AddPump("P-103").ConnectFeed(s3, 0).ConnectProduct(s4, 0);
+            var glb = Path.Combine(_dir, "plant.glb");
+            GlbWriter.WriteParts(Plant(), glb);
+
+            var link = new FlowsheetLink(fs.Inner);
+            var sent = new List<JObject>();
+            link.MessageSent += m => { lock (sent) sent.Add(m); };
+            link.Handle(new JObject { ["type"] = SceneProtocol.ModelImport, ["path"] = glb });
+            Assert.That((string)Wait(sent, SceneProtocol.ModelStatus)["state"], Is.EqualTo("done"));
+            link.ModelEditsInline = true;
+            Func<string, JObject, JObject> edit = (type, fields) =>
+            {
+                fields["type"] = type;
+                link.Handle(fields);
+                var err = LastOf(sent, SceneProtocol.Error);
+                Assert.That(err, Is.Null, type + ": " + err?["message"]);
+                return LastOf(sent, SceneProtocol.ModelGroups);
+            };
+            var payload = edit(SceneProtocol.ModelGroups, new JObject());
+            var drum = GroupOf(payload, g => (string)g["kind"] == "vessel");
+            var column = GroupOf(payload, g => (string)g["kind"] == "column");
+            var line = payload["groups"].OfType<JObject>().Where(g => (string)g["role"] == "piping").OrderByDescending(g => (double)g["c"][0]).First();
+
+            // the user's work on the first revision: an object for the drum, a hidden line, a cut of the column
+            edit(SceneProtocol.ModelAssign, new JObject { ["group"] = drum["id"], ["accept"] = true });
+            edit(SceneProtocol.ModelRole, new JObject { ["group"] = line["id"], ["role"] = "hidden" });
+            var body = column["islands"].Select(t => (int)t).First();
+            edit(SceneProtocol.ModelCut, new JObject { ["islands"] = new JArray(body), ["point"] = new JArray((double)column["c"][0], (double)column["c"][1], (double)column["c"][2]), ["normal"] = new JArray(0.0, 0.0, 1.0) });
+            link.Sync();
+            var before = ModelStore.Load(fs.Inner);
+            var oldCount = ModelImporter.Cached(before.Model).Islands.Count;
+            var oldDrum = before.Groups.Single(g => g.Object == fs.Inner.GetFlowsheetSimulationObject("D-102").Name);
+            var oldHidden = before.Groups.Single(g => g.Role == "hidden");
+            Assert.That(before.Model.Cuts, Has.Count.EqualTo(1));
+            Assert.That(before.Model.Cuts[0].Min, Is.Not.Null, "a cut keeps the box of what it cut");
+
+            // the designers save a new revision: a tank added at the start of the file (every island
+            // and group changes its number) and the last line moved by 3 cm
+            var revised = Plant();
+            revised.Parts.Insert(0, Cylinder("T-104", new[] { -10.0, 0, 0 }, new[] { -10.0, 0, 5 }, 2.0, 0));
+            var l2 = revised.Parts.Single(p => p.Name == "L-2");
+            for (var i = 1; i < l2.Positions.Length; i += 3) l2.Positions[i] += 0.03f;
+            GlbWriter.WriteParts(revised, glb);
+            File.SetLastWriteTimeUtc(glb, DateTime.UtcNow.AddMinutes(1));
+            link.ModelCheckEverySync = true;
+            link.Sync();
+
+            var after = ModelStore.Load(fs.Inner);
+            Assert.That(after.Model.Sha256, Is.Not.EqualTo(before.Model.Sha256), "the new revision is read");
+            Assert.That(after.Model.Place.Offset, Is.EqualTo(before.Model.Place.Offset), "where the old one stood");
+            Assert.That(after.Model.Cuts, Has.Count.EqualTo(1), "the cut is made again");
+            var index = ModelImporter.Cached(after.Model);
+            Assert.That(index.Islands.Count, Is.EqualTo(oldCount + 1), "the tank is the one island more");
+            var newDrum = after.Groups.Single(g => g.Object == oldDrum.Object);
+            Assert.That(newDrum.Islands, Is.Not.EquivalentTo(oldDrum.Islands), "the numbers moved");
+            for (var d = 0; d < 3; d++)
+                Assert.That((newDrum.Min[d] + newDrum.Max[d]) / 2, Is.EqualTo((oldDrum.Min[d] + oldDrum.Max[d]) / 2).Within(0.01), "the drum keeps its object");
+            var newHidden = after.Groups.Single(g => g.Role == "hidden");
+            Assert.That(newHidden.User, Is.True);
+            Assert.That(newHidden.Islands, Has.Count.EqualTo(oldHidden.Islands.Count), "the hidden line keeps its islands, moved 3 cm");
+            var status = LastOf(sent, SceneProtocol.ModelStatus);
+            Assert.That((string)status["message"], Does.Contain("1 of 1 object kept its group").And.Contain("1 of 1 groups made by hand kept").And.Contain("1 of 1 cut made again"));
+
+            // an unchanged file is not read again, and the window's undo takes the revision back
+            var statuses = sent.Count(m => (string)m["type"] == SceneProtocol.ModelStatus);
+            link.Sync();
+            Assert.That(sent.Count(m => (string)m["type"] == SceneProtocol.ModelStatus), Is.EqualTo(statuses));
+            link.Handle(new JObject { ["type"] = SceneProtocol.Undo });
+            Assert.That(ModelStore.Load(fs.Inner).Model.Sha256, Is.EqualTo(before.Model.Sha256));
+            link.Sync();
+            Assert.That(ModelStore.Load(fs.Inner).Model.Sha256, Is.EqualTo(before.Model.Sha256), "the undo holds while the window stays open");
+
+            // the window opened again, with the cache of the old revision gone: the groups are found by their boxes
+            Directory.Delete(ModelImporter.CacheFolder(before.Model), true);
+            var link2 = new FlowsheetLink(fs.Inner) { ModelEditsInline = true, ModelCheckEverySync = true };
+            link2.Sync();
+            var moved = ModelStore.Load(fs.Inner);
+            Assert.That(moved.Model.Sha256, Is.EqualTo(after.Model.Sha256));
+            Assert.That(moved.Groups.Count(g => g.Object == oldDrum.Object), Is.EqualTo(1), "the drum is found by its box");
+            Assert.That(moved.Groups.Single(g => g.Role == "hidden").Islands, Is.Not.Empty);
+        }
+
+        [Test]
         public void TheReviewAssignsJoinsSplitsCreatesAndUndoes()
         {
             var fs = Flowsheet.Create("review").WithCompound("Water").WithPropertyPackage(PropertyPackages.SteamTables);

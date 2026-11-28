@@ -30,6 +30,9 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
         /// <summary>A point of the plane and its normal, metres in the plant frame (Z up).</summary>
         [JsonProperty("p")] public double[] Point;
         [JsonProperty("n")] public double[] Normal;
+        /// <summary>The box of the islands cut, before the cut (metres): where the cut is made again when the model file changes.</summary>
+        [JsonProperty("min", NullValueHandling = NullValueHandling.Ignore)] public double[] Min;
+        [JsonProperty("max", NullValueHandling = NullValueHandling.Ignore)] public double[] Max;
     }
 
     /// <summary>

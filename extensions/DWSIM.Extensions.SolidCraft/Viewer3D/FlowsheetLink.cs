@@ -307,7 +307,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             if (delta != null) Send(delta);
             if (values != null) Send(values);
             if (select != null) Send(select);
-            if (delta != null) RebuildModelCache();
+            if (delta != null || ModelCheckEverySync || (DateTime.UtcNow - lastModelCheck).TotalSeconds >= 5) CheckModelFile();
         }
 
         /// <summary>
@@ -624,6 +624,15 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                 Interlocked.Exchange(ref importing, 0);
                 return Error(problem, type);
             }
+            // the box of the islands cut, where the cut is made again if the model file changes
+            cut.Min = new[] { double.MaxValue, double.MaxValue, double.MaxValue };
+            cut.Max = new[] { double.MinValue, double.MinValue, double.MinValue };
+            foreach (var i in cut.Islands)
+                for (var d = 0; d < 3; d++)
+                {
+                    cut.Min[d] = Math.Min(cut.Min[d], Math.Round(index.Islands[i].Min[d], 3));
+                    cut.Max[d] = Math.Max(cut.Max[d], Math.Round(index.Islands[i].Max[d], 3));
+                }
             Action work = () =>
             {
                 try
@@ -692,16 +701,29 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             return text;
         }
 
+        /// <summary>When the model file was last looked at, and the file and time not to look at again: found unchanged by their hash, or already read (so an undo of the update holds until the window opens again).</summary>
+        DateTime lastModelCheck = DateTime.MinValue;
+        string sameModelStamp;
+
+        /// <summary>Set by a test: the model file is looked at on every sync.</summary>
+        public bool ModelCheckEverySync;
+
         /// <summary>
-        /// Makes the cache of the flowsheet's plant model again when it is missing (another
-        /// computer, a cleaned folder, a newer DWSIM) and the model file is found; the window gets
-        /// the model when it is ready.
+        /// Keeps the flowsheet's plant model in step with its file. When the cache is missing
+        /// (another computer, a cleaned folder, a newer DWSIM) and the file is found, the cache is
+        /// made again. When the file changed (a new revision saved over it), the model is read again
+        /// and its groups, choices and cuts are carried over (one step of the window's undo), and
+        /// the status line says what was kept. The file is looked at every few seconds at most: its
+        /// size and time first, and its hash only when they changed.
         /// </summary>
-        void RebuildModelCache()
+        void CheckModelFile()
         {
             JObject info;
             lock (gate) info = scene?["model"] as JObject;
-            if (info == null || info["glb"]?.Type == JTokenType.String || (bool?)info["found"] != true) return;
+            if (info == null || (bool?)info["found"] != true) return;
+            var missing = info["glb"]?.Type != JTokenType.String;
+            if (!missing && !ModelCheckEverySync && (DateTime.UtcNow - lastModelCheck).TotalSeconds < 5) return;
+            lastModelCheck = DateTime.UtcNow;
             if (Interlocked.CompareExchange(ref importing, 1, 0) != 0) return;
             ModelImport.PlantModelImport stored = null;
             string flowsheetPath = null;
@@ -715,31 +737,62 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
             }
             catch (Exception) { }
             var file = stored == null ? null : ModelImport.ModelImporter.Locate(stored.Model, flowsheetPath);
-            if (file == null) { Interlocked.Exchange(ref importing, 0); return; }
-            ModelStatus("importing", "Preparing " + Path.GetFileName(file) + "...");
-            Task.Run(() =>
+            string stamp = null;
+            var looksChanged = false;
+            if (file != null)
+            {
+                var fi = new FileInfo(file);
+                stamp = fi.FullName + "|" + fi.Length + "|" + fi.LastWriteTimeUtc.Ticks;
+                looksChanged = stamp != sameModelStamp && ModelImport.ModelImporter.LooksChanged(stored.Model, file);
+            }
+            if (file == null || !missing && !looksChanged) { Interlocked.Exchange(ref importing, 0); return; }
+            Action work = () =>
             {
                 try
                 {
-                    var r = ModelImport.ModelImporter.Import(file, stored.Model, flowsheetPath);
-                    if (r.Reference.Sha256 != stored.Model.Sha256)
+                    var changed = looksChanged && ModelImport.ModelImporter.Hash(file) != stored.Model.Sha256;
+                    if (looksChanged && !changed) sameModelStamp = stamp;
+                    if (changed)
+                    {
+                        ModelStatus("importing", "The plant model " + Path.GetFileName(file) + " changed; reading it again...");
+                        ModelImport.RevisionReport report;
+                        var r = ModelImport.ModelRevision.Update(file, stored, flowsheetPath, out report);
+                        var units = FlowsheetUnits();
+                        List<ModelImport.SegmentGroup> segments;
+                        var index = ModelImport.ModelImporter.Cached(r.Reference) ?? r;
+                        var groups = ModelImport.ModelAnalysis.Analyze(stored, index, units, out segments);
                         OnUi(() =>
                         {
                             lock (gate)
                             {
-                                stored.Model = r.Reference;
+                                Remember();
+                                stored.Groups = groups;
                                 ModelImport.ModelStore.Save(fs, stored);
+                                PlaceFromModel(stored);
                             }
                         });
-                    Refresh();
-                    ModelStatus("done", Summary(r));
+                        // this file is done with for the session: an undo of the update holds
+                        sameModelStamp = stamp;
+                        wake.Set();
+                        ModelStatus("done", report.Text(Path.GetFileName(file)));
+                        Send(ModelImport.ModelAnalysis.Payload(segments, groups, units));
+                    }
+                    else if (missing)
+                    {
+                        ModelStatus("importing", "Preparing " + Path.GetFileName(file) + "...");
+                        var r = ModelImport.ModelImporter.Import(file, stored.Model, flowsheetPath);
+                        Refresh();
+                        ModelStatus("done", Summary(r));
+                    }
                 }
                 catch (Exception ex)
                 {
                     ModelStatus("failed", "DWSIM could not read the plant model " + Path.GetFileName(file) + ": " + (ex.InnerException?.Message ?? ex.Message));
                 }
                 finally { Interlocked.Exchange(ref importing, 0); }
-            });
+            };
+            if (ModelEditsInline) work();
+            else Task.Run(work);
         }
 
         #endregion

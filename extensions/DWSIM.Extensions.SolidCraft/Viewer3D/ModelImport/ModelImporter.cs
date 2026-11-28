@@ -239,12 +239,9 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
             }
             if (model == null) model = Read(path);
             if (!normalized) ModelGeometry.Normalize(model, reference.Place);
-            var islands = ModelGeometry.Islands(model, reference.WeldTolerance);
             int surfaces;
-            islands = ModelSurface.Split(model, islands, Math.Max(reference.WeldTolerance, 1e-4), out surfaces);
+            var islands = IslandsOf(model, reference, true, out surfaces);
             if (surfaces > 0) result.Warnings.Add("A continuous surface (a scan or a fused mesh) was split into regions at its creases; cut what stays together with a plane in the review.");
-            if (reference.Cuts != null)
-                foreach (var cut in reference.Cuts) ModelSurface.Cut(model, islands, cut);
             var shapes = IslandShapes.Classify(model, islands);
             for (var i = 0; i < islands.Count; i++) islands[i].Shape = shapes[i];
             ModelSurface.FindTubes(model, islands);
@@ -261,6 +258,35 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
             result.PartRoles = model.Parts.Select(x => x.Role).ToList();
             result.Warnings.AddRange(model.Warnings);
             return result;
+        }
+
+        /// <summary>
+        /// The islands of a model in the plant frame: those of its parts, the continuous surfaces
+        /// split, and the reference's cuts made when asked. Their shapes are not classified yet.
+        /// </summary>
+        internal static List<Island> IslandsOf(ImportedModel model, ModelReference reference, bool cuts, out int surfaces)
+        {
+            var islands = ModelGeometry.Islands(model, reference.WeldTolerance);
+            islands = ModelSurface.Split(model, islands, Math.Max(reference.WeldTolerance, 1e-4), out surfaces);
+            if (cuts && reference.Cuts != null)
+                foreach (var cut in reference.Cuts) ModelSurface.Cut(model, islands, cut);
+            return islands;
+        }
+
+        /// <summary>A model file read and put in the plant as a reference places it.</summary>
+        internal static ImportedModel ReadPlaced(string path, ModelReference reference)
+        {
+            var model = Read(path);
+            ModelGeometry.Normalize(model, reference.Place);
+            return model;
+        }
+
+        /// <summary>Whether the file at the path differs from the one the reference was made from, by its size and its time (cheap; the hash says for sure).</summary>
+        public static bool LooksChanged(ModelReference r, string path)
+        {
+            if (r == null || path == null || !File.Exists(path)) return false;
+            var info = new FileInfo(path);
+            return info.Length != r.Size || Math.Abs((info.LastWriteTimeUtc - r.Modified.ToUniversalTime()).TotalSeconds) > 2;
         }
 
         /// <summary>The view file of a reference's cache, which the window draws; it may not exist yet.</summary>
