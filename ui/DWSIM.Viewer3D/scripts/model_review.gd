@@ -54,9 +54,28 @@ var _hint: Label
 var _links: ItemList
 var _press := Vector2.ZERO
 var _updating := false
+## The cut by a plane: across which axis (0 horizontal, 1 across X, 2 across Y), where in the
+## selection (0 to 1), and the plane drawn there.
+var cut_axis := 0
+var cut_at := 0.5
+var _cut_plane: MeshInstance3D
+var _cut_axis_button: OptionButton
+var _cut_slider: HSlider
 
 
 func _ready() -> void:
+	_cut_plane = MeshInstance3D.new()
+	_cut_plane.name = "cut_plane"
+	var pm := StandardMaterial3D.new()
+	pm.albedo_color = Color(0.95, 0.35, 0.2, 0.35)
+	pm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	pm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	pm.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var quad := QuadMesh.new()
+	quad.material = pm
+	_cut_plane.mesh = quad
+	_cut_plane.visible = false
+	add_child(_cut_plane)
 	for k in COLORS.keys():
 		var m := StandardMaterial3D.new()
 		m.albedo_color = COLORS[k]
@@ -102,7 +121,15 @@ func leave() -> void:
 	main.plant_model.visible = main.plant_model.show_model
 	if _root != null:
 		_root.visible = false
+	_cut_plane.visible = false
 	main.refit_ground()
+
+
+## The file of islands changed (a cut made new islands): the open review loads it.
+func reload(path: String) -> void:
+	if path != "" and path != _glb:
+		_faces.clear()
+		_load(path)
 
 
 func has_view() -> bool:
@@ -157,6 +184,7 @@ func _done(path: String, node: Node) -> void:
 			nodes[int(n.substr(7))] = mi
 		_root.visible = active
 	_recolor()
+	_place_cut()
 	if active:
 		main.refit_ground()
 	loaded.emit()
@@ -354,6 +382,7 @@ func select(ids: Array) -> void:
 
 func _after_selection() -> void:
 	_recolor()
+	_place_cut()
 	_updating = true
 	_list.deselect_all()
 	for k in order.size():
@@ -465,6 +494,31 @@ func build_panel(style: StyleBox) -> PanelContainer:
 			_send({"type": "model.split", "group": selected_groups[0], "islands": selected_islands.duplicate()})
 			selected_islands = []))
 	r4.add_child(_button("Close", "Back to the plant.", func(): leave()))
+	var r6 := HBoxContainer.new()
+	v.add_child(r6)
+	_cut_axis_button = OptionButton.new()
+	for a in ["Horizontal", "Across X", "Across Y"]:
+		_cut_axis_button.add_item(a)
+	_cut_axis_button.focus_mode = Control.FOCUS_NONE
+	_cut_axis_button.tooltip_text = "The plane of the cut: level, or upright across the X or the Y axis of the plant."
+	_cut_axis_button.item_selected.connect(func(k):
+		cut_axis = k
+		_place_cut())
+	r6.add_child(_cut_axis_button)
+	_cut_slider = HSlider.new()
+	_cut_slider.min_value = 0.0
+	_cut_slider.max_value = 1.0
+	_cut_slider.step = 0.01
+	_cut_slider.value = cut_at
+	_cut_slider.focus_mode = Control.FOCUS_NONE
+	_cut_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_cut_slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_cut_slider.tooltip_text = "Where the plane goes across the selection."
+	_cut_slider.value_changed.connect(func(x):
+		cut_at = x
+		_place_cut())
+	r6.add_child(_cut_slider)
+	r6.add_child(_button("Cut", "Cuts the selected islands (or the selected groups) by the plane: what lies beyond it becomes new islands, for a scan or a fused mesh that one region kept together.", func(): cut()))
 	var lt := Label.new()
 	lt.text = "Missing connections (a pipe of the model, no stream)"
 	lt.add_theme_font_size_override("font_size", 12)
@@ -480,7 +534,7 @@ func build_panel(style: StyleBox) -> PanelContainer:
 	r5.add_child(_button("Connect ->", "Adds a stream from the first object to the second.", func(): _connect(true)))
 	r5.add_child(_button("Connect <-", "Adds a stream from the second object to the first.", func(): _connect(false)))
 	_hint = Label.new()
-	_hint.text = "Click: a group. Ctrl+click: more groups. Alt+click: single islands. Double click: frame."
+	_hint.text = "Click: a group. Ctrl+click: more groups. Alt+click: single islands. Double click: frame. Cut: the plane splits the selection."
 	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_hint.custom_minimum_size = Vector2(320, 0)
 	_hint.add_theme_font_size_override("font_size", 11)
@@ -608,3 +662,90 @@ func _show_detail() -> void:
 	if not selected_islands.is_empty():
 		t += "\n%d %s picked to split off" % [selected_islands.size(), "island" if selected_islands.size() == 1 else "islands"]
 	_detail.text = t
+
+
+# --- the cut by a plane ------------------------------------------------------------------------
+
+## The islands a cut takes: the picked ones, or else every island of the selected groups.
+func cut_islands() -> Array:
+	if not selected_islands.is_empty():
+		return selected_islands.duplicate()
+	var out := []
+	for gid in selected_groups:
+		for i in groups.get(gid, {}).get("islands", []):
+			if not out.has(int(i)):
+				out.append(int(i))
+	return out
+
+
+## The box of some islands in the window's frame, or an empty box.
+func _box_of(islands: Array) -> AABB:
+	var box := AABB()
+	var first := true
+	for i in islands:
+		if not nodes.has(int(i)):
+			continue
+		var mi: MeshInstance3D = nodes[int(i)]
+		var b: AABB = mi.global_transform * mi.get_aabb()
+		box = b if first else box.merge(b)
+		first = false
+	return box
+
+
+## The plane of the cut through the selection, in the window's frame: [point, normal], or [] when
+## nothing is selected.
+func cut_plane() -> Array:
+	var box := _box_of(cut_islands())
+	if box.size == Vector3.ZERO:
+		return []
+	var p := box.position + box.size * 0.5
+	var nrm := Vector3.UP
+	match cut_axis:
+		0:
+			p.y = box.position.y + box.size.y * cut_at
+		1:
+			p.x = box.position.x + box.size.x * cut_at
+			nrm = Vector3.RIGHT
+		2:
+			# the plant's Y is the window's -Z
+			p.z = box.end.z - box.size.z * cut_at
+			nrm = Vector3.FORWARD
+	return [p, nrm]
+
+
+func _place_cut() -> void:
+	if _cut_plane == null:
+		return
+	var plane := cut_plane() if active else []
+	_cut_plane.visible = not plane.is_empty()
+	if plane.is_empty():
+		return
+	var box := _box_of(cut_islands()).grow(0.3)
+	var quad: QuadMesh = _cut_plane.mesh
+	var p: Vector3 = plane[0]
+	match cut_axis:
+		0:
+			quad.size = Vector2(box.size.x, box.size.z)
+			_cut_plane.transform = Transform3D(Basis(Vector3.RIGHT, -PI / 2), p)
+		1:
+			quad.size = Vector2(box.size.z, box.size.y)
+			_cut_plane.transform = Transform3D(Basis(Vector3.UP, PI / 2), p)
+		2:
+			quad.size = Vector2(box.size.x, box.size.y)
+			_cut_plane.transform = Transform3D(Basis.IDENTITY, p)
+
+
+## Sends the cut: the point and the normal in the plant's frame (metres, Z up), where the
+## window's (x, y, z) is the plant's (x, -z, y).
+func cut() -> void:
+	var islands := cut_islands()
+	var plane := cut_plane()
+	if islands.is_empty() or plane.is_empty():
+		main._show_toast("Select the islands or the group to cut.")
+		return
+	var p: Vector3 = plane[0]
+	var n: Vector3 = plane[1]
+	_send({"type": "model.cut", "islands": islands,
+		"point": [snappedf(p.x, 0.001), snappedf(-p.z, 0.001), snappedf(p.y, 0.001)],
+		"normal": [n.x, -n.z, n.y]})
+	selected_islands = []

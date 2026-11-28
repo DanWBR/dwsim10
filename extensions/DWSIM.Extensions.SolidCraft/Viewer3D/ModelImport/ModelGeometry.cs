@@ -39,6 +39,8 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
         public double Area;
         /// <summary>What the island looks like (see <see cref="IslandShapes"/>), once it is classified.</summary>
         public IslandShape Shape;
+        /// <summary>True for a region of a continuous surface (see <see cref="ModelSurface"/>), while the model is imported.</summary>
+        internal bool Region;
 
         public double[] Size => new[] { Max[0] - Min[0], Max[1] - Min[1], Max[2] - Min[2] };
     }
@@ -57,6 +59,26 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
 
     public static class ModelGeometry
     {
+        /// <summary>
+        /// Hashes the keys of two vertex numbers (a &lt;&lt; 32 | b) well: the default hash of a long
+        /// is a ^ b, which is small and the same for many edges of a mesh whose neighbours have
+        /// close numbers.
+        /// </summary>
+        internal sealed class PairKeys : IEqualityComparer<long>
+        {
+            public static readonly PairKeys Instance = new PairKeys();
+            public bool Equals(long x, long y) => x == y;
+            public int GetHashCode(long x)
+            {
+                unchecked
+                {
+                    var z = (ulong)x * 0x9E3779B97F4A7C15UL;
+                    z ^= z >> 29;
+                    return (int)z ^ (int)(z >> 32);
+                }
+            }
+        }
+
         /// <summary>
         /// The unit of a file that does not say it, from the size of the model: the candidate (m, cm,
         /// mm) that makes its largest dimension nearest a typical size in the log scale, 60 m for a
@@ -183,7 +205,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
             }
 
             // the triangles on each welded edge
-            var edges = new Dictionary<long, List<int>>();
+            var edges = new Dictionary<long, List<int>>(PairKeys.Instance);
             for (var t = 0; t < tris; t++)
             {
                 if (!keep[t]) continue;
@@ -329,7 +351,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
             return Cross(Sub(b, a), Sub(c, a));
         }
 
-        static void Measure(MeshPart part, Island island)
+        internal static void Measure(MeshPart part, Island island)
         {
             var min = new[] { double.MaxValue, double.MaxValue, double.MaxValue };
             var max = new[] { double.MinValue, double.MinValue, double.MinValue };
@@ -381,7 +403,14 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
             public Cell(long x, long y, long z) { X = x; Y = y; Z = z; }
             public bool Equals(Cell o) => X == o.X && Y == o.Y && Z == o.Z;
             public override bool Equals(object obj) => obj is Cell && Equals((Cell)obj);
-            public override int GetHashCode() => unchecked((int)(X * 73856093L ^ Y * 19349663L ^ Z * 83492791L));
+            public override int GetHashCode()
+            {
+                unchecked
+                {
+                    var z = (ulong)(X * 73856093L ^ Y * 19349663L ^ Z * 83492791L) * 0x9E3779B97F4A7C15UL;
+                    return (int)z ^ (int)(z >> 32);
+                }
+            }
         }
 
         /// <summary>

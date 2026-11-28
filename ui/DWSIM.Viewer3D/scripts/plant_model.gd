@@ -38,6 +38,10 @@ func has_model() -> bool:
 ## The model the scene names (or null): loads it when it is another file, takes it away when there is none.
 func set_info(i) -> void:
 	info = i if i is Dictionary else {}
+	# a cut of the model makes another file of islands: the open review takes it
+	if main != null and main.model_review != null and main.model_review.active:
+		var isl = info.get("islands")
+		main.model_review.reload(str(isl) if isl != null else "")
 	var g = info.get("glb")
 	var want: String = str(g) if g != null else ""
 	_wanted = want

@@ -584,6 +584,88 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
         }
 
         /// <summary>
+        /// Cuts islands of the plant model by a plane: the cut goes with the model's reference (one
+        /// step of the window's undo), the model is read again with it, off the interface thread,
+        /// and the groups are found again keeping the user's.
+        /// </summary>
+        JObject StartCut(JObject m)
+        {
+            var type = SceneProtocol.ModelCut;
+            var cut = new ModelImport.SurfaceCut
+            {
+                Islands = (m["islands"] as JArray ?? new JArray()).Select(t => (int)t).Distinct().ToList(),
+                Point = (m["point"] as JArray)?.Select(t => (double)t).ToArray(),
+                Normal = (m["normal"] as JArray)?.Select(t => (double)t).ToArray()
+            };
+            if (cut.Islands.Count == 0) return Error("pick the islands to cut", type);
+            if (cut.Point == null || cut.Point.Length != 3 || cut.Normal == null || cut.Normal.Length != 3 || cut.Normal.All(x => x == 0))
+                return Error("the cut needs a point and a normal of the plane", type);
+            if (Interlocked.CompareExchange(ref importing, 1, 0) != 0) return Error("the plant model is busy", type);
+            ModelImport.PlantModelImport stored = null;
+            string flowsheetPath = null;
+            try
+            {
+                OnUi(() =>
+                {
+                    stored = ModelImport.ModelStore.Load(fs);
+                    flowsheetPath = fs.FilePath;
+                });
+            }
+            catch (Exception) { }
+            var index = stored == null ? null : ModelImport.ModelImporter.Cached(stored.Model);
+            var file = stored == null ? null : ModelImport.ModelImporter.Locate(stored.Model, flowsheetPath);
+            string problem = null;
+            if (stored == null) problem = "the flowsheet does not have a plant model";
+            else if (index == null) problem = "the plant model is not ready yet";
+            else if (file == null) problem = "the model file is not found, so it cannot be cut";
+            else if (cut.Islands.Any(i => i < 0 || i >= index.Islands.Count)) problem = "the model does not have those islands";
+            if (problem != null)
+            {
+                Interlocked.Exchange(ref importing, 0);
+                return Error(problem, type);
+            }
+            Action work = () =>
+            {
+                try
+                {
+                    ModelStatus("importing", "Cutting the plant model...");
+                    var reference = Newtonsoft.Json.JsonConvert.DeserializeObject<ModelImport.ModelReference>(Newtonsoft.Json.JsonConvert.SerializeObject(stored.Model));
+                    reference.Cuts = (reference.Cuts ?? new List<ModelImport.SurfaceCut>()).Concat(new[] { cut }).ToList();
+                    var r = ModelImport.ModelImporter.Import(file, reference, flowsheetPath);
+                    if (r.Reference.Sha256 != stored.Model.Sha256) throw new InvalidOperationException("the model file changed; import it again");
+                    var made = r.Islands.Count - index.Islands.Count;
+                    if (made <= 0) throw new InvalidOperationException("the plane does not cross those islands");
+                    stored.Model = r.Reference;
+                    var units = FlowsheetUnits();
+                    List<ModelImport.SegmentGroup> segments;
+                    var groups = ModelImport.ModelAnalysis.Analyze(stored, ModelImport.ModelImporter.Cached(r.Reference) ?? r, units, out segments);
+                    OnUi(() =>
+                    {
+                        lock (gate)
+                        {
+                            Remember();
+                            stored.Groups = groups;
+                            ModelImport.ModelStore.Save(fs, stored);
+                            PlaceFromModel(stored);
+                        }
+                    });
+                    wake.Set();
+                    ModelStatus("done", "The plane cut " + made + (made == 1 ? " new island" : " new islands") + " off the model.");
+                    Send(ModelImport.ModelAnalysis.Payload(segments, groups, units));
+                }
+                catch (Exception ex)
+                {
+                    ModelStatus("failed", "DWSIM could not cut the plant model: " + (ex.InnerException?.Message ?? ex.Message));
+                    Send(Error("the plant model could not be cut: " + (ex.InnerException?.Message ?? ex.Message), type));
+                }
+                finally { Interlocked.Exchange(ref importing, 0); }
+            };
+            if (ModelEditsInline) work();
+            else Task.Run(work);
+            return null;
+        }
+
+        /// <summary>
         /// Puts the objects the plant model's groups stand for where their groups are (the 3D layout):
         /// the middle of the group's plan and its bottom. Their turn stays.
         /// </summary>
@@ -701,10 +783,11 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
                 Captured(message);
                 return null;
             }
-            if (type == SceneProtocol.ModelImport || type == SceneProtocol.ModelSuggest || ModelEdits.Contains(type))
+            if (type == SceneProtocol.ModelImport || type == SceneProtocol.ModelSuggest || type == SceneProtocol.ModelCut || ModelEdits.Contains(type))
             {
                 // reading a plant model takes seconds: it runs apart, and the window hears of it
-                answer = (type == SceneProtocol.ModelImport ? StartImport(message) : type == SceneProtocol.ModelSuggest ? StartSuggest() : StartModelEdit(type, message))
+                answer = (type == SceneProtocol.ModelImport ? StartImport(message) : type == SceneProtocol.ModelSuggest ? StartSuggest()
+                    : type == SceneProtocol.ModelCut ? StartCut(message) : StartModelEdit(type, message))
                     ?? SceneProtocol.Message(SceneProtocol.Ack);
                 if (message["ref"] != null) answer["ref"] = message["ref"].DeepClone();
                 if (answer["for"] == null) answer["for"] = type;

@@ -137,6 +137,13 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D
         /// <summary>{group, islands}: those islands of the group become a group of their own.</summary>
         public const string ModelSplit = "model.split";
 
+        /// <summary>
+        /// {islands, point, normal} (metres, Z up): the faces of those islands in front of the plane
+        /// become new islands. DWSIM keeps the cut with the model, reads the model again with it
+        /// and sends the scene and the groups again.
+        /// </summary>
+        public const string ModelCut = "model.cut";
+
         /// <summary>{group, objectType}: DWSIM adds a flowsheet object for the group (by default of the group's kind), where the group stands, and the group stands for it.</summary>
         public const string ModelCreate = "model.create";
 

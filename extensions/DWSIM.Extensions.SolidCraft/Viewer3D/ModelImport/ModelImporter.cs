@@ -59,7 +59,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
     public static class ModelImporter
     {
         /// <summary>The version of what the cache holds; a cache of another version is made again.</summary>
-        public const int CacheVersion = 4;
+        public const int CacheVersion = 5;
 
         public static readonly string[] Extensions = { ".glb", ".gltf", ".obj", ".stl", ".ply", ".fbx", ".dwf", ".dwfx", ".ifc", ".step", ".stp", ".igs", ".iges", ".3dm", ".fcstd" };
 
@@ -240,8 +240,14 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
             if (model == null) model = Read(path);
             if (!normalized) ModelGeometry.Normalize(model, reference.Place);
             var islands = ModelGeometry.Islands(model, reference.WeldTolerance);
+            int surfaces;
+            islands = ModelSurface.Split(model, islands, Math.Max(reference.WeldTolerance, 1e-4), out surfaces);
+            if (surfaces > 0) result.Warnings.Add("A continuous surface (a scan or a fused mesh) was split into regions at its creases; cut what stays together with a plane in the review.");
+            if (reference.Cuts != null)
+                foreach (var cut in reference.Cuts) ModelSurface.Cut(model, islands, cut);
             var shapes = IslandShapes.Classify(model, islands);
             for (var i = 0; i < islands.Count; i++) islands[i].Shape = shapes[i];
+            ModelSurface.FindTubes(model, islands);
             Directory.CreateDirectory(result.CacheFolder);
             GlbWriter.WriteIslands(model, islands, result.GlbPath);
             GlbWriter.WriteTiles(model, result.ViewPath);
@@ -269,6 +275,7 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
             var p = r.Place ?? new Placement3D();
             var key = string.Format(CultureInfo.InvariantCulture, "{0}|{1:R}|{2}|{3:R}|{4:R},{5:R},{6:R}|{7:R}|{8}",
                 r.Sha256, p.Scale, p.Up, p.Rotation, p.Offset[0], p.Offset[1], p.Offset[2], r.WeldTolerance, CacheVersion);
+            if (r.Cuts != null && r.Cuts.Count > 0) key += "|" + JsonConvert.SerializeObject(r.Cuts);
             string h;
             using (var sha = SHA256.Create())
                 h = string.Concat(sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(key)).Take(8).Select(b => b.ToString("x2")));
@@ -477,6 +484,8 @@ namespace DWSIM.Extensions.SolidCraft.Viewer3D.ModelImport
         [JsonProperty("place")] public Placement3D Place = new Placement3D();
         /// <summary>The distance below which two vertices are one, metres.</summary>
         [JsonProperty("tol")] public double WeldTolerance = 1e-4;
+        /// <summary>The cuts by a plane the user made in the review, in their order, or null.</summary>
+        [JsonProperty("cuts", NullValueHandling = NullValueHandling.Ignore)] public List<SurfaceCut> Cuts;
     }
 
     /// <summary>A group of islands that stands for one thing: an equipment, a pipe, a structure or scenery.</summary>
